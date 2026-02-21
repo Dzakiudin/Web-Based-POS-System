@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../utils/database';
 import logger from '../utils/logger';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 export const register = async (req: Request, res: Response) => {
     try {
@@ -39,6 +40,9 @@ export const login = async (req: Request, res: Response) => {
         if (!user) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
+        if (!user.isActive) {
+            return res.status(403).json({ message: 'Account is deactivated. Contact admin.' });
+        }
 
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
@@ -51,9 +55,50 @@ export const login = async (req: Request, res: Response) => {
             { expiresIn: '1d' }
         );
 
-        res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
+        // Log audit
+        await prisma.auditLog.create({
+            data: {
+                userId: user.id,
+                action: 'LOGIN',
+                entity: 'User',
+                entityId: user.id,
+                ip: req.ip || req.socket.remoteAddress || null,
+            },
+        }).catch(() => { }); // Non-blocking
+
+        res.json({
+            token,
+            user: {
+                id: user.id,
+                name: user.name,
+                role: user.role,
+                username: user.username,
+            }
+        });
     } catch (error) {
         logger.error('Login error', error);
         res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+export const getProfile = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.user!.id },
+            select: {
+                id: true,
+                name: true,
+                username: true,
+                email: true,
+                phone: true,
+                role: true,
+                isActive: true,
+                createdAt: true,
+            },
+        });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching profile' });
     }
 };
