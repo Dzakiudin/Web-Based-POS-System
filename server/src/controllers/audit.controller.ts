@@ -25,7 +25,16 @@ export const getAuditLogs = async (req: AuthRequest, res: Response) => {
             prisma.auditLog.count({ where }),
         ]);
 
-        res.json({ logs, total, limit: Number(limit), offset: Number(offset) });
+        const formattedLogs = logs.map(log => ({
+            ...log,
+            user: log.user ? {
+                id: log.user.id,
+                name: log.user.name,
+                role: (log.user.role as any)?.name || 'KASIR',
+            } : null
+        }));
+
+        res.json({ logs: formattedLogs, total, limit: Number(limit), offset: Number(offset) });
     } catch (error) {
         logger.error('Error fetching audit logs', error);
         res.status(500).json({ message: 'Error fetching audit logs' });

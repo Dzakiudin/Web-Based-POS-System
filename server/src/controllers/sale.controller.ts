@@ -218,6 +218,17 @@ export const voidSale = async (req: AuthRequest, res: Response) => {
                 data: { status: 'VOIDED', refundReason: reason },
             });
 
+            await tx.auditLog.create({
+                data: {
+                    userId: req.user?.id,
+                    action: 'VOID_SALE',
+                    entity: 'Sale',
+                    entityId: Number(id),
+                    details: JSON.stringify({ reason }),
+                    ip: req.ip || req.socket.remoteAddress || null,
+                }
+            });
+
             // Restore stock
             for (const detail of sale.details) {
                 await tx.product.update({
@@ -278,6 +289,17 @@ export const refundSale = async (req: AuthRequest, res: Response) => {
             await tx.sale.update({
                 where: { id: Number(id) },
                 data: { status: 'REFUNDED', refundReason: reason },
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: req.user?.id,
+                    action: 'REFUND_SALE',
+                    entity: 'Sale',
+                    entityId: Number(id),
+                    details: JSON.stringify({ reason }),
+                    ip: req.ip || req.socket.remoteAddress || null,
+                }
             });
 
             for (const detail of sale.details) {

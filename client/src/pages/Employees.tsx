@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/axios';
+import HasPermission from '../components/HasPermission';
 
 interface Employee {
     id: number; name: string; username: string; email: string | null;
@@ -56,10 +57,12 @@ const Employees = () => {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <p className="text-text-subtle text-sm">{employees.length} karyawan</p>
-                <button onClick={() => { resetForm(); setShowModal(true); }}
-                    className="px-4 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-all flex items-center gap-2 shadow-lg shadow-primary/20">
-                    <span className="material-symbols-outlined text-[18px]">person_add</span> Tambah Karyawan
-                </button>
+                <HasPermission permission="user.create_cashier">
+                    <button onClick={() => { resetForm(); setShowModal(true); }}
+                        className="px-4 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-all flex items-center gap-2 shadow-lg shadow-primary/20">
+                        <span className="material-symbols-outlined text-[18px]">person_add</span> Tambah Karyawan
+                    </button>
+                </HasPermission>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -70,15 +73,21 @@ const Employees = () => {
                             <div className="flex items-start justify-between mb-3">
                                 <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-sm font-bold">{emp.name.charAt(0).toUpperCase()}</div>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => setShowResetPass(emp.id)} className="p-1.5 rounded-lg bg-background-dark text-text-subtle hover:text-amber-400 border border-border-dark" title="Reset Password">
-                                        <span className="material-symbols-outlined text-[14px]">key</span>
-                                    </button>
-                                    <button onClick={() => handleEdit(emp)} className="p-1.5 rounded-lg bg-background-dark text-text-subtle hover:text-primary border border-border-dark">
-                                        <span className="material-symbols-outlined text-[14px]">edit</span>
-                                    </button>
-                                    <button onClick={() => handleDelete(emp.id)} className="p-1.5 rounded-lg bg-background-dark text-text-subtle hover:text-red-400 border border-border-dark">
-                                        <span className="material-symbols-outlined text-[14px]">delete</span>
-                                    </button>
+                                    <HasPermission permission="user.reset_pin">
+                                        <button onClick={() => setShowResetPass(emp.id)} className="p-1.5 rounded-lg bg-background-dark text-text-subtle hover:text-amber-400 border border-border-dark" title="Reset Password">
+                                            <span className="material-symbols-outlined text-[14px]">key</span>
+                                        </button>
+                                    </HasPermission>
+                                    <HasPermission permission="user.manage">
+                                        <button onClick={() => handleEdit(emp)} className="p-1.5 rounded-lg bg-background-dark text-text-subtle hover:text-primary border border-border-dark">
+                                            <span className="material-symbols-outlined text-[14px]">edit</span>
+                                        </button>
+                                    </HasPermission>
+                                    <HasPermission permission="role.manage">
+                                        <button onClick={() => handleDelete(emp.id)} className="p-1.5 rounded-lg bg-background-dark text-text-subtle hover:text-red-400 border border-border-dark">
+                                            <span className="material-symbols-outlined text-[14px]">delete</span>
+                                        </button>
+                                    </HasPermission>
                                 </div>
                             </div>
                             <h3 className="text-white font-bold text-sm">{emp.name}</h3>

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authenticateToken = void 0;
+exports.requirePermission = exports.authenticateToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -21,3 +21,27 @@ const authenticateToken = (req, res, next) => {
     }
 };
 exports.authenticateToken = authenticateToken;
+/**
+ * Role-Based Access Control middleware using strict permissions.
+ * Usage: router.post('/', authenticateToken, requirePermission('product.create'), handler)
+ */
+const requirePermission = (...requiredPermissions) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ message: 'User not authenticated.' });
+        }
+        // OWNER bypasses all permission checks
+        if (req.user.role === 'OWNER') {
+            return next();
+        }
+        if (!req.user.permissions) {
+            return res.status(403).json({ message: `Insufficient permissions.` });
+        }
+        const hasPermission = requiredPermissions.some(perm => req.user.permissions.includes(perm));
+        if (!hasPermission) {
+            return res.status(403).json({ message: `Insufficient permissions. Requires one of: ${requiredPermissions.join(', ')}` });
+        }
+        next();
+    };
+};
+exports.requirePermission = requirePermission;

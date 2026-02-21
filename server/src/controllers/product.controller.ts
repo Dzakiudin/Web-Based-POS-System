@@ -95,11 +95,27 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
         if (isActive !== undefined) data.isActive = isActive;
         if (image) data.image = image;
 
+        const existing = await prisma.product.findUnique({ where: { id: Number(id) } });
+
         const product = await prisma.product.update({
             where: { id: Number(id) },
             data,
             include: { category: true },
         });
+
+        if (existing && price !== undefined && Number(price) !== Number(existing.price)) {
+            await prisma.auditLog.create({
+                data: {
+                    userId: req.user?.id,
+                    action: 'UPDATE_PRICE',
+                    entity: 'Product',
+                    entityId: product.id,
+                    details: JSON.stringify({ oldPrice: existing.price, newPrice: price }),
+                    ip: req.ip || req.socket.remoteAddress || null,
+                }
+            }).catch(() => { });
+        }
+
         res.json(product);
     } catch (error) {
         logger.error('Error updating product', error);

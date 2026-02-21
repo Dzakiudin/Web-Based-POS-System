@@ -1,109 +1,110 @@
 # 🌌 Midnight Glass POS Pro
-> **Commercial-Grade Point of Sale & Analytics System**
+> **Sistem Point of Sale & Analitik Komersial Premium**
 
 ![Platform](https://img.shields.io/badge/Platform-Web-indigo)
 ![Architecture](https://img.shields.io/badge/Architecture-MERN-blue?logo=react)
-![UI](https://img.shields.io/badge/Design-Midnight_Glass-purple)
+![UI](https://img.shields.io/badge/Design-Stitch_UI-green)
 ![Database](https://img.shields.io/badge/Database-PostgreSQL-336791?logo=postgresql)
 
-Midnight Glass POS is a premium, high-performance Point of Sale system designed for modern retail environments. Built with a stunning **glassmorphic aesthetic**, it provides a seamless bridge between powerful business management and luxurious user experience.
+Midnight Glass POS adalah sistem Point of Sale premium berkinerja tinggi yang dirancang untuk lingkungan ritel modern. Dibangun dengan estetika yang bersih dan terlihat profesional, sistem ini menyediakan jembatan mulus antara manajemen bisnis yang kuat dan pengalaman pengguna yang mewah dan responsif.
 
 ---
 
-## ✨ Key Feature Ecosystem
+## ✨ Ekosistem Fitur Utama
 
-### 🛒 Core POS & Transactions
-- **Express Checkout:** Optimized flow for high-speed transactions.
-- **Dynamic Cart:** Real-time calculation with support for multiple payment methods (Cash, QRIS, Transfer).
-- **Receipt Generation:** Professional branding with digital and printable formats.
+### 🛒 POS Inti & Transaksi
+- **Kasir Cepat:** Alur checkout yang dipoles (*polished*) untuk transaksi berkecepatan tinggi.
+- **Keranjang Dinamis:** Kalkulasi seketika (*real-time*) dengan dukungan multi-metode pembayaran (Tunai, QRIS, Kartu, E-Wallet).
+- **Pembuatan Struk:** Pencetakan struk digital (*Void/Refund* didukung penuh).
 
-### 📦 Inventory & Categories
-- **Smart Tracking:** Automated stock deduction with low-stock alerts.
-- **Categorization:** Color-coded categories for rapid visual product search.
-- **Variant Management:** Support for different sizes, colors, or types per product.
+### 📦 Inventaris & Kategori
+- **Pelacakan Pintar:** Pengurangan stok otomatis dengan peringatan untuk stok rendah (*Low Stock Alerts*).
+- **Categorization:** Manajemen kategori dengan indikator warna (*color-coded*).
+- **Manajemen Mutasi:** Pencatatan stok masuk, stok keluar, dan opname stok manual secara terperinci.
 
-### 💎 CRM & Loyalty System
-- **Customer Tiers:** Automated tiering (Bronze, Silver, Gold, Platinum) based on spending.
-- **Loyalty Points:** Gamified rewards system to increase customer retention.
-- **Voucher Engine:** Custom promo codes and discount management.
+### 💎 CRM & Sistem Loyalitas
+- **Tingkatan Pelanggan:** Sistem tingkatan/tier pelanggan otomatis (Bronze, Silver, Gold, Platinum).
+- **Voucher & Diskon:** Manajemen kode promo (*Voucher*) dan spesifikasi aturan diskon.
 
-### 📊 Business Intelligence
-- **Real-time Dashboard:** Live revenue tracking and transaction counters.
-- **Peak Hour Analytics:** Identify your busiest hours to optimize staffing.
-- **Top Products:** Data-driven insights into your best-selling inventory.
+### 📊 Intelijen Bisnis (BI)
+- **Dashboard Real-time:** Pelacakan pendapatan langsung dan penghitung transaksi berjalan.
+- **Laporan Komprehensif:** Tampilan bagan analitik pendapatan historis menggunakan antarmuka interaktif yang dipoles.
 
-### 🛡️ Security & Enterprise Controls
-- **RBAC:** Role-Based Access Control (Owner, Admin, Cashier).
-- **Audit Logs:** Full traceability of every critical action performed in the system.
-- **Cash Management:** Structured cashier sessions with opening/closing balance verification.
+### 🛡️ Keamanan & Kontrol Akses (RBAC)
+- **Role-Based Access Control:** Perizinan modul spesifik per peran.
+  - **Kasir:** Melakukan transaksi dan membuka/menutup sesi kas.
+  - **Admin:** Mengelola data produk, stok operasional, dan membuat akun staf kasir.
+  - **Owner:** Akses penuh seluruh sistem termasuk manajemen log keamanan dan konfigurasi.
+- **Audit Logs:** Pelacakan penuh (*Traceability*) untuk setiap tindakan berisiko di dalam sistem (Login, Refund, Hapus Item, dsb).
+- **Cash Management:** Sesi pengaturan kas terstruktur (Verifikasi saldo pembuka dan penutup).
 
 ---
 
-## 🛠️ Technology Stack
+## 🛠️ Tumpukan Teknologi (*Tech Stack*)
 
-| Layer | Technology |
+| Lapisan | Teknologi |
 | :--- | :--- |
-| **Frontend** | React 18, Vite, Tailwind CSS, Lucide React, Axios |
+| **Frontend** | React 18, Vite, Tailwind CSS (Stitch UI), Lucide React, Axios, Recharts |
 | **Backend** | Node.js, Express, TypeScript |
 | **Database** | PostgreSQL |
 | **ORM** | Prisma |
-| **Auth** | JWT (JSON Web Tokens) with Secure Middleware |
-| **Logging** | Winston & Custom Audit Logging |
+| **Autentikasi** | JWT (JSON Web Tokens) dengan Middleware perizinan berlapis |
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Memulai Proyek
 
-### Prerequisites
-- Node.js (v18 or higher)
+### Prasyarat
+- Node.js (v18 atau lebih baru)
 - PostgreSQL Instance
-- npm or yarn
+- npm atau yarn
 
-### 1. Database Setup
+### 1. Pengaturan Database
 ```bash
-# In the /server directory
+# Di dalam direktori /server
 npm install
 cp .env.example .env
-# Edit .env and set your DATABASE_URL
+# Edit file .env dan atur string koneksi DATABASE_URL Anda
 npx prisma migrate dev --name init
-npx prisma generate
+npx prisma db seed # Penting: Untuk memasukkan Role dan Permission wajib
 ```
 
-### 2. Backend Initialization
+### 2. Inisialisasi Backend
 ```bash
 cd server
 npm run dev
-# Server runs on http://localhost:5000
+# Server akan berjalan pada port http://localhost:5000
 ```
 
-### 3. Frontend Initialization
+### 3. Inisialisasi Frontend
 ```bash
 cd client
 npm install
 npm run dev
-# Dashboard available on http://localhost:5173
+# Dashboard & Aplikasi klien tersedia di http://localhost:5173
 ```
 
 ---
 
-## 🔒 Environment Variables
-Ensure the following are configured in `server/.env`:
-- `DATABASE_URL`: Your PostgreSQL connection string.
-- `JWT_SECRET`: A secure string for token signing.
-- `PORT`: Server port (defaults to 5000).
+## 🔒 Variabel Lingkungan (*Environment Variables*)
+Pastikan hal berikut telah dikonfigurasi pada `server/.env`:
+- `DATABASE_URL`: String koneksi PostgreSQL Anda.
+- `JWT_SECRET`: String aman dan rahasia khusus untuk penandatanganan token.
+- `PORT`: Port server (secara default `5000`).
 
 ---
 
-## 🎨 Design Philosophy
-The system utilizes the **"Midnight Glass"** design system:
-- **Glassmorphism:** Transparency and background blurs for depth.
-- **Vibrant Accents:** High-contrast indigo and violet hues.
-- **Kinetic Motion:** Subtle micro-animations using Tailwind transitions.
+## 🎨 Filosofi Desain
+Aplikasi ini secara eksklusif memanfaatkan pedoman rancangan **"Stitch Design System"**:
+- **Kesederhanaan Profesional:** Tema gelap keabuan (*Card Dark* / *Background Dark*) dengan pembatasan yang bersih tanpa *glassmorphism* berlebihan.
+- **Aksen Presisi:** Penggunaan indikator sekunder bernuansa *Green Primary* secara optimal.
+- **Tipografi:** Keluarga font `Manrope` yang dirancang untuk keterbacaan tingkat lanjut di layar lebat data.
+- **Ikonografi:** Integrasi bersih dengan *Google Material Symbols Outlined*.
 
 ---
 
-## 📄 License
-Distributed under the MIT License. See `LICENSE` for more information.
+## 📄 Lisensi
+Didistribusikan di bawah Lisensi MIT. Lihat file `LICENSE` untuk informasi selengkapnya.
 
 ---
-*Created with ❤️ for professional retail excellence.*
+*Diciptakan dengan kehati-hatian untuk standar keunggulan ritel.*

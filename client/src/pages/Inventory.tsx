@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/axios';
+import HasPermission from '../components/HasPermission';
 
 interface Product { id: number; name: string; sku: string | null; stock: number; minStock: number; price: string; category: { name: string; color: string } | null; }
 interface StockMovement { id: number; type: string; quantity: number; reason: string | null; reference: string | null; createdAt: string; product: { name: string; sku: string | null }; user: { name: string } | null; }
@@ -55,10 +56,12 @@ const Inventory = () => {
                         <span className="material-symbols-outlined text-[18px]">sync</span> Riwayat Pergerakan
                     </button>
                 </div>
-                <button onClick={() => setShowAdjust(true)}
-                    className="px-4 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-all flex items-center gap-2 shadow-lg shadow-primary/20">
-                    <span className="material-symbols-outlined text-[18px]">add</span> Stok Masuk / Keluar
-                </button>
+                <HasPermission permission={['stock.in_out', 'stock.opname']}>
+                    <button onClick={() => setShowAdjust(true)}
+                        className="px-4 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-all flex items-center gap-2 shadow-lg shadow-primary/20">
+                        <span className="material-symbols-outlined text-[18px]">add</span> Stok Masuk / Keluar
+                    </button>
+                </HasPermission>
             </div>
 
             {/* Low Stock Tab */}

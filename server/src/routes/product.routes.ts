@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getProducts, getProduct, createProduct, updateProduct, deleteProduct, getVariants, createVariant, updateVariant, deleteVariant } from '../controllers/product.controller';
-import { authenticateToken, authorizeRole } from '../middleware/auth.middleware';
+import { authenticateToken, requirePermission } from '../middleware/auth.middleware';
 import multer from 'multer';
 import path from 'path';
 
@@ -13,16 +13,16 @@ const upload = multer({ storage });
 const router = Router();
 
 // Products
-router.get('/', authenticateToken, getProducts);
-router.get('/:id', authenticateToken, getProduct);
-router.post('/', authenticateToken, authorizeRole('ADMIN', 'OWNER'), upload.single('image'), createProduct);
-router.put('/:id', authenticateToken, authorizeRole('ADMIN', 'OWNER'), upload.single('image'), updateProduct);
-router.delete('/:id', authenticateToken, authorizeRole('ADMIN', 'OWNER'), deleteProduct);
+router.get('/', authenticateToken, requirePermission('product.view', 'product.crud'), getProducts);
+router.get('/:id', authenticateToken, requirePermission('product.view', 'product.crud'), getProduct);
+router.post('/', authenticateToken, requirePermission('product.crud'), upload.single('image'), createProduct);
+router.put('/:id', authenticateToken, requirePermission('product.crud'), upload.single('image'), updateProduct);
+router.delete('/:id', authenticateToken, requirePermission('product.crud'), deleteProduct);
 
 // Product Variants
-router.get('/:productId/variants', authenticateToken, getVariants);
-router.post('/:productId/variants', authenticateToken, authorizeRole('ADMIN', 'OWNER'), createVariant);
-router.put('/:productId/variants/:variantId', authenticateToken, authorizeRole('ADMIN', 'OWNER'), updateVariant);
-router.delete('/:productId/variants/:variantId', authenticateToken, authorizeRole('ADMIN', 'OWNER'), deleteVariant);
+router.get('/:productId/variants', authenticateToken, requirePermission('product.view', 'product.crud'), getVariants);
+router.post('/:productId/variants', authenticateToken, requirePermission('product.crud'), createVariant);
+router.put('/:productId/variants/:variantId', authenticateToken, requirePermission('product.crud'), updateVariant);
+router.delete('/:productId/variants/:variantId', authenticateToken, requirePermission('product.crud'), deleteVariant);
 
 export default router;

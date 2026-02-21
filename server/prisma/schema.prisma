@@ -14,7 +14,7 @@ datasource db {
 // ENUMS
 // ============================================================
 
-enum Role {
+enum LegacyRole {
   OWNER
   ADMIN
   CASHIER
@@ -60,6 +60,42 @@ enum MembershipTier {
 }
 
 // ============================================================
+// RBAC (ROLE-BASED ACCESS CONTROL)
+// ============================================================
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?
+  permissions RolePermission[]
+  users       User[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?
+  roles       RolePermission[]
+  createdAt   DateTime         @default(now())
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ============================================================
 // CORE MODELS
 // ============================================================
 
@@ -71,7 +107,9 @@ model User {
   pin       String?
   email     String?
   phone     String?
-  role      Role     @default(CASHIER)
+  legacyRole LegacyRole? @map("role") @default(CASHIER)
+  roleId    Int?
+  role      Role?    @relation(fields: [roleId], references: [id])
   isActive  Boolean  @default(true)
   tokens    Token[]
   sales     Sale[]

@@ -7,4 +7,6 @@ const router = (0, express_1.Router)();
 router.get('/', auth_middleware_1.authenticateToken, sale_controller_1.getSales);
 router.get('/:id', auth_middleware_1.authenticateToken, sale_controller_1.getSale);
 router.post('/', auth_middleware_1.authenticateToken, sale_controller_1.createSale);
+router.post('/:id/void', auth_middleware_1.authenticateToken, (0, auth_middleware_1.requirePermission)('void.transaction'), sale_controller_1.voidSale);
+router.post('/:id/refund', auth_middleware_1.authenticateToken, (0, auth_middleware_1.requirePermission)('refund.process'), sale_controller_1.refundSale);
 exports.default = router;

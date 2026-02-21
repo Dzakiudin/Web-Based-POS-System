@@ -32,8 +32,8 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, onFilterChange }) => 
                             key={f}
                             onClick={() => handleFilterClick(f)}
                             className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${activeFilter === f
-                                    ? 'bg-primary text-background-dark shadow-sm'
-                                    : 'text-text-subtle hover:text-white hover:bg-card-hover'
+                                ? 'bg-primary text-background-dark shadow-sm'
+                                : 'text-text-subtle hover:text-white hover:bg-card-hover'
                                 }`}
                         >
                             {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -43,7 +43,7 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, onFilterChange }) => 
             </div>
 
             <div className="flex-1 min-h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                             <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">

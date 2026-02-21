@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { getAuditLogs } from '../controllers/audit.controller';
-import { authenticateToken, authorizeRole } from '../middleware/auth.middleware';
+import { authenticateToken, requirePermission } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.get('/', authenticateToken, authorizeRole('ADMIN', 'OWNER'), getAuditLogs);
+router.get('/', authenticateToken, requirePermission('activity_log.view'), getAuditLogs);
 
 export default router;

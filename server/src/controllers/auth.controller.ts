@@ -16,12 +16,15 @@ export const register = async (req: Request, res: Response) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        const inputRole = role || 'KASIR';
+        const roleRecord = await prisma.role.findUnique({ where: { name: inputRole } });
+
         const user = await prisma.user.create({
             data: {
                 name,
                 username,
                 password: hashedPassword,
-                role: role || 'CASHIER',
+                roleId: roleRecord?.id || 1,
             },
         });
 
@@ -36,7 +39,16 @@ export const login = async (req: Request, res: Response) => {
     try {
         const { username, password } = req.body;
 
-        const user = await prisma.user.findUnique({ where: { username } });
+        const user = await prisma.user.findUnique({
+            where: { username },
+            include: {
+                role: {
+                    include: {
+                        permissions: { include: { permission: true } }
+                    }
+                }
+            }
+        });
         if (!user) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
@@ -49,8 +61,11 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        const roleName = user.role?.name || 'KASIR';
+        const permissions = user.role?.permissions.map((rp: any) => rp.permission.name) || [];
+
         const token = jwt.sign(
-            { id: user.id, username: user.username, role: user.role },
+            { id: user.id, username: user.username, role: roleName, permissions },
             process.env.JWT_SECRET as string,
             { expiresIn: '1d' }
         );
@@ -71,8 +86,9 @@ export const login = async (req: Request, res: Response) => {
             user: {
                 id: user.id,
                 name: user.name,
-                role: user.role,
+                role: roleName,
                 username: user.username,
+                permissions
             }
         });
     } catch (error) {
@@ -91,13 +107,19 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
                 username: true,
                 email: true,
                 phone: true,
-                role: true,
+                role: { select: { name: true, permissions: { include: { permission: true } } } },
                 isActive: true,
                 createdAt: true,
             },
         });
         if (!user) return res.status(404).json({ message: 'User not found' });
-        res.json(user);
+
+        const formattedUser = {
+            ...user,
+            role: user.role?.name || 'KASIR',
+            permissions: user.role?.permissions.map((rp: any) => rp.permission.name) || []
+        };
+        res.json(formattedUser);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching profile' });
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../lib/axios';
 import Modal from '../components/Modal';
+import HasPermission from '../components/HasPermission';
 
 interface Product {
     id: number; name: string; price: string; stock: number;
@@ -69,10 +70,12 @@ const Products = () => {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <span className="text-text-subtle text-sm">{products.length} produk</span>
-                <button onClick={() => setIsModalOpen(true)}
-                    className="px-4 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-all flex items-center gap-2 shadow-lg shadow-primary/20">
-                    <span className="material-symbols-outlined text-[18px]">add</span> Tambah Produk
-                </button>
+                <HasPermission permission="product.crud">
+                    <button onClick={() => setIsModalOpen(true)}
+                        className="px-4 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-all flex items-center gap-2 shadow-lg shadow-primary/20">
+                        <span className="material-symbols-outlined text-[18px]">add</span> Tambah Produk
+                    </button>
+                </HasPermission>
             </div>
 
             {/* Table */}
@@ -132,14 +135,18 @@ const Products = () => {
                                     </td>
                                     <td className="px-5 py-3.5 text-right">
                                         <div className="flex justify-end gap-1.5">
-                                            <button onClick={() => handleEdit(product)}
-                                                className="p-2 rounded-lg bg-background-dark text-text-subtle hover:text-primary hover:bg-card-hover transition-colors border border-border-dark">
-                                                <span className="material-symbols-outlined text-[16px]">edit</span>
-                                            </button>
-                                            <button onClick={() => handleDelete(product.id)}
-                                                className="p-2 rounded-lg bg-background-dark text-text-subtle hover:text-red-400 hover:bg-red-500/10 transition-colors border border-border-dark">
-                                                <span className="material-symbols-outlined text-[16px]">delete</span>
-                                            </button>
+                                            <HasPermission permission="product.crud">
+                                                <button onClick={() => handleEdit(product)}
+                                                    className="p-2 rounded-lg bg-background-dark text-text-subtle hover:text-primary hover:bg-card-hover transition-colors border border-border-dark">
+                                                    <span className="material-symbols-outlined text-[16px]">edit</span>
+                                                </button>
+                                            </HasPermission>
+                                            <HasPermission permission="product.crud">
+                                                <button onClick={() => handleDelete(product.id)}
+                                                    className="p-2 rounded-lg bg-background-dark text-text-subtle hover:text-red-400 hover:bg-red-500/10 transition-colors border border-border-dark">
+                                                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                                                </button>
+                                            </HasPermission>
                                         </div>
                                     </td>
                                 </tr>

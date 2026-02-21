@@ -3,37 +3,45 @@ import { useAuth } from '../context/AuthContext';
 
 const Sidebar = () => {
     const location = useLocation();
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
 
     const isActive = (path: string) => location.pathname === path;
+
+    const hasAccess = (perms?: string[]) => {
+        if (!perms || perms.length === 0) return true;
+        if (!user) return false;
+        if (user.role === 'OWNER') return true;
+        if (!user.permissions) return false;
+        return perms.some(p => user.permissions.includes(p));
+    };
 
     const navSections = [
         {
             label: 'Main',
             items: [
-                { path: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
-                { path: '/transactions', icon: 'point_of_sale', label: 'Kasir' },
-                { path: '/transaction-history', icon: 'receipt_long', label: 'Riwayat' },
+                { path: '/dashboard', icon: 'dashboard', label: 'Dashboard', perms: ['report.view', 'transaction.create'] },
+                { path: '/transactions', icon: 'point_of_sale', label: 'Kasir', perms: ['transaction.create'] },
+                { path: '/transaction-history', icon: 'receipt_long', label: 'Riwayat', perms: ['transaction.view_own', 'void.transaction', 'refund.process'] },
             ],
         },
         {
             label: 'Produk',
             items: [
-                { path: '/products', icon: 'inventory_2', label: 'Produk' },
-                { path: '/categories', icon: 'category', label: 'Kategori' },
-                { path: '/inventory', icon: 'warehouse', label: 'Stok' },
+                { path: '/products', icon: 'inventory_2', label: 'Produk', perms: ['product.view', 'product.crud'] },
+                { path: '/categories', icon: 'category', label: 'Kategori', perms: ['category.manage'] },
+                { path: '/inventory', icon: 'warehouse', label: 'Stok', perms: ['stock.view', 'stock.in_out', 'stock.opname'] },
             ],
         },
         {
             label: 'Manajemen',
             items: [
-                { path: '/customers', icon: 'groups', label: 'Pelanggan' },
-                { path: '/vouchers', icon: 'confirmation_number', label: 'Voucher' },
-                { path: '/cash-management', icon: 'payments', label: 'Kas' },
-                { path: '/employees', icon: 'badge', label: 'Karyawan' },
-                { path: '/reports', icon: 'bar_chart', label: 'Laporan' },
-                { path: '/discounts', icon: 'percent', label: 'Diskon' },
-                { path: '/audit-logs', icon: 'shield', label: 'Audit Log' },
+                { path: '/customers', icon: 'groups', label: 'Pelanggan', perms: ['customer.select', 'customer.manage'] },
+                { path: '/vouchers', icon: 'confirmation_number', label: 'Voucher', perms: ['discount.manage'] },
+                { path: '/cash-management', icon: 'payments', label: 'Kas', perms: ['cash.open_shift', 'cash.reconcile'] },
+                { path: '/employees', icon: 'badge', label: 'Karyawan', perms: ['user.create_cashier', 'role.manage'] },
+                { path: '/reports', icon: 'bar_chart', label: 'Laporan', perms: ['report.view'] },
+                { path: '/discounts', icon: 'percent', label: 'Diskon', perms: ['discount.manage'] },
+                { path: '/audit-logs', icon: 'shield', label: 'Audit Log', perms: ['activity_log.view', 'audit_log.full'] },
             ],
         },
     ];
@@ -47,30 +55,35 @@ const Sidebar = () => {
                 </div>
                 <div>
                     <h1 className="text-white text-lg font-bold leading-tight">POS System</h1>
-                    <p className="text-text-subtle text-xs font-medium">Admin Panel</p>
+                    <p className="text-text-subtle text-xs font-medium">{user?.role || 'Admin Panel'}</p>
                 </div>
             </div>
 
             {/* Navigation */}
             <nav className="flex-1 px-4 py-2 space-y-8">
-                {navSections.map((section) => (
-                    <div key={section.label} className="flex flex-col gap-1">
-                        <p className="px-3 text-xs font-bold text-text-subtle uppercase tracking-wider mb-2">{section.label}</p>
-                        {section.items.map((item) => (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive(item.path)
+                {navSections.map((section) => {
+                    const visibleItems = section.items.filter(item => hasAccess(item.perms));
+                    if (visibleItems.length === 0) return null;
+
+                    return (
+                        <div key={section.label} className="flex flex-col gap-1">
+                            <p className="px-3 text-xs font-bold text-text-subtle uppercase tracking-wider mb-2">{section.label}</p>
+                            {visibleItems.map((item) => (
+                                <Link
+                                    key={item.path}
+                                    to={item.path}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive(item.path)
                                         ? 'bg-primary/10 text-primary border border-primary/20'
                                         : 'text-text-subtle hover:bg-card-hover hover:text-white border border-transparent'
-                                    }`}
-                            >
-                                <span className={`material-symbols-outlined ${isActive(item.path) ? 'fill-1' : ''}`}>{item.icon}</span>
-                                <span className={`text-sm ${isActive(item.path) ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
-                            </Link>
-                        ))}
-                    </div>
-                ))}
+                                        }`}
+                                >
+                                    <span className={`material-symbols-outlined ${isActive(item.path) ? 'fill-1' : ''}`}>{item.icon}</span>
+                                    <span className={`text-sm ${isActive(item.path) ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
+                                </Link>
+                            ))}
+                        </div>
+                    );
+                })}
             </nav>
 
             {/* Logout */}

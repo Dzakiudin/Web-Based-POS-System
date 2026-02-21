@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const report_controller_1 = require("../controllers/report.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.get('/dashboard', auth_middleware_1.authenticateToken, report_controller_1.getDashboardStats);
+router.get('/daily', auth_middleware_1.authenticateToken, report_controller_1.getDailySales);
+router.get('/sales', auth_middleware_1.authenticateToken, (0, auth_middleware_1.requirePermission)('report.view'), report_controller_1.getSalesReport);
+router.get('/top-products', auth_middleware_1.authenticateToken, report_controller_1.getTopProducts);
+router.get('/peak-hours', auth_middleware_1.authenticateToken, (0, auth_middleware_1.requirePermission)('report.view'), report_controller_1.getPeakHours);
+exports.default = router;

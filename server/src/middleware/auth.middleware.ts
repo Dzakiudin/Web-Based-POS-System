@@ -6,6 +6,7 @@ export interface AuthRequest extends Request {
         id: number;
         username: string;
         role: string;
+        permissions: string[];
     };
 }
 
@@ -27,13 +28,28 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 };
 
 /**
- * Role-Based Access Control middleware.
- * Usage: router.get('/admin-only', authenticateToken, authorizeRole('ADMIN', 'OWNER'), handler)
+ * Role-Based Access Control middleware using strict permissions.
+ * Usage: router.post('/', authenticateToken, requirePermission('product.create'), handler)
  */
-export const authorizeRole = (...allowedRoles: string[]) => {
+export const requirePermission = (...requiredPermissions: string[]) => {
     return (req: AuthRequest, res: Response, next: NextFunction) => {
-        if (!req.user || !allowedRoles.includes(req.user.role)) {
-            return res.status(403).json({ message: 'Insufficient permissions.' });
+        if (!req.user) {
+            return res.status(401).json({ message: 'User not authenticated.' });
+        }
+
+        // OWNER bypasses all permission checks
+        if (req.user.role === 'OWNER') {
+            return next();
+        }
+
+        if (!req.user.permissions) {
+            return res.status(403).json({ message: `Insufficient permissions.` });
+        }
+
+        const hasPermission = requiredPermissions.some(perm => req.user!.permissions.includes(perm));
+
+        if (!hasPermission) {
+            return res.status(403).json({ message: `Insufficient permissions. Requires one of: ${requiredPermissions.join(', ')}` });
         }
         next();
     };

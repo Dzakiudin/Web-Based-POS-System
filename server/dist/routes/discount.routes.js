@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const discount_controller_1 = require("../controllers/discount.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.get('/', auth_middleware_1.authenticateToken, discount_controller_1.getDiscounts);
+router.post('/', auth_middleware_1.authenticateToken, (0, auth_middleware_1.requirePermission)('discount.manage'), discount_controller_1.createDiscount);
+router.put('/:id', auth_middleware_1.authenticateToken, (0, auth_middleware_1.requirePermission)('discount.manage'), discount_controller_1.updateDiscount);
+router.delete('/:id', auth_middleware_1.authenticateToken, (0, auth_middleware_1.requirePermission)('discount.manage'), discount_controller_1.deleteDiscount);
+router.post('/validate', auth_middleware_1.authenticateToken, discount_controller_1.validatePromoCode);
+exports.default = router;
