@@ -1,27 +1,29 @@
-import type { LucideIcon } from 'lucide-react';
-
 interface StatCardProps {
     title: string;
     value: string | number;
-    icon: LucideIcon;
-    color: string;
+    icon: string;
+    iconColor?: string;
+    trend?: string;
+    trendUp?: boolean;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color }) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, iconColor = 'text-primary', trend, trendUp = true }) => {
     return (
-        <div className="glass-card p-6 rounded-3xl relative overflow-hidden group glass-hover border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:shadow-indigo-600/10 transition-all duration-500">
-            <div className={`absolute top-0 right-0 w-24 h-24 blur-[40px] rounded-full opacity-20 -mr-8 -mt-8 ${color.replace('bg-', 'bg-')}`}></div>
-            <div className="absolute inset-0 border border-white/5 rounded-3xl group-hover:border-white/10 transition-colors"></div>
-
-            <div className="flex items-center justify-between relative z-10">
-                <div>
-                    <p className="text-slate-400 text-[10px] font-bold mb-2 tracking-[0.2em] uppercase opacity-70 group-hover:opacity-100 transition-opacity">{title}</p>
-                    <h3 className="text-3xl font-black text-white tracking-tight group-hover:scale-105 transition-transform origin-left duration-500">{value}</h3>
+        <div className="bg-card-dark p-6 rounded-xl border border-border-dark hover:border-primary/30 transition-all group shadow-lg">
+            <div className="flex justify-between items-start mb-4">
+                <div className={`p-2 bg-background-dark rounded-lg ${iconColor}`}>
+                    <span className="material-symbols-outlined">{icon}</span>
                 </div>
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border border-white/10 ${color}/10 backdrop-blur-sm group-hover:rotate-6 transition-transform duration-500 shadow-lg`}>
-                    <Icon className="w-7 h-7 text-white" />
-                </div>
+                {trend && (
+                    <span className={`flex items-center text-xs font-bold px-2 py-1 rounded-full ${trendUp ? 'text-primary bg-primary/10' : 'text-text-subtle bg-background-dark border border-border-dark'
+                        }`}>
+                        {trendUp && <span className="material-symbols-outlined text-base mr-1">trending_up</span>}
+                        {trend}
+                    </span>
+                )}
             </div>
+            <h3 className="text-text-subtle text-sm font-medium mb-1">{title}</h3>
+            <p className="text-2xl font-bold text-white tracking-tight">{value}</p>
         </div>
     );
 };

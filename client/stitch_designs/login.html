@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>POS System Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec5b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#102216",
+                        "surface-dark": "#162f21",
+                        "input-dark": "#1c3828",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem", 
+                        "lg": "0.5rem", 
+                        "xl": "0.75rem", 
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center overflow-hidden">
+<!-- Main Layout Container -->
+<div class="w-full h-screen flex flex-row overflow-hidden">
+<!-- Left Side: Branding / Illustration -->
+<div class="hidden lg:flex w-1/2 relative bg-surface-dark items-center justify-center overflow-hidden">
+<!-- Background Image with Overlay -->
+<div class="absolute inset-0 z-0">
+<div class="w-full h-full bg-cover bg-center opacity-40 mix-blend-overlay" data-alt="Modern retail store interior with blurred background" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDBhAWUX4oUZFCus-ZFIC6R3WUdcbYUHPvdRNalTUTASlV3DzRP-2tu9bahq4VGLpWzyxsQ7mLS5q-zGoiAugaIOgHH-Hi69aywtr4aeqVplYICQNpuvdvKC87omR5mW0tKRWN32F0OSmlV1xputHURr0QPJ70XbGG3GX5H-Qzv04-DDeUN1XO9-Z0H28ZLD93RBgyzRpdknjlwddr_mVTy6rdDCy-AFJdwo1zKMAK5KQaIUIN_ToQCfidwn-d5_PGcIzv0TttJD0U');">
+</div>
+<div class="absolute inset-0 bg-gradient-to-br from-background-dark/90 via-surface-dark/80 to-primary/20"></div>
+</div>
+<!-- Content -->
+<div class="relative z-10 p-12 max-w-lg flex flex-col gap-6 text-center lg:text-left">
+<div class="flex items-center gap-3 lg:justify-start justify-center mb-4">
+<div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-background-dark">
+<span class="material-symbols-outlined text-2xl">point_of_sale</span>
+</div>
+<span class="text-2xl font-bold tracking-tight text-white">RetailOS</span>
+</div>
+<h1 class="text-4xl lg:text-5xl font-bold leading-tight text-white">
+                    Manage your store <br/>
+<span class="text-primary">smarter, not harder.</span>
+</h1>
+<p class="text-lg text-slate-300 font-medium leading-relaxed">
+                    The all-in-one POS platform designed for modern retailers. Track inventory, manage staff, and grow customer loyalty in one place.
+                </p>
+<!-- Abstract decorative elements -->
+<div class="grid grid-cols-2 gap-4 mt-8 opacity-80">
+<div class="bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/10">
+<span class="material-symbols-outlined text-primary mb-2 text-3xl">analytics</span>
+<p class="text-sm font-semibold text-white">Real-time Analytics</p>
+</div>
+<div class="bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/10">
+<span class="material-symbols-outlined text-primary mb-2 text-3xl">inventory_2</span>
+<p class="text-sm font-semibold text-white">Smart Inventory</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Side: Login Form -->
+<div class="w-full lg:w-1/2 bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-6 sm:p-12 relative">
+<!-- Mobile Header Logo (Visible only on small screens) -->
+<div class="absolute top-6 left-6 lg:hidden flex items-center gap-2">
+<div class="w-8 h-8 bg-primary rounded flex items-center justify-center text-background-dark">
+<span class="material-symbols-outlined text-xl">point_of_sale</span>
+</div>
+<span class="text-xl font-bold text-slate-900 dark:text-white">RetailOS</span>
+</div>
+<div class="w-full max-w-[420px] flex flex-col gap-8">
+<!-- Form Header -->
+<div class="flex flex-col gap-2">
+<h2 class="text-3xl font-bold text-slate-900 dark:text-white">Welcome Back</h2>
+<p class="text-slate-500 dark:text-slate-400">Please enter your credentials to access your dashboard.</p>
+</div>
+<!-- Form Fields -->
+<form class="flex flex-col gap-5">
+<!-- Email / Username -->
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-slate-700 dark:text-slate-300" for="username">
+                            Email or Username
+                        </label>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-[20px]">person</span>
+</div>
+<input class="w-full h-12 pl-11 pr-4 bg-white dark:bg-input-dark border border-slate-200 dark:border-white/10 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200" id="username" placeholder="Enter your email or username" type="text"/>
+</div>
+</div>
+<!-- Password -->
+<div class="flex flex-col gap-2">
+<div class="flex justify-between items-center">
+<label class="text-sm font-semibold text-slate-700 dark:text-slate-300" for="password">
+                                Password
+                            </label>
+</div>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-[20px]">lock</span>
+</div>
+<input class="w-full h-12 pl-11 pr-12 bg-white dark:bg-input-dark border border-slate-200 dark:border-white/10 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200" id="password" placeholder="Enter your password" type="password"/>
+<button class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none cursor-pointer" type="button">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+</div>
+</div>
+<!-- Actions: Remember Me & Forgot Password -->
+<div class="flex items-center justify-between mt-1">
+<label class="flex items-center gap-2 cursor-pointer group">
+<div class="relative flex items-center">
+<input class="peer h-4 w-4 appearance-none rounded border border-slate-300 dark:border-slate-500 bg-white dark:bg-input-dark checked:bg-primary checked:border-primary focus:ring-1 focus:ring-primary/50 transition-all cursor-pointer" type="checkbox"/>
+<span class="material-symbols-outlined absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-background-dark opacity-0 peer-checked:opacity-100 pointer-events-none text-[14px] font-bold">check</span>
+</div>
+<span class="text-sm font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">Remember me</span>
+</label>
+<a class="text-sm font-semibold text-primary hover:text-primary/80 hover:underline transition-colors" href="#">
+                            Forgot Password?
+                        </a>
+</div>
+<!-- Login Button -->
+<button class="mt-4 w-full h-12 bg-primary hover:bg-[#0fd650] text-background-dark font-bold text-base rounded-lg shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all duration-200 flex items-center justify-center gap-2" type="button">
+<span>Log In</span>
+<span class="material-symbols-outlined text-[20px]">login</span>
+</button>
+</form>
+<!-- Footer / Sign Up -->
+<div class="text-center mt-4">
+<p class="text-sm text-slate-500 dark:text-slate-400">
+                        Don't have an account? 
+                        <a class="font-bold text-slate-900 dark:text-white hover:text-primary dark:hover:text-primary transition-colors" href="#">Contact Support</a>
+</p>
+</div>
+</div>
+<!-- Bottom footer links -->
+<div class="absolute bottom-6 w-full flex justify-center gap-6 text-xs text-slate-400 dark:text-slate-600">
+<a class="hover:text-slate-600 dark:hover:text-slate-400 transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-slate-600 dark:hover:text-slate-400 transition-colors" href="#">Terms of Service</a>
+<span>© 2023 RetailOS Inc.</span>
+</div>
+</div>
+</div>
+</body></html>

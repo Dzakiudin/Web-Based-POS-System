@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, Info, X } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -25,18 +24,18 @@ export const useToast = () => {
     return ctx;
 };
 
-const TOAST_STYLES: Record<ToastType, { bg: string; border: string; icon: any }> = {
-    success: { bg: 'from-emerald-500/10 to-emerald-500/5', border: 'border-emerald-500/30', icon: CheckCircle2 },
-    error: { bg: 'from-red-500/10 to-red-500/5', border: 'border-red-500/30', icon: XCircle },
-    warning: { bg: 'from-amber-500/10 to-amber-500/5', border: 'border-amber-500/30', icon: AlertTriangle },
-    info: { bg: 'from-blue-500/10 to-blue-500/5', border: 'border-blue-500/30', icon: Info },
+const TOAST_ICONS: Record<ToastType, string> = {
+    success: 'check_circle',
+    error: 'error',
+    warning: 'warning',
+    info: 'info',
 };
 
-const TOAST_TEXT_COLORS: Record<ToastType, string> = {
-    success: 'text-emerald-400',
-    error: 'text-red-400',
-    warning: 'text-amber-400',
-    info: 'text-blue-400',
+const TOAST_STYLES: Record<ToastType, { bg: string; border: string; text: string }> = {
+    success: { bg: 'bg-primary/10', border: 'border-primary/30', text: 'text-primary' },
+    error: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400' },
+    warning: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400' },
+    info: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400' },
 };
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -70,19 +69,18 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none" style={{ maxWidth: '380px' }}>
                 {toasts.map((t) => {
                     const style = TOAST_STYLES[t.type];
-                    const Icon = style.icon;
                     return (
                         <div
                             key={t.id}
-                            className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl bg-gradient-to-r ${style.bg} border ${style.border} backdrop-blur-xl shadow-2xl animate-in slide-in-from-right fade-in duration-300`}
+                            className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl ${style.bg} border ${style.border} shadow-2xl`}
                         >
-                            <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${TOAST_TEXT_COLORS[t.type]}`} />
+                            <span className={`material-symbols-outlined mt-0.5 flex-shrink-0 ${style.text}`}>{TOAST_ICONS[t.type]}</span>
                             <p className="text-white/80 text-sm flex-1 font-medium">{t.message}</p>
                             <button
                                 onClick={() => removeToast(t.id)}
                                 className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0 mt-0.5"
                             >
-                                <X className="w-4 h-4" />
+                                <span className="material-symbols-outlined text-[18px]">close</span>
                             </button>
                         </div>
                     );

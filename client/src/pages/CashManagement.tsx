@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/axios';
-import { Banknote, ArrowUpRight, ArrowDownRight, Clock, Plus, Wallet } from 'lucide-react';
 
 interface CashSession {
     id: number; openingBalance: string; closingBalance: string | null;
@@ -47,39 +46,34 @@ const CashManagement = () => {
     };
 
     return (
-        <div className="space-y-5">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                    <Wallet className="w-7 h-7 text-indigo-400" /> Manajemen Kas
-                </h1>
-            </div>
-
+        <div className="space-y-6">
             {/* Active Session Card */}
             {activeSession ? (
-                <div className="glass-card rounded-2xl border border-emerald-500/20 p-6 bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
+                <div className="bg-card-dark rounded-xl border border-primary/20 p-6 shadow-lg">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-emerald-400 text-sm font-medium">Sesi Aktif — {activeSession.user?.name || 'Kasir'}</span>
+                            <div className="size-3 rounded-full bg-primary animate-pulse" />
+                            <span className="text-primary text-sm font-semibold">Sesi Aktif — {activeSession.user?.name || 'Kasir'}</span>
                         </div>
-                        <span className="text-white/30 text-xs">{new Date(activeSession.openedAt).toLocaleString('id-ID')}</span>
+                        <span className="text-text-subtle text-xs">{new Date(activeSession.openedAt).toLocaleString('id-ID')}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div><p className="text-white/40 text-[10px] mb-1">Saldo Awal</p><p className="text-white text-lg font-bold">Rp {Number(activeSession.openingBalance).toLocaleString('id-ID')}</p></div>
-                        <div><p className="text-white/40 text-[10px] mb-1">Saldo Diharapkan</p><p className="text-indigo-400 text-lg font-bold">Rp {Number(activeSession.expectedBalance || 0).toLocaleString('id-ID')}</p></div>
-                        <div><p className="text-white/40 text-[10px] mb-1">Pergerakan</p><p className="text-white/70 text-lg font-bold">{activeSession.movements?.length || 0}</p></div>
+                        <div><p className="text-text-subtle text-xs mb-1">Saldo Awal</p><p className="text-white text-lg font-bold">Rp {Number(activeSession.openingBalance).toLocaleString('id-ID')}</p></div>
+                        <div><p className="text-text-subtle text-xs mb-1">Saldo Diharapkan</p><p className="text-primary text-lg font-bold">Rp {Number(activeSession.expectedBalance || 0).toLocaleString('id-ID')}</p></div>
+                        <div><p className="text-text-subtle text-xs mb-1">Pergerakan</p><p className="text-white text-lg font-bold">{activeSession.movements?.length || 0}</p></div>
                     </div>
 
-                    {/* Movements list */}
                     {activeSession.movements?.length > 0 && (
                         <div className="space-y-1.5 mb-4 max-h-48 overflow-y-auto">
                             {activeSession.movements.map(m => (
-                                <div key={m.id} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                                <div key={m.id} className="flex items-center justify-between bg-background-dark rounded-lg px-3 py-2 border border-border-dark">
                                     <div className="flex items-center gap-2">
-                                        {m.type === 'CASH_IN' ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> : <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />}
-                                        <span className="text-white/70 text-xs">{m.reason}</span>
+                                        <span className="material-symbols-outlined text-[16px]" style={{ color: m.type === 'CASH_IN' ? '#13ec5b' : '#ef4444' }}>
+                                            {m.type === 'CASH_IN' ? 'trending_up' : 'trending_down'}
+                                        </span>
+                                        <span className="text-white text-xs">{m.reason}</span>
                                     </div>
-                                    <span className={`text-xs font-medium ${m.type === 'CASH_IN' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    <span className={`text-xs font-semibold ${m.type === 'CASH_IN' ? 'text-primary' : 'text-red-400'}`}>
                                         {m.type === 'CASH_IN' ? '+' : '-'}Rp {Number(m.amount).toLocaleString('id-ID')}
                                     </span>
                                 </div>
@@ -88,51 +82,51 @@ const CashManagement = () => {
                     )}
 
                     <div className="flex gap-2">
-                        <button onClick={() => setShowMovement(true)} className="flex-1 py-2.5 rounded-xl bg-indigo-500/20 text-indigo-300 text-sm font-medium hover:bg-indigo-500/30 transition-colors flex items-center justify-center gap-2">
-                            <Plus className="w-4 h-4" /> Kas Masuk/Keluar
+                        <button onClick={() => setShowMovement(true)} className="flex-1 py-2.5 rounded-lg bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors border border-primary/20 flex items-center justify-center gap-2">
+                            <span className="material-symbols-outlined text-[18px]">add</span> Kas Masuk/Keluar
                         </button>
-                        <button onClick={() => setShowClose(true)} className="flex-1 py-2.5 rounded-xl bg-red-500/10 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors border border-red-500/20 flex items-center justify-center gap-2">
-                            <Clock className="w-4 h-4" /> Tutup Sesi
+                        <button onClick={() => setShowClose(true)} className="flex-1 py-2.5 rounded-lg bg-red-500/10 text-red-400 text-sm font-semibold hover:bg-red-500/20 transition-colors border border-red-500/20 flex items-center justify-center gap-2">
+                            <span className="material-symbols-outlined text-[18px]">schedule</span> Tutup Sesi
                         </button>
                     </div>
                 </div>
             ) : (
-                <div className="glass-card rounded-2xl border border-white/10 p-8 text-center">
-                    <Banknote className="w-12 h-12 text-white/20 mx-auto mb-3" />
-                    <p className="text-white/40 text-sm mb-4">Tidak ada sesi kas aktif</p>
+                <div className="bg-card-dark rounded-xl border border-border-dark p-8 text-center shadow-lg">
+                    <span className="material-symbols-outlined text-5xl text-text-subtle/30 mb-3 block">account_balance_wallet</span>
+                    <p className="text-text-subtle text-sm mb-4">Tidak ada sesi kas aktif</p>
                     <button onClick={() => setShowOpen(true)}
-                        className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-bold hover:from-indigo-600 hover:to-purple-600 transition-all">
+                        className="px-6 py-3 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-all shadow-lg shadow-primary/20">
                         Buka Sesi Kas
                     </button>
                 </div>
             )}
 
             {/* Past Sessions */}
-            <div className="glass-card rounded-2xl border border-white/10 overflow-hidden">
-                <div className="p-4 border-b border-white/10"><h3 className="text-white font-bold text-sm">Riwayat Sesi Kas</h3></div>
+            <div className="bg-card-dark rounded-xl border border-border-dark overflow-hidden shadow-lg">
+                <div className="p-4 border-b border-border-dark"><h3 className="text-white font-bold text-sm flex items-center gap-2"><span className="material-symbols-outlined text-primary text-[18px]">history</span> Riwayat Sesi Kas</h3></div>
                 <table className="w-full">
-                    <thead><tr className="border-b border-white/10 bg-white/3">
-                        <th className="text-left px-4 py-2.5 text-xs text-white/50">Tanggal</th>
-                        <th className="text-left px-4 py-2.5 text-xs text-white/50">Kasir</th>
-                        <th className="text-right px-4 py-2.5 text-xs text-white/50">Saldo Awal</th>
-                        <th className="text-right px-4 py-2.5 text-xs text-white/50">Saldo Akhir</th>
-                        <th className="text-right px-4 py-2.5 text-xs text-white/50">Selisih</th>
-                        <th className="text-center px-4 py-2.5 text-xs text-white/50">Status</th>
+                    <thead><tr className="border-b border-border-dark bg-background-dark">
+                        <th className="text-left px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Tanggal</th>
+                        <th className="text-left px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Kasir</th>
+                        <th className="text-right px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Saldo Awal</th>
+                        <th className="text-right px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Saldo Akhir</th>
+                        <th className="text-right px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Selisih</th>
+                        <th className="text-center px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Status</th>
                     </tr></thead>
                     <tbody>
                         {sessions.filter(s => s.status === 'CLOSED').map(s => (
-                            <tr key={s.id} className="border-b border-white/5 hover:bg-white/3">
-                                <td className="px-4 py-2.5 text-white/60 text-xs">{new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short' })}</td>
-                                <td className="px-4 py-2.5 text-white/70 text-sm">{s.user?.name || '-'}</td>
-                                <td className="px-4 py-2.5 text-right text-white/60 text-sm">Rp {Number(s.openingBalance).toLocaleString('id-ID')}</td>
-                                <td className="px-4 py-2.5 text-right text-white/80 text-sm font-medium">Rp {Number(s.closingBalance || 0).toLocaleString('id-ID')}</td>
-                                <td className="px-4 py-2.5 text-right">
-                                    <span className={`text-xs font-medium ${Number(s.difference) === 0 ? 'text-emerald-400' : Number(s.difference) > 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                            <tr key={s.id} className="border-b border-border-dark hover:bg-card-hover transition-colors">
+                                <td className="px-5 py-3.5 text-text-subtle text-xs">{new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short' })}</td>
+                                <td className="px-5 py-3.5 text-white text-sm">{s.user?.name || '-'}</td>
+                                <td className="px-5 py-3.5 text-right text-text-subtle text-sm">Rp {Number(s.openingBalance).toLocaleString('id-ID')}</td>
+                                <td className="px-5 py-3.5 text-right text-white text-sm font-semibold">Rp {Number(s.closingBalance || 0).toLocaleString('id-ID')}</td>
+                                <td className="px-5 py-3.5 text-right">
+                                    <span className={`text-xs font-semibold ${Number(s.difference) === 0 ? 'text-primary' : Number(s.difference) > 0 ? 'text-blue-400' : 'text-red-400'}`}>
                                         {Number(s.difference) > 0 ? '+' : ''}Rp {Number(s.difference || 0).toLocaleString('id-ID')}
                                     </span>
                                 </td>
-                                <td className="px-4 py-2.5 text-center">
-                                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-medium ${Number(s.difference) === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                <td className="px-5 py-3.5 text-center">
+                                    <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${Number(s.difference) === 0 ? 'bg-primary/10 text-primary' : 'bg-amber-500/10 text-amber-400'}`}>
                                         {Number(s.difference) === 0 ? 'Sesuai' : 'Selisih'}
                                     </span>
                                 </td>
@@ -145,14 +139,16 @@ const CashManagement = () => {
             {/* Open Session Modal */}
             {showOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowOpen(false)}>
-                    <div className="w-full max-w-sm bg-[#0a0f1e]/95 rounded-2xl border border-white/10 p-6" onClick={e => e.stopPropagation()}>
-                        <h2 className="text-white font-bold text-lg mb-4">Buka Sesi Kas</h2>
-                        <label className="text-white/40 text-xs mb-1.5 block">Saldo Awal (Rp)</label>
+                    <div className="w-full max-w-sm bg-card-dark rounded-xl border border-border-dark p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-primary">account_balance_wallet</span> Buka Sesi Kas
+                        </h2>
+                        <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Saldo Awal (Rp)</label>
                         <input type="number" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)}
                             placeholder="Contoh: 500000" autoFocus
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-lg font-bold text-right focus:outline-none focus:border-indigo-500/50 mb-4" />
+                            className="w-full px-4 py-3 rounded-lg bg-background-dark border border-border-dark text-white text-lg font-bold text-right focus:outline-none focus:ring-1 focus:ring-primary mb-4" />
                         <button onClick={handleOpen} disabled={!openingBalance}
-                            className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold disabled:opacity-30">
+                            className="w-full py-3 rounded-lg bg-primary text-background-dark text-sm font-bold disabled:opacity-30 hover:bg-green-400 shadow-lg shadow-primary/20 transition-all">
                             Buka Sesi
                         </button>
                     </div>
@@ -162,17 +158,19 @@ const CashManagement = () => {
             {/* Close Session Modal */}
             {showClose && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowClose(false)}>
-                    <div className="w-full max-w-sm bg-[#0a0f1e]/95 rounded-2xl border border-white/10 p-6" onClick={e => e.stopPropagation()}>
-                        <h2 className="text-white font-bold text-lg mb-4">Tutup Sesi Kas</h2>
-                        <label className="text-white/40 text-xs mb-1.5 block">Saldo Akhir (Rp)</label>
+                    <div className="w-full max-w-sm bg-card-dark rounded-xl border border-border-dark p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-red-400">schedule</span> Tutup Sesi Kas
+                        </h2>
+                        <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Saldo Akhir (Rp)</label>
                         <input type="number" value={closingBalance} onChange={e => setClosingBalance(e.target.value)}
                             placeholder="Hitung uang di laci kas" autoFocus
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-lg font-bold text-right focus:outline-none focus:border-indigo-500/50 mb-2" />
+                            className="w-full px-4 py-3 rounded-lg bg-background-dark border border-border-dark text-white text-lg font-bold text-right focus:outline-none focus:ring-1 focus:ring-primary mb-2" />
                         {activeSession && (
-                            <p className="text-white/30 text-xs mb-4">Diharapkan: Rp {Number(activeSession.expectedBalance || 0).toLocaleString('id-ID')}</p>
+                            <p className="text-text-subtle text-xs mb-4">Diharapkan: Rp {Number(activeSession.expectedBalance || 0).toLocaleString('id-ID')}</p>
                         )}
                         <button onClick={handleClose} disabled={!closingBalance}
-                            className="w-full py-3 rounded-xl bg-red-500/20 text-red-400 text-sm font-bold border border-red-500/30 disabled:opacity-30">
+                            className="w-full py-3 rounded-lg bg-red-500/10 text-red-400 text-sm font-bold border border-red-500/20 disabled:opacity-30 hover:bg-red-500/20 transition-colors">
                             Tutup Sesi
                         </button>
                     </div>
@@ -182,27 +180,29 @@ const CashManagement = () => {
             {/* Movement Modal */}
             {showMovement && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowMovement(false)}>
-                    <div className="w-full max-w-sm bg-[#0a0f1e]/95 rounded-2xl border border-white/10 p-6" onClick={e => e.stopPropagation()}>
-                        <h2 className="text-white font-bold text-lg mb-4">Pergerakan Kas</h2>
+                    <div className="w-full max-w-sm bg-card-dark rounded-xl border border-border-dark p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-primary">swap_vert</span> Pergerakan Kas
+                        </h2>
                         <div className="flex gap-2 mb-4">
                             <button onClick={() => setMovementForm({ ...movementForm, type: 'CASH_IN' })}
-                                className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${movementForm.type === 'CASH_IN' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-white/10 text-white/50'}`}>
+                                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border transition-all ${movementForm.type === 'CASH_IN' ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-background-dark border-border-dark text-text-subtle'}`}>
                                 Kas Masuk
                             </button>
                             <button onClick={() => setMovementForm({ ...movementForm, type: 'CASH_OUT' })}
-                                className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${movementForm.type === 'CASH_OUT' ? 'bg-red-500/20 border-red-500/30 text-red-400' : 'bg-white/5 border-white/10 text-white/50'}`}>
+                                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border transition-all ${movementForm.type === 'CASH_OUT' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-background-dark border-border-dark text-text-subtle'}`}>
                                 Kas Keluar
                             </button>
                         </div>
                         <div className="space-y-3">
                             <input type="number" value={movementForm.amount} onChange={e => setMovementForm({ ...movementForm, amount: e.target.value })}
                                 placeholder="Jumlah"
-                                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none" />
+                                className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                             <input type="text" value={movementForm.reason} onChange={e => setMovementForm({ ...movementForm, reason: e.target.value })}
                                 placeholder="Alasan (contoh: Tukar pecahan)"
-                                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none" />
+                                className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                             <button onClick={handleMovement} disabled={!movementForm.amount || !movementForm.reason}
-                                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-medium disabled:opacity-30">
+                                className="w-full py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold disabled:opacity-30 hover:bg-green-400 shadow-lg shadow-primary/20 transition-all">
                                 Simpan
                             </button>
                         </div>

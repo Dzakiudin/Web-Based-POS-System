@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ChartData {
     date: string;
@@ -12,55 +12,59 @@ interface RevenueChartProps {
 
 const RevenueChart: React.FC<RevenueChartProps> = ({ data }) => {
     return (
-        <div className="glass-card p-6 rounded-3xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 blur-[60px] rounded-full -mr-16 -mt-16"></div>
+        <div className="bg-card-dark rounded-xl border border-border-dark p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-6">
+                <div>
+                    <h3 className="text-lg font-bold text-white">Revenue Trend</h3>
+                    <p className="text-sm text-text-subtle">Sales performance overview</p>
+                </div>
+                <div className="flex bg-background-dark rounded-lg p-1">
+                    <button className="px-3 py-1 rounded bg-card-hover text-white text-xs font-medium shadow-sm">Today</button>
+                    <button className="px-3 py-1 rounded text-text-subtle hover:text-white text-xs font-medium transition-colors">Week</button>
+                    <button className="px-3 py-1 rounded text-text-subtle hover:text-white text-xs font-medium transition-colors">Month</button>
+                </div>
+            </div>
 
-            <h3 className="text-xl font-bold text-white mb-6 relative z-10 flex items-center">
-                <span className="w-2 h-8 bg-indigo-600 rounded-full mr-3"></span>
-                Revenue Trend
-            </h3>
-
-            <div className="h-80 relative z-10">
+            <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-
-                    <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
-                            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
-                                <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.8} />
+                            <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#13ec5b" stopOpacity={0.2} />
+                                <stop offset="100%" stopColor="#13ec5b" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                        <CartesianGrid strokeDasharray="4 4" stroke="#28392e" vertical={false} />
                         <XAxis
                             dataKey="date"
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: '#94a3b8', fontSize: 12 }}
+                            tick={{ fill: '#9db9a6', fontSize: 12 }}
                             dy={10}
                         />
                         <YAxis
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: '#94a3b8', fontSize: 12 }}
+                            tick={{ fill: '#9db9a6', fontSize: 12 }}
                         />
                         <Tooltip
                             contentStyle={{
-                                backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '12px',
-                                backdropFilter: 'blur(8px)'
+                                backgroundColor: '#1a261e',
+                                border: '1px solid #28392e',
+                                borderRadius: '8px',
                             }}
-                            itemStyle={{ color: '#f8fafc' }}
+                            itemStyle={{ color: '#e2e8f0' }}
                             formatter={(value: any) => [`Rp ${value?.toLocaleString() || 0}`, "Revenue"]}
                         />
-                        <Bar
+                        <Area
+                            type="monotone"
                             dataKey="amount"
-                            fill="url(#barGradient)"
+                            stroke="#13ec5b"
+                            strokeWidth={3}
+                            fill="url(#chartGradient)"
                             name="Revenue"
-                            radius={[6, 6, 0, 0]}
-                            barSize={40}
                         />
-                    </BarChart>
+                    </AreaChart>
                 </ResponsiveContainer>
             </div>
         </div>
@@ -68,4 +72,3 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data }) => {
 };
 
 export default RevenueChart;
-

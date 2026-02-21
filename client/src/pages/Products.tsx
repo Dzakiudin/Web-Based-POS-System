@@ -1,24 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import api from '../lib/axios';
-import { Plus, Edit, Trash2, Package } from 'lucide-react';
-
 import Modal from '../components/Modal';
 
 interface Product {
-    id: number;
-    name: string;
-    price: string;
-    stock: number;
-    image: string | null;
-    categoryId: number | null;
+    id: number; name: string; price: string; stock: number;
+    image: string | null; categoryId: number | null;
     category?: { id: number; name: string; color: string } | null;
 }
-
-interface Category {
-    id: number;
-    name: string;
-    color: string;
-}
+interface Category { id: number; name: string; color: string; }
 
 const Products = () => {
     const [products, setProducts] = useState<Product[]>([]);
@@ -27,38 +16,17 @@ const Products = () => {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [formData, setFormData] = useState({ name: '', price: '', stock: '', categoryId: '', image: null as File | null });
 
-    useEffect(() => {
-        fetchProducts();
-        fetchCategories();
-    }, []);
+    useEffect(() => { fetchProducts(); fetchCategories(); }, []);
 
-    const fetchProducts = async () => {
-        try {
-            const response = await api.get('/products');
-            setProducts(response.data);
-        } catch (error) {
-            console.error('Error fetching products', error);
-        }
-    };
-
-    const fetchCategories = async () => {
-        try {
-            const response = await api.get('/categories');
-            setCategories(response.data);
-        } catch (error) {
-            console.error('Error fetching categories', error);
-        }
-    };
+    const fetchProducts = async () => { try { const r = await api.get('/products'); setProducts(r.data); } catch (e) { console.error(e); } };
+    const fetchCategories = async () => { try { const r = await api.get('/categories'); setCategories(r.data); } catch (e) { console.error(e); } };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value });
+        setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setFormData({ ...formData, image: e.target.files[0] });
-        }
+        if (e.target.files && e.target.files[0]) setFormData({ ...formData, image: e.target.files[0] });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -67,165 +35,110 @@ const Products = () => {
         data.append('name', formData.name);
         data.append('price', formData.price);
         data.append('stock', formData.stock);
-        if (formData.categoryId) {
-            data.append('categoryId', formData.categoryId);
-        }
-        if (formData.image) {
-            data.append('image', formData.image);
-        }
+        if (formData.categoryId) data.append('categoryId', formData.categoryId);
+        if (formData.image) data.append('image', formData.image);
 
         try {
             if (editingProduct) {
-                await api.put(`/products/${editingProduct.id}`, data, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
+                await api.put(`/products/${editingProduct.id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
             } else {
-                await api.post('/products', data, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
+                await api.post('/products', data, { headers: { 'Content-Type': 'multipart/form-data' } });
             }
-            fetchProducts();
-            handleCloseModal();
-        } catch (error) {
-            console.error('Error saving product', error);
-        }
+            fetchProducts(); handleCloseModal();
+        } catch (e) { console.error(e); }
     };
 
     const handleEdit = (product: Product) => {
         setEditingProduct(product);
-        setFormData({
-            name: product.name,
-            price: product.price,
-            stock: product.stock.toString(),
-            categoryId: product.categoryId?.toString() || '',
-            image: null,
-        });
+        setFormData({ name: product.name, price: product.price, stock: product.stock.toString(), categoryId: product.categoryId?.toString() || '', image: null });
         setIsModalOpen(true);
     };
 
     const handleDelete = async (id: number) => {
-        if (window.confirm('Are you sure you want to delete this product?')) {
-            try {
-                await api.delete(`/products/${id}`);
-                fetchProducts();
-            } catch (error) {
-                console.error('Error deleting product', error);
-            }
-        }
+        if (!confirm('Hapus produk ini?')) return;
+        try { await api.delete(`/products/${id}`); fetchProducts(); } catch (e) { console.error(e); }
     };
 
     const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setEditingProduct(null);
+        setIsModalOpen(false); setEditingProduct(null);
         setFormData({ name: '', price: '', stock: '', categoryId: '', image: null });
     };
 
     return (
-        <div className="space-y-8 pb-12 animate-in fade-in duration-700">
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-1">
-                    <div className="flex items-center space-x-2 text-indigo-400">
-                        <Package className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Inventory Management</span>
-                    </div>
-                    <h2 className="text-4xl font-extrabold text-white tracking-tight">Products</h2>
-                    <p className="text-slate-400">Manage your store's inventory and pricing with precision.</p>
-                </div>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold shadow-lg shadow-indigo-600/30 transition-all duration-300 hover:scale-105 active:scale-95 group"
-                >
-                    <Plus className="mr-2 h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
-                    Add New Product
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <span className="text-text-subtle text-sm">{products.length} produk</span>
+                <button onClick={() => setIsModalOpen(true)}
+                    className="px-4 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-all flex items-center gap-2 shadow-lg shadow-primary/20">
+                    <span className="material-symbols-outlined text-[18px]">add</span> Tambah Produk
                 </button>
             </div>
 
-            {/* Table Section */}
-            <div className="glass-card rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl relative">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[80px] rounded-full -mr-32 -mt-32"></div>
+            {/* Table */}
+            <div className="bg-card-dark rounded-xl border border-border-dark overflow-hidden shadow-lg">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-white/5">
-                        <thead className="bg-white/5">
-                            <tr>
-                                <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Image</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Name</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Category</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Price</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Stock</th>
-                                <th className="px-8 py-5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Actions</th>
+                    <table className="w-full">
+                        <thead>
+                            <tr className="bg-background-dark border-b border-border-dark">
+                                <th className="px-5 py-3 text-left text-xs text-text-subtle font-semibold uppercase tracking-wider">Image</th>
+                                <th className="px-5 py-3 text-left text-xs text-text-subtle font-semibold uppercase tracking-wider">Name</th>
+                                <th className="px-5 py-3 text-left text-xs text-text-subtle font-semibold uppercase tracking-wider">Category</th>
+                                <th className="px-5 py-3 text-left text-xs text-text-subtle font-semibold uppercase tracking-wider">Price</th>
+                                <th className="px-5 py-3 text-left text-xs text-text-subtle font-semibold uppercase tracking-wider">Stock</th>
+                                <th className="px-5 py-3 text-right text-xs text-text-subtle font-semibold uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
+                        <tbody>
                             {products.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-8 py-20 text-center">
-                                        <div className="flex flex-col items-center space-y-4">
-                                            <div className="p-4 bg-white/5 rounded-3xl">
-                                                <Package className="w-12 h-12 text-slate-600" />
-                                            </div>
-                                            <p className="text-slate-500 font-medium">No products found. Start by adding one!</p>
-                                        </div>
-                                    </td>
-                                </tr>
+                                <tr><td colSpan={6} className="px-5 py-16 text-center">
+                                    <span className="material-symbols-outlined text-4xl text-text-subtle/40 block mb-3">inventory_2</span>
+                                    <p className="text-text-subtle text-sm">No products found</p>
+                                </td></tr>
                             ) : products.map((product) => (
-                                <tr key={product.id} className="group hover:bg-white/[0.02] transition-colors">
-                                    <td className="px-8 py-5 whitespace-nowrap">
-                                        <div className="relative inline-block w-12 h-12 p-0.5 bg-indigo-500/20 rounded-2xl border border-white/10 group-hover:border-indigo-500/50 transition-colors">
+                                <tr key={product.id} className="border-b border-border-dark hover:bg-card-hover transition-colors group">
+                                    <td className="px-5 py-3.5">
+                                        <div className="size-10 rounded-lg overflow-hidden border border-border-dark bg-background-dark">
                                             {product.image ? (
-                                                <img
-                                                    src={`http://localhost:5000${product.image}`}
-                                                    alt={product.name}
-                                                    className="w-full h-full rounded-2xl object-cover shadow-lg"
-                                                />
+                                                <img src={`http://localhost:5000${product.image}`} alt={product.name} className="size-full object-cover" />
                                             ) : (
-                                                <div className="w-full h-full rounded-2xl bg-white/5 flex items-center justify-center text-slate-500">
-                                                    <Package size={20} />
+                                                <div className="size-full flex items-center justify-center">
+                                                    <span className="material-symbols-outlined text-text-subtle/40 text-[18px]">inventory_2</span>
                                                 </div>
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-8 py-5 whitespace-nowrap">
-                                        <div className="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors">
-                                            {product.name}
-                                        </div>
+                                    <td className="px-5 py-3.5">
+                                        <span className="text-white text-sm font-semibold group-hover:text-primary transition-colors">{product.name}</span>
                                     </td>
-                                    <td className="px-8 py-5 whitespace-nowrap">
+                                    <td className="px-5 py-3.5">
                                         {product.category ? (
-                                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold border"
-                                                style={{ backgroundColor: product.category.color + '20', borderColor: product.category.color + '40', color: product.category.color }}>
+                                            <span className="px-2.5 py-1 rounded-lg text-xs font-semibold border"
+                                                style={{ backgroundColor: product.category.color + '15', borderColor: product.category.color + '30', color: product.category.color }}>
                                                 {product.category.name}
                                             </span>
-                                        ) : (
-                                            <span className="text-slate-600 text-xs">—</span>
-                                        )}
+                                        ) : <span className="text-text-subtle text-xs">—</span>}
                                     </td>
-                                    <td className="px-8 py-5 whitespace-nowrap">
-                                        <div className="text-sm font-black text-white tabular-nums">
-                                            Rp {parseFloat(product.price).toLocaleString()}
-                                        </div>
+                                    <td className="px-5 py-3.5">
+                                        <span className="text-primary text-sm font-bold">Rp {parseFloat(product.price).toLocaleString('id-ID')}</span>
                                     </td>
-                                    <td className="px-8 py-5 whitespace-nowrap">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${product.stock > 10
-                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                            : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                    <td className="px-5 py-3.5">
+                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${product.stock > 10
+                                            ? 'bg-primary/10 text-primary border-primary/20'
+                                            : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                                             }`}>
-                                            {product.stock} units
+                                            {product.stock} unit
                                         </span>
                                     </td>
-                                    <td className="px-8 py-5 whitespace-nowrap text-right">
-                                        <div className="flex justify-end space-x-2">
-                                            <button
-                                                onClick={() => handleEdit(product)}
-                                                className="p-2.5 bg-white/5 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-xl transition-all duration-300 active:scale-90 border border-white/5 shadow-lg"
-                                            >
-                                                <Edit className="h-4 w-4" />
+                                    <td className="px-5 py-3.5 text-right">
+                                        <div className="flex justify-end gap-1.5">
+                                            <button onClick={() => handleEdit(product)}
+                                                className="p-2 rounded-lg bg-background-dark text-text-subtle hover:text-primary hover:bg-card-hover transition-colors border border-border-dark">
+                                                <span className="material-symbols-outlined text-[16px]">edit</span>
                                             </button>
-                                            <button
-                                                onClick={() => handleDelete(product.id)}
-                                                className="p-2.5 bg-white/5 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 active:scale-90 border border-white/5 shadow-lg"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
+                                            <button onClick={() => handleDelete(product.id)}
+                                                className="p-2 rounded-lg bg-background-dark text-text-subtle hover:text-red-400 hover:bg-red-500/10 transition-colors border border-border-dark">
+                                                <span className="material-symbols-outlined text-[16px]">delete</span>
                                             </button>
                                         </div>
                                     </td>
@@ -236,95 +149,47 @@ const Products = () => {
                 </div>
             </div>
 
-            <Modal
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                title={editingProduct ? 'Update Product' : 'Add New Product'}
-            >
-                <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-1">Product Name</label>
-                        <div className="relative group">
-                            <input
-                                type="text"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleInputChange}
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
-                                placeholder="Enter name..."
-                                required
-                            />
-                        </div>
+            <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingProduct ? 'Edit Produk' : 'Tambah Produk'}>
+                <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+                    <div>
+                        <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Nama Produk</label>
+                        <input type="text" name="name" value={formData.name} onChange={handleInputChange} required
+                            className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Masukkan nama..." />
                     </div>
-
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-1">Category</label>
-                        <select
-                            name="categoryId"
-                            value={formData.categoryId}
-                            onChange={handleInputChange}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all appearance-none"
-                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.25rem center' }}
-                        >
-                            <option value="" className="bg-[#0a0f1e]">— Tanpa Kategori —</option>
-                            {categories.map(cat => (
-                                <option key={cat.id} value={cat.id} className="bg-[#0a0f1e]">{cat.name}</option>
-                            ))}
+                    <div>
+                        <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Kategori</label>
+                        <select name="categoryId" value={formData.categoryId} onChange={handleInputChange}
+                            className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
+                            <option value="">— Tanpa Kategori —</option>
+                            {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                         </select>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-1">Price (IDR)</label>
-                            <input
-                                type="number"
-                                name="price"
-                                value={formData.price}
-                                onChange={handleInputChange}
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all tabular-nums"
-                                placeholder="0"
-                                required
-                            />
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Harga (IDR)</label>
+                            <input type="number" name="price" value={formData.price} onChange={handleInputChange} required
+                                className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="0" />
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-1">Stock Amount</label>
-                            <input
-                                type="number"
-                                name="stock"
-                                value={formData.stock}
-                                onChange={handleInputChange}
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all tabular-nums"
-                                placeholder="0"
-                                required
-                            />
+                        <div>
+                            <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Stok</label>
+                            <input type="number" name="stock" value={formData.stock} onChange={handleInputChange} required
+                                className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="0" />
                         </div>
                     </div>
-
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-1">Product Image</label>
-                        <div className="relative group">
-                            <input
-                                type="file"
-                                onChange={handleFileChange}
-                                className="w-full bg-white/5 border border-dashed border-white/10 rounded-2xl px-5 py-8 text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 transition-all cursor-pointer"
-                            />
-                        </div>
-                        <p className="text-[10px] text-slate-500 px-1 italic">Optional: Upload a clear image for better representation.</p>
+                    <div>
+                        <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Gambar Produk</label>
+                        <input type="file" onChange={handleFileChange}
+                            className="w-full bg-background-dark border border-dashed border-border-dark rounded-lg px-4 py-6 text-text-subtle text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary file:text-background-dark cursor-pointer" />
+                        <p className="text-text-subtle/60 text-xs mt-1">Opsional: gambar akan ditampilkan di POS</p>
                     </div>
-
-                    <div className="flex gap-4 pt-4">
-                        <button
-                            type="button"
-                            onClick={handleCloseModal}
-                            className="flex-1 px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold transition-all duration-300 border border-white/5 active:scale-95"
-                        >
-                            Review Later
+                    <div className="flex gap-3 pt-2">
+                        <button type="button" onClick={handleCloseModal}
+                            className="flex-1 px-4 py-2.5 bg-background-dark border border-border-dark text-text-subtle rounded-lg font-semibold text-sm hover:bg-card-hover hover:text-white transition-colors">
+                            Batal
                         </button>
-                        <button
-                            type="submit"
-                            className="flex-[1.5] px-6 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black shadow-xl shadow-indigo-600/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                            {editingProduct ? 'UPDATE DATA' : 'CONFIRM & CREATE'}
+                        <button type="submit"
+                            className="flex-[1.5] px-4 py-2.5 bg-primary text-background-dark rounded-lg font-bold text-sm hover:bg-green-400 shadow-lg shadow-primary/20 transition-all">
+                            {editingProduct ? 'Update' : 'Simpan'}
                         </button>
                     </div>
                 </form>
@@ -334,4 +199,3 @@ const Products = () => {
 };
 
 export default Products;
-

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import api from '../lib/axios';
 
 const Login = () => {
@@ -9,6 +8,7 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
@@ -28,82 +28,151 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="glass-card p-8 rounded-2xl w-full max-w-md relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/20 blur-[60px] rounded-full -mr-16 -mt-16"></div>
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-600/20 blur-[60px] rounded-full -ml-16 -mb-16"></div>
-
-                <div className="relative z-10 text-center mb-10">
-                    <div className="w-16 h-16 bg-indigo-600/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-500/30">
-                        <User className="text-indigo-400 w-8 h-8" />
+        <div className="w-full h-screen flex flex-row overflow-hidden bg-background-dark">
+            {/* Left Side: Branding / Illustration */}
+            <div className="hidden lg:flex w-1/2 relative bg-surface-dark items-center justify-center overflow-hidden">
+                {/* Background with Overlay */}
+                <div className="absolute inset-0 z-0">
+                    <div className="absolute inset-0 bg-gradient-to-br from-background-dark/90 via-surface-dark/80 to-primary/20"></div>
+                </div>
+                {/* Content */}
+                <div className="relative z-10 p-12 max-w-lg flex flex-col gap-6">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-background-dark">
+                            <span className="material-symbols-outlined text-2xl">point_of_sale</span>
+                        </div>
+                        <span className="text-2xl font-bold tracking-tight text-white">RetailOS</span>
                     </div>
-                    <h2 className="text-3xl font-bold tracking-tight text-white mb-2">Welcome Back</h2>
-                    <p className="text-slate-400 text-sm">Please enter your credentials to continue</p>
+                    <h1 className="text-4xl lg:text-5xl font-bold leading-tight text-white">
+                        Manage your store <br />
+                        <span className="text-primary">smarter, not harder.</span>
+                    </h1>
+                    <p className="text-lg text-slate-300 font-medium leading-relaxed">
+                        The all-in-one POS platform designed for modern retailers. Track inventory, manage staff, and grow customer loyalty in one place.
+                    </p>
+                    {/* Feature Cards */}
+                    <div className="grid grid-cols-2 gap-4 mt-8 opacity-80">
+                        <div className="bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/10">
+                            <span className="material-symbols-outlined text-primary mb-2 text-3xl">analytics</span>
+                            <p className="text-sm font-semibold text-white">Real-time Analytics</p>
+                        </div>
+                        <div className="bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/10">
+                            <span className="material-symbols-outlined text-primary mb-2 text-3xl">inventory_2</span>
+                            <p className="text-sm font-semibold text-white">Smart Inventory</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Right Side: Login Form */}
+            <div className="w-full lg:w-1/2 bg-background-dark flex flex-col items-center justify-center p-6 sm:p-12 relative">
+                {/* Mobile Logo */}
+                <div className="absolute top-6 left-6 lg:hidden flex items-center gap-2">
+                    <div className="w-8 h-8 bg-primary rounded flex items-center justify-center text-background-dark">
+                        <span className="material-symbols-outlined text-xl">point_of_sale</span>
+                    </div>
+                    <span className="text-xl font-bold text-white">RetailOS</span>
                 </div>
 
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500/20 text-red-100 px-4 py-3 rounded-xl mb-6 text-sm text-center animate-shake">
-                        {error}
+                <div className="w-full max-w-[420px] flex flex-col gap-8">
+                    {/* Header */}
+                    <div className="flex flex-col gap-2">
+                        <h2 className="text-3xl font-bold text-white">Welcome Back</h2>
+                        <p className="text-slate-400">Please enter your credentials to access your dashboard.</p>
                     </div>
-                )}
 
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    <div>
-                        <label className="block text-slate-300 text-xs font-semibold mb-2 ml-1 uppercase tracking-wider">Username</label>
-                        <div className="relative group">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                                <User size={18} />
-                            </span>
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all text-white placeholder-slate-500"
-                                placeholder="Enter your username"
-                                required
-                            />
+                    {/* Error */}
+                    {error && (
+                        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                            <span className="material-symbols-outlined text-[18px]">error</span>
+                            {error}
                         </div>
-                    </div>
+                    )}
 
-                    <div>
-                        <label className="block text-slate-300 text-xs font-semibold mb-2 ml-1 uppercase tracking-wider">Password</label>
-                        <div className="relative group">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                                <Lock size={18} />
-                            </span>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all text-white placeholder-slate-500"
-                                placeholder="Enter your password"
-                                required
-                            />
+                    {/* Form */}
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                        {/* Username */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-slate-300" htmlFor="username">
+                                Email or Username
+                            </label>
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                                    <span className="material-symbols-outlined text-[20px]">person</span>
+                                </div>
+                                <input
+                                    className="w-full h-12 pl-11 pr-4 bg-input-dark border border-white/10 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200"
+                                    id="username"
+                                    placeholder="Enter your email or username"
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    required
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="pt-2">
+                        {/* Password */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-slate-300" htmlFor="password">
+                                Password
+                            </label>
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                                    <span className="material-symbols-outlined text-[20px]">lock</span>
+                                </div>
+                                <input
+                                    className="w-full h-12 pl-11 pr-12 bg-input-dark border border-white/10 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200"
+                                    id="password"
+                                    placeholder="Enter your password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-200 focus:outline-none cursor-pointer"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">
+                                        {showPassword ? 'visibility_off' : 'visibility'}
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Login Button */}
                         <button
+                            className="mt-4 w-full h-12 bg-primary hover:bg-[#0fd650] text-background-dark font-bold text-base rounded-lg shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60"
                             type="submit"
                             disabled={isLoading}
-                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3.5 rounded-xl transition duration-300 group flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20 disabled:opacity-70"
                         >
                             {isLoading ? (
-                                <Loader2 className="animate-spin" size={20} />
+                                <div className="w-5 h-5 border-2 border-background-dark/30 border-t-background-dark rounded-full animate-spin" />
                             ) : (
                                 <>
-                                    <span>Sign In</span>
-                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                    <span>Log In</span>
+                                    <span className="material-symbols-outlined text-[20px]">login</span>
                                 </>
                             )}
                         </button>
-                    </div>
-                </form>
+                    </form>
 
-                <div className="mt-8 text-center">
-                    <p className="text-slate-500 text-sm">
-                        Secured by <span className="text-indigo-400 font-medium">Antigravity POS</span>
-                    </p>
+                    {/* Footer */}
+                    <div className="text-center mt-4">
+                        <p className="text-sm text-slate-400">
+                            Don't have an account?{' '}
+                            <span className="font-bold text-white hover:text-primary transition-colors cursor-pointer">Contact Support</span>
+                        </p>
+                    </div>
+                </div>
+
+                {/* Bottom Links */}
+                <div className="absolute bottom-6 w-full flex justify-center gap-6 text-xs text-slate-600">
+                    <span>Privacy Policy</span>
+                    <span>Terms of Service</span>
+                    <span>© 2024 RetailOS Inc.</span>
                 </div>
             </div>
         </div>
@@ -111,4 +180,3 @@ const Login = () => {
 };
 
 export default Login;
-
