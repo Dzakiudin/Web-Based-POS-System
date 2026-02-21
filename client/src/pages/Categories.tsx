@@ -75,7 +75,7 @@ const Categories = () => {
             </div>
 
             {showModal && (
-                <Modal title={editId ? 'Edit Kategori' : 'Tambah Kategori'} onClose={() => setShowModal(false)}>
+                <Modal isOpen={showModal} title={editId ? 'Edit Kategori' : 'Tambah Kategori'} onClose={() => setShowModal(false)}>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="text-white/40 text-xs mb-1.5 block">Nama</label>

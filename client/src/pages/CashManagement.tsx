@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/axios';
-import { Banknote, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Plus, AlertTriangle, Wallet, BarChart3 } from 'lucide-react';
+import { Banknote, ArrowUpRight, ArrowDownRight, Clock, Plus, Wallet } from 'lucide-react';
 
 interface CashSession {
     id: number; openingBalance: string; closingBalance: string | null;
@@ -60,7 +60,7 @@ const CashManagement = () => {
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                             <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-emerald-400 text-sm font-medium">Sesi Aktif — {activeSession.user.name}</span>
+                            <span className="text-emerald-400 text-sm font-medium">Sesi Aktif — {activeSession.user?.name || 'Kasir'}</span>
                         </div>
                         <span className="text-white/30 text-xs">{new Date(activeSession.openedAt).toLocaleString('id-ID')}</span>
                     </div>
@@ -123,7 +123,7 @@ const CashManagement = () => {
                         {sessions.filter(s => s.status === 'CLOSED').map(s => (
                             <tr key={s.id} className="border-b border-white/5 hover:bg-white/3">
                                 <td className="px-4 py-2.5 text-white/60 text-xs">{new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short' })}</td>
-                                <td className="px-4 py-2.5 text-white/70 text-sm">{s.user.name}</td>
+                                <td className="px-4 py-2.5 text-white/70 text-sm">{s.user?.name || '-'}</td>
                                 <td className="px-4 py-2.5 text-right text-white/60 text-sm">Rp {Number(s.openingBalance).toLocaleString('id-ID')}</td>
                                 <td className="px-4 py-2.5 text-right text-white/80 text-sm font-medium">Rp {Number(s.closingBalance || 0).toLocaleString('id-ID')}</td>
                                 <td className="px-4 py-2.5 text-right">

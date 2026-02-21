@@ -10,16 +10,26 @@ interface Product {
     price: string;
     stock: number;
     image: string | null;
+    categoryId: number | null;
+    category?: { id: number; name: string; color: string } | null;
+}
+
+interface Category {
+    id: number;
+    name: string;
+    color: string;
 }
 
 const Products = () => {
     const [products, setProducts] = useState<Product[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-    const [formData, setFormData] = useState({ name: '', price: '', stock: '', image: null as File | null });
+    const [formData, setFormData] = useState({ name: '', price: '', stock: '', categoryId: '', image: null as File | null });
 
     useEffect(() => {
         fetchProducts();
+        fetchCategories();
     }, []);
 
     const fetchProducts = async () => {
@@ -31,7 +41,16 @@ const Products = () => {
         }
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fetchCategories = async () => {
+        try {
+            const response = await api.get('/categories');
+            setCategories(response.data);
+        } catch (error) {
+            console.error('Error fetching categories', error);
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
     };
@@ -48,6 +67,9 @@ const Products = () => {
         data.append('name', formData.name);
         data.append('price', formData.price);
         data.append('stock', formData.stock);
+        if (formData.categoryId) {
+            data.append('categoryId', formData.categoryId);
+        }
         if (formData.image) {
             data.append('image', formData.image);
         }
@@ -75,6 +97,7 @@ const Products = () => {
             name: product.name,
             price: product.price,
             stock: product.stock.toString(),
+            categoryId: product.categoryId?.toString() || '',
             image: null,
         });
         setIsModalOpen(true);
@@ -94,7 +117,7 @@ const Products = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingProduct(null);
-        setFormData({ name: '', price: '', stock: '', image: null });
+        setFormData({ name: '', price: '', stock: '', categoryId: '', image: null });
     };
 
     return (
@@ -127,6 +150,7 @@ const Products = () => {
                             <tr>
                                 <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Image</th>
                                 <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Name</th>
+                                <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Category</th>
                                 <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Price</th>
                                 <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Stock</th>
                                 <th className="px-8 py-5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Actions</th>
@@ -135,7 +159,7 @@ const Products = () => {
                         <tbody className="divide-y divide-white/5">
                             {products.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-8 py-20 text-center">
+                                    <td colSpan={6} className="px-8 py-20 text-center">
                                         <div className="flex flex-col items-center space-y-4">
                                             <div className="p-4 bg-white/5 rounded-3xl">
                                                 <Package className="w-12 h-12 text-slate-600" />
@@ -165,6 +189,16 @@ const Products = () => {
                                         <div className="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors">
                                             {product.name}
                                         </div>
+                                    </td>
+                                    <td className="px-8 py-5 whitespace-nowrap">
+                                        {product.category ? (
+                                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold border"
+                                                style={{ backgroundColor: product.category.color + '20', borderColor: product.category.color + '40', color: product.category.color }}>
+                                                {product.category.name}
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-600 text-xs">—</span>
+                                        )}
                                     </td>
                                     <td className="px-8 py-5 whitespace-nowrap">
                                         <div className="text-sm font-black text-white tabular-nums">
@@ -221,6 +255,22 @@ const Products = () => {
                                 required
                             />
                         </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-1">Category</label>
+                        <select
+                            name="categoryId"
+                            value={formData.categoryId}
+                            onChange={handleInputChange}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all appearance-none"
+                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.25rem center' }}
+                        >
+                            <option value="" className="bg-[#0a0f1e]">— Tanpa Kategori —</option>
+                            {categories.map(cat => (
+                                <option key={cat.id} value={cat.id} className="bg-[#0a0f1e]">{cat.name}</option>
+                            ))}
+                        </select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

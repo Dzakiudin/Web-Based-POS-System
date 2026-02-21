@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/axios';
-import { TrendingUp, TrendingDown, DollarSign, ShoppingBag, Users, Clock, Package, BarChart3, Calendar, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, DollarSign, ShoppingBag, Users, Clock, Package, BarChart3, Calendar } from 'lucide-react';
 
 interface DashboardStats {
-    todayRevenue: number; todayTransactions: number; todayProfit: number;
-    weekRevenue: number; weekTransactions: number;
-    monthRevenue: number; monthTransactions: number;
-    topProducts: { name: string; totalSold: number; revenue: number }[];
-    totalCustomers: number; totalProducts: number;
+    todayRevenue?: number; todayTransactions?: number;
+    totalCustomers?: number; totalProducts?: number; lowStockCount?: number;
+    topProducts?: { name: string; totalSold: number; revenue: number }[];
+    [key: string]: any; // allow extra fields from API
 }
 
 const Reports = () => {
@@ -19,13 +18,14 @@ const Reports = () => {
     useEffect(() => { fetchDashboard(); fetchPeakHours(); }, []);
 
     const fetchDashboard = async () => { try { const r = await api.get('/reports/dashboard'); setStats(r.data); } catch (e) { console.error(e); } };
-    const fetchPeakHours = async () => { try { const r = await api.get('/reports/peak-hours'); setPeakHours(r.data); } catch (e) { console.error(e); } };
+    const fetchPeakHours = async () => { try { const r = await api.get('/reports/peak-hours'); setPeakHours(Array.isArray(r.data) ? r.data : []); } catch (e) { console.error(e); } };
     const fetchSalesReport = async () => {
         if (!dateRange.start || !dateRange.end) return;
         try { const r = await api.get('/reports/sales', { params: dateRange }); setSalesReport(r.data); } catch (e) { console.error(e); }
     };
 
     const maxPeakCount = Math.max(...peakHours.map(p => p.count), 1);
+    const topProducts = stats?.topProducts || [];
 
     return (
         <div className="space-y-5">
@@ -36,27 +36,27 @@ const Reports = () => {
             {/* Stats Grid */}
             {stats && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <StatCard icon={DollarSign} label="Revenue Hari Ini" value={`Rp ${stats.todayRevenue.toLocaleString('id-ID')}`} color="emerald" />
-                    <StatCard icon={ShoppingBag} label="Transaksi Hari Ini" value={stats.todayTransactions.toString()} color="blue" />
-                    <StatCard icon={TrendingUp} label="Revenue Bulan Ini" value={`Rp ${stats.monthRevenue.toLocaleString('id-ID')}`} color="indigo" />
-                    <StatCard icon={Users} label="Total Pelanggan" value={stats.totalCustomers.toString()} color="purple" />
+                    <StatCard icon={DollarSign} label="Revenue Hari Ini" value={`Rp ${(Number(stats.todayRevenue) || 0).toLocaleString('id-ID')}`} color="emerald" />
+                    <StatCard icon={ShoppingBag} label="Transaksi Hari Ini" value={String(stats.todayTransactions ?? 0)} color="blue" />
+                    <StatCard icon={TrendingUp} label="Total Produk" value={String(stats.totalProducts ?? 0)} color="indigo" />
+                    <StatCard icon={Users} label="Total Pelanggan" value={String(stats.totalCustomers ?? 0)} color="purple" />
                 </div>
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Top Products */}
-                {stats && stats.topProducts.length > 0 && (
+                {topProducts.length > 0 && (
                     <div className="glass-card rounded-2xl border border-white/10 p-5">
                         <h3 className="text-white font-bold text-sm mb-4 flex items-center gap-2"><Package className="w-4 h-4 text-indigo-400" /> Top Produk</h3>
                         <div className="space-y-3">
-                            {stats.topProducts.map((p, i) => (
+                            {topProducts.map((p, i) => (
                                 <div key={i} className="flex items-center gap-3">
                                     <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold ${i === 0 ? 'bg-amber-500/20 text-amber-400' : i === 1 ? 'bg-gray-400/20 text-gray-300' : 'bg-orange-600/20 text-orange-400'}`}>{i + 1}</span>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-white/80 text-sm truncate">{p.name}</p>
                                         <p className="text-white/30 text-[10px]">{p.totalSold} terjual</p>
                                     </div>
-                                    <span className="text-indigo-400 text-xs font-bold">Rp {p.revenue.toLocaleString('id-ID')}</span>
+                                    <span className="text-indigo-400 text-xs font-bold">Rp {(Number(p.revenue) || 0).toLocaleString('id-ID')}</span>
                                 </div>
                             ))}
                         </div>
@@ -100,7 +100,7 @@ const Reports = () => {
                     <div className="grid grid-cols-3 gap-3">
                         <div className="bg-white/5 rounded-xl p-4 text-center">
                             <p className="text-white/40 text-xs mb-1">Total Penjualan</p>
-                            <p className="text-emerald-400 text-lg font-bold">Rp {salesReport.totalRevenue?.toLocaleString('id-ID') || 0}</p>
+                            <p className="text-emerald-400 text-lg font-bold">Rp {(Number(salesReport.totalRevenue) || 0).toLocaleString('id-ID')}</p>
                         </div>
                         <div className="bg-white/5 rounded-xl p-4 text-center">
                             <p className="text-white/40 text-xs mb-1">Total Transaksi</p>

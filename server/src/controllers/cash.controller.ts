@@ -158,6 +158,7 @@ export const getActiveSession = async (req: AuthRequest, res: Response) => {
         const session = await prisma.cashSession.findFirst({
             where: { userId, status: 'OPEN' },
             include: {
+                user: { select: { id: true, name: true, role: true } },
                 movements: { orderBy: { createdAt: 'desc' } },
                 sales: {
                     where: { status: 'COMPLETED' },
