@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './components/Toast';
+import LoadingSpinner from './components/LoadingSpinner';
 
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login'));
@@ -21,14 +22,7 @@ const Vouchers = lazy(() => import('./pages/Vouchers'));
 const AuditLogs = lazy(() => import('./pages/AuditLogs'));
 const Discounts = lazy(() => import('./pages/Discounts'));
 
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center h-screen bg-[#060918]">
-    <div className="flex flex-col items-center gap-3">
-      <div className="w-10 h-10 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-      <span className="text-white/30 text-sm">Memuat...</span>
-    </div>
-  </div>
-);
+
 
 function App() {
   return (

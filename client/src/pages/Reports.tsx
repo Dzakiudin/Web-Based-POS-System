@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/axios';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface DashboardStats {
     todayRevenue?: number; todayTransactions?: number;
@@ -112,56 +112,80 @@ const Reports = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
                 {/* Top Products */}
-                <div className="bg-card-dark rounded-xl border border-border-dark overflow-hidden shadow-lg h-fit">
-                    <div className="p-4 border-b border-border-dark">
+                <div className="bg-card-dark rounded-xl border border-border-dark overflow-hidden shadow-lg flex flex-col">
+                    <div className="p-4 border-b border-border-dark flex-none">
                         <h3 className="text-white font-bold text-sm flex items-center gap-2">
                             <span className="material-symbols-outlined text-primary text-[18px]">trending_up</span> Produk Terlaris
                         </h3>
                     </div>
-                    <table className="w-full">
-                        <thead><tr className="border-b border-border-dark bg-background-dark">
-                            <th className="text-left px-5 py-3 text-xs text-text-subtle font-semibold">#</th>
-                            <th className="text-left px-5 py-3 text-xs text-text-subtle font-semibold">Produk</th>
-                            <th className="text-right px-5 py-3 text-xs text-text-subtle font-semibold">Terjual</th>
-                            <th className="text-right px-5 py-3 text-xs text-text-subtle font-semibold">Revenue</th>
-                        </tr></thead>
-                        <tbody>
-                            {topProducts.map((p, i) => (
-                                <tr key={i} className="border-b border-border-dark hover:bg-card-hover transition-colors">
-                                    <td className="px-5 py-3 text-primary font-bold text-sm">{i + 1}</td>
-                                    <td className="px-5 py-3 text-white text-sm">{p.product?.name || 'Unknown'}</td>
-                                    <td className="px-5 py-3 text-right text-text-subtle text-sm">{p.totalQuantity}</td>
-                                    <td className="px-5 py-3 text-right text-primary text-sm font-semibold">Rp {Number(p.totalRevenue).toLocaleString('id-ID')}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <div className="flex-1 overflow-x-auto">
+                        <table className="w-full">
+                            <thead><tr className="border-b border-border-dark bg-background-dark">
+                                <th className="text-left px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">#</th>
+                                <th className="text-left px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Produk</th>
+                                <th className="text-right px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Terjual</th>
+                                <th className="text-right px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Revenue</th>
+                            </tr></thead>
+                            <tbody className="divide-y divide-border-dark/50">
+                                {topProducts.map((p, i) => (
+                                    <tr key={i} className="hover:bg-card-hover transition-colors">
+                                        <td className="px-5 py-3 text-primary font-bold text-sm">{i + 1}</td>
+                                        <td className="px-5 py-3 text-white text-sm font-medium">{p.product?.name || 'Unknown'}</td>
+                                        <td className="px-5 py-3 text-right text-text-subtle text-sm font-semibold">{p.totalQuantity}</td>
+                                        <td className="px-5 py-3 text-right text-primary text-sm font-bold whitespace-nowrap">Rp {Number(p.totalRevenue).toLocaleString('id-ID')}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                {/* Peak Hours Container (Manual Bar for variety) */}
-                <div className="bg-card-dark rounded-xl border border-border-dark p-5 shadow-lg h-fit">
-                    <h3 className="text-white font-bold text-sm flex items-center gap-2 mb-4">
+                {/* Peak Hours Container */}
+                <div className="bg-card-dark rounded-xl border border-border-dark p-6 shadow-lg flex flex-col">
+                    <h3 className="text-white font-bold text-sm flex items-center gap-2 mb-6">
                         <span className="material-symbols-outlined text-primary text-[18px]">schedule</span> Jam Sibuk (30 Hari Terakhir)
                     </h3>
-                    <div className="flex items-end gap-1 h-32 mt-8">
-                        {peakHours.map((h, i) => {
-                            const max = Math.max(...peakHours.map(x => x.count), 1);
-                            const pct = (h.count / max) * 100;
-                            return (
-                                <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
-                                    {/* Tooltip on hover */}
-                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-background-dark border border-border-dark px-2 py-0.5 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap pointer-events-none">
-                                        {h.count} trans
-                                    </div>
-                                    <div className="w-full rounded-t-md bg-primary/20 relative" style={{ height: `${Math.max(pct, 4)}%` }}>
-                                        <div className="absolute inset-0 rounded-t-md bg-primary" style={{ opacity: Math.max(pct / 100, 0.2) }} />
-                                    </div>
-                                    <span className="text-text-subtle/60 text-[8px] rotate-45 mt-2 origin-left">{h.hour}:00</span>
-                                </div>
-                            );
-                        })}
+
+                    <div className="flex-1 min-h-[300px] w-full mt-auto">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={peakHours.map(h => ({ ...h, label: h.label.split(':')[0] }))}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#28392e" vertical={false} />
+                                <XAxis
+                                    dataKey="label"
+                                    tick={{ fill: '#9db9a6', fontSize: 10 }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    interval={1}
+                                />
+                                <YAxis
+                                    tick={{ fill: '#9db9a6', fontSize: 10 }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tickFormatter={(val) => val === 0 ? '' : val}
+                                />
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: '#111813', border: '1px solid #28392e', borderRadius: '8px' }}
+                                    itemStyle={{ color: '#13ec5b', fontWeight: 'bold' }}
+                                    labelStyle={{ color: '#white', fontWeight: 'bold' }}
+                                    labelFormatter={(val) => `Jam ${val}:00`}
+                                    cursor={{ fill: 'rgba(19, 236, 91, 0.05)' }}
+                                />
+                                <Bar
+                                    dataKey="count"
+                                    fill="#13ec5b"
+                                    radius={[4, 4, 0, 0]}
+                                    barSize={12}
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                    <div className="mt-4 flex items-center justify-center gap-4">
+                        <div className="flex items-center gap-1.5">
+                            <div className="size-2 rounded-full bg-primary"></div>
+                            <span className="text-[10px] text-text-subtle uppercase font-bold tracking-tight">Total Transaksi / Jam</span>
+                        </div>
                     </div>
                 </div>
             </div>
