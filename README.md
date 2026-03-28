@@ -10,6 +10,16 @@ Midnight Glass POS adalah sistem Point of Sale premium berkinerja tinggi yang di
 
 ---
 
+## 📸 Tangkapan Layar Aplikasi
+
+| Dasbor Utama | Order & Payment (POS) |
+| :---: | :---: |
+| ![Dashboard](docs/dashboard.png) | ![Order & Payment](docs/order%20&%20payment.png) |
+| **Detail Transaksi** | **Manajemen Pelanggan** |
+| ![Detail Transaksi](docs/detail%20transaksi.png) | ![Pelanggan](docs/pelanggan.png) |
+
+---
+
 ## ✨ Penjelasan Detail Fitur Utama Aplikasi
 
 ### 🛒 POS Inti & Checkout Layar Penuh
@@ -105,6 +115,17 @@ npm install
 npm run dev
 # Selesai! Aplikasi antarmuka Kasir Anda tesedia di http://localhost:5173
 ```
+
+### 4. Akun Default (Siap Pakai)
+Setelah utilitas database *seeder* Anda dijalankan (`npx prisma db seed`), Anda dapat langsung masuk dengan akun berikut:
+
+**Administrator (Hak Akses Penuh):**
+- **Username:** `admin`
+- **Password:** `admin123`
+
+**Staf Kasir:**
+- **Username:** `user1`
+- **Password:** `123456`
 
 ---
 
