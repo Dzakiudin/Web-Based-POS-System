@@ -1,152 +1,222 @@
-# 🌌 Midnight Glass POS Pro
-> **Sistem Point of Sale & Analitik Komersial Premium**
+<!--
+  Midnight Glass POS Pro
+  Professional project documentation
+-->
 
-![Platform](https://img.shields.io/badge/Platform-Web-indigo)
-![Architecture](https://img.shields.io/badge/Architecture-MERN-blue?logo=react)
-![UI](https://img.shields.io/badge/Design-Card_Dark-green)
-![Database](https://img.shields.io/badge/Database-PostgreSQL-336791?logo=postgresql)
+<div align="center">
 
-Midnight Glass POS adalah sistem Point of Sale premium berkinerja tinggi yang dirancang untuk lingkungan ritel modern. Dibangun dengan estetika yang bersih dan terlihat profesional, sistem ini menyediakan jembatan mulus antara manajemen bisnis yang kuat dan pengalaman pengguna yang mewah dan responsif.
+<img src="docs/pos-ad-banner.png" alt="Midnight Glass POS Pro — modern point of sale and retail management" width="100%">
 
----
+# Midnight Glass POS Pro
 
-## 📸 Tangkapan Layar Aplikasi
+**Sistem Point of Sale dan manajemen ritel untuk membantu operasional bisnis lebih terstruktur.**
 
-| Dasbor Utama | Order & Payment (POS) |
-| :---: | :---: |
-| ![Dashboard](docs/dashboard.png) | ![Order & Payment](docs/order%20&%20payment.png) |
-| **Detail Transaksi** | **Manajemen Pelanggan** |
-| ![Detail Transaksi](docs/detail%20transaksi.png) | ![Pelanggan](docs/pelanggan.png) |
+Kelola transaksi, inventaris, pelanggan, kasir, dan laporan penjualan melalui satu antarmuka modern.
 
----
+<p>
+  <a href="#-fitur-utama">Fitur</a> ·
+  <a href="#-pratinjau-aplikasi">Pratinjau</a> ·
+  <a href="#-teknologi">Teknologi</a> ·
+  <a href="#-instalasi-lokal">Instalasi</a>
+</p>
 
-## ✨ Penjelasan Detail Fitur Utama Aplikasi
+![Platform](https://img.shields.io/badge/Platform-Web-101f19?style=for-the-badge)
+![Frontend](https://img.shields.io/badge/Frontend-React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Backend](https://img.shields.io/badge/Backend-Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Database](https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
 
-### 🛒 POS Inti & Checkout Layar Penuh
-Halaman Kasir (Transaksi) menggunakan pendekatan antarmuka layar penuh (*full-screen view*) khusus, bebas dari gangguan panel *sidebar*.  
-- **Navigasi Cepat:** Memungkinkan staf kasir mencari barang dengan panel pencarian yang responsif, menyaring lewat kategori, dan melihat visual gambar maupun detail sisa stok *real-time*.
-- **Keranjang Cerdas & Multi-Diskon:** Secara otomatis menghitung harga subtotal produk, dan mendukung integrasi potongan harga spesifik atau persen baik di tingkat produk maupun kupon keranjang keseluruhan.
-- **Tindakan Lanjutan:** Termasuk dukungan untuk meletakan pesanan dalam mode "Tunda/Hold" ketika pelanggan belum siap membayar, dan memproses status transaksional seperti *Void* atau *Refund* penuh jika barang bermasalah.
-
-### 📦 Manajemen Inventaris & Manajemen Stok Rinci
-Modul Inventaris di desain bukan hanya untuk input stok, namun sebagai *ledger* atau riwayat mutasi stok.
-- **Tiga Jenis Mutasi:** Seluruh perubahan stok dicatat dan wajib diklasifikasikan ke dalam: 
-  - **Stok Masuk (In):** Pembelian dari pihak penyuplai (*Supplier*).
-  - **Stok Keluar (Out):** Retur ke *Supplier* atau barang rusak.
-  - **Opname Manual (Adjustment):** Sinkronisasi kecocokan antara pencatatan sistem dan ketersediaan barang di gudang.
-- **Low Stock Alerts:** Indikator visual otomatis dan notifikasi di dalam panel lonceng sistem saat barang telah menyentuh batas minimal *Restock*.
-- **Multi Varian Produk:** Sistem mendukung produk dengan sifat variatif kompleks (cth: ukuran sepatu, seri warna) dengan harga pokok produksi (HPP) independen *per varian*.
-
-### � Arus Kas Sesi (Cash Management)
-Keamanan fisik mesin register uang Anda dapat diandalkan menggunakan modul pengaturan sesi finansial yang ketat.
-- **Sistem Shift Kasir:** Setiap staf kasir wajib mencatat jumlah modal/pecahan uang kertas pembuka (*Opening Balance*) di dalam mesin mereka sebelum dapat memulai berjualan pada hari tersebut.
-- **Rekonsiliasi (Closing):** Pada penghujung hari operasional kasir wajib melakukan input penghitungan *Closing Balance*. Sistem akan otomatis mengalkulasikan penjualan sistem dan mencari apakah ada fenomena Uang Lebih/Uang Kurang (Diskrepansi) antara laci kas dan data server.
-
-### 📊 Intelijen Bisnis & Laporan Keuangan (BI)
-Ekstraksi data transaksi bervolume tinggi menjadi visualisasi yang intuitif.
-- **Dashboard Overview:** Representasi *KPI (Key Performance Indicators)* kunci seperti Total Penjualan Hari Ini, Rata-Rata Nilai Transaksi (*AVO*), Status Staf Kasir yang aktif berjaga, beserta Bagan (*Area Chart*) Tren Pendapatan bulanan/harian.
-- **Laporan Komprehensif:** Halaman analitik khusus bagi barisan *Manager* & *Owner* untuk menghasilkan metrik spesifik, lengkap dengan fitur untuk mengekspor data yang di_filter_ ini (*Export to Excel/PDF*) sebagai rujukan auditorial dan akuntansi.
-
-### 💎 CRM & Program Loyalitas Voucher
-Ekosistem pertahanan daya beli konsumen tingkat tinggi.
-- **Tingkatan Pelanggan Otomatis (Tiering):** Sistem mengevaluasi kumulatif total belanja per nomor telepon (*Customer CRM*), memberikan status Bronze, Silver, Gold, atau Platinum secara otomatis.
-- **Voucher Dinamis:** Generasi kode promo eksklusif untuk batas waktu tertentu, dapat dikonfigurasi apakah ia dapat dipakai berkali-kali (`maxUses`) atau memiliki batas minimum nominal transaksi belanja.
-
-### 🛡️ Keamanan Lanjutan & *Role-Based Access Control* (RBAC)
-Sebuah sistem terkoordinasi yang melindungi area sensitif perangkat lunak.
-- **Struktur Perizinan Kuat Lintas Platform:** 
-  - **Kasir:** Hanya diperbolehkan melakukan tugas mesin register belanja. Seluruh pengaturan inventori, produk, audit log telah diblokir keamanannya langsung dari dalam level *Backend/Server* API.
-  - **Admin:** Memiliki otoritas masuk/keluar inventaris dan pendaftaran staf baru, namun diblokir dari area Audit sistem, hak manajerial, dan penghapusan *Database* (*Hard Delete*).
-  - **Owner:** *Super-user* tunggal yang memiliki jangkauan kontrol paripurna sistem operasi perusahaan tanpa terkecuali.
-- **Audit Logs Incorruptible:** Jika ada harga sebuah barang yang diedit, atau hak akses kasir yang dinaikkan perannya menjadi Admin, catatan kapan dan siapa pelakunya (*User + IP Address*) akan tercatat diam-diam secara mutlak di dalam _Security Audit Table_. Catatan ini secara pemrograman kebal dari tombol 'Hapus' sekalipun oleh Admin.
+</div>
 
 ---
 
-## 🛠️ Tumpukan Teknologi (*Tech Stack*) Dasar
+## 📌 Tentang Proyek
 
-| Lapisan | Pilihan Teknologi Inti |
-| :--- | :--- |
-| **Frontend** | React 18, Vite Bundler, Tailwind CSS 3, Lucide React Icons, Axios Client, Recharts.js |
-| **Backend** | NodeJS (LTS), ExpressJS Framework, TypeScript Strict Mode |
-| **Database** | PostgreSQL Proprietary Relational System |
-| **ORM Integrations** | Prisma Client (Schema + Migrations) |
-| **Autentikasi** | JSON Web Tokens (Encrypted JWT) tersinkronisasi Middleware *Express* perizinan majemuk |
+**Midnight Glass POS Pro** adalah aplikasi *Point of Sale* (POS) berbasis web untuk membantu pengelolaan kegiatan ritel dari proses checkout hingga pemantauan performa penjualan. Antarmuka bertema gelap dengan aksen hijau dirancang agar informasi operasional mudah dipindai.
 
----
+Proyek ini menggabungkan aplikasi *frontend* React dengan layanan *backend* berbasis Node.js dan Express, serta PostgreSQL sebagai basis data relasional melalui Prisma ORM.
 
-## 🚀 Panduan Instalasi Lokal
+## ✨ Fitur Utama
 
-### Prasyarat Instalasi
-Pastikan PC/Server Anda sudah meng-_install_:
-- **Node.js** (Versi v18 ke atas)
-- **PostgreSQL Database** (Bisa diunduh via [PostgresApp](https://postgresapp.com/) / pgAdmin Windows)
-- Akses terminal (`npm` / `yarn`)
+### 🛒 Kasir dan transaksi
+- Antarmuka POS khusus untuk mempercepat proses checkout.
+- Pencarian produk dan pemfilteran berdasarkan kategori.
+- Penghitungan subtotal dan diskon.
+- Dukungan alur transaksi seperti *hold*, *void*, dan *refund* sesuai implementasi aplikasi.
 
-### 1. Konfigurasi Basis Data (*Database Setup*)
+### 📦 Inventaris dan stok
+- Pengelolaan produk serta varian produk.
+- Pencatatan mutasi stok: stok masuk, stok keluar, dan penyesuaian stok.
+- Indikator stok rendah untuk membantu proses pengisian ulang.
+- Riwayat perubahan stok sebagai referensi operasional.
+
+### 💵 Manajemen kas
+- Pencatatan saldo awal kasir ketika membuka sesi.
+- Pencatatan saldo akhir saat menutup sesi.
+- Perbandingan nilai kas berdasarkan transaksi dan hasil penghitungan kas fisik.
+
+### 📊 Dasbor dan laporan
+- Ringkasan indikator performa penjualan.
+- Visualisasi tren pendapatan.
+- Riwayat transaksi untuk membantu pemantauan aktivitas toko.
+- Fitur ekspor laporan yang tersedia pada aplikasi.
+
+### 👥 Pelanggan dan loyalitas
+- Pencatatan informasi pelanggan.
+- Pengelompokan tingkat loyalitas pelanggan berdasarkan aturan aplikasi.
+- Dukungan voucher atau promosi sesuai konfigurasi sistem.
+
+### 🔐 Hak akses dan audit
+- Pemisahan peran pengguna, seperti Kasir, Admin, dan Owner.
+- Pembatasan akses fitur berdasarkan peran.
+- Pencatatan aktivitas sensitif untuk membantu penelusuran perubahan.
+
+> **Catatan:** Daftar di atas merangkum kemampuan yang didokumentasikan proyek. Rincian fitur dapat berbeda berdasarkan konfigurasi dan implementasi kode pada versi yang digunakan.
+
+## 🖥️ Pratinjau Aplikasi
+
+<div align="center">
+
+### Dasbor Utama
+
+<img src="docs/dashboard.png" alt="Pratinjau dasbor utama" width="100%">
+
+### Kasir — Order & Payment
+
+<img src="docs/order%20%26%20payment.png" alt="Pratinjau halaman order dan pembayaran" width="100%">
+
+### Detail Transaksi
+
+<img src="docs/detail%20transaksi.png" alt="Pratinjau detail transaksi" width="100%">
+
+### Manajemen Pelanggan
+
+<img src="docs/pelanggan.png" alt="Pratinjau manajemen pelanggan" width="100%">
+
+</div>
+
+## 🧰 Teknologi
+
+| Bagian | Teknologi |
+|---|---|
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Navigasi | React Router |
+| HTTP client | Axios |
+| Visualisasi data | Recharts |
+| Backend | Node.js, Express, TypeScript |
+| Database | PostgreSQL |
+| ORM dan migrasi | Prisma |
+| Autentikasi | JSON Web Token (JWT) |
+| Ikon | Lucide React |
+
+Teknologi berdasarkan dependensi yang tercantum pada konfigurasi proyek. Pastikan versi paket dan kebutuhan lingkungan disesuaikan dengan berkas konfigurasi di repositori.
+
+## ⚙️ Instalasi Lokal
+
+### Prasyarat
+
+Pastikan perangkat Anda telah memiliki:
+
+- Node.js dan npm.
+- PostgreSQL yang sudah berjalan.
+- Git (opsional, untuk melakukan *clone* repositori).
+
+### 1. Clone repositori
+
 ```bash
-# Arahkan terminal / CMD ke dalam direktori backend program
+git clone https://github.com/Dzakiudin/Web-Based-POS-System.git
+cd Web-Based-POS-System
+```
+
+### 2. Instal dan konfigurasi backend
+
+```bash
 cd server
 npm install
-
-# Buat file environtment lokal baru meniru contoh
-cp .env.example .env
-
-# SANGAT PENTING: Buka file .env dan sesuaikan baris DATABASE_URL dengan format:
-# postgresql://<user_database>:<password>@localhost:5432/<nama_database>
 ```
 
-Silakan jalankan perintah migrasi ini untuk menyuntikkan skema *table* kosong beserta identitas pengaturan perizinan dasar perannya:
-```bash
-npx prisma migrate dev --name init
-npx prisma db seed 
+Siapkan variabel lingkungan backend sesuai konfigurasi proyek. Minimal, periksa nilai koneksi database PostgreSQL dan rahasia JWT sebelum menjalankan server. Jangan mengunggah berkas `.env` atau kredensial pribadi ke repositori.
+
+Contoh format koneksi database:
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/NAMA_DATABASE"
+JWT_SECRET="ganti_dengan_secret_yang_aman"
+PORT=5000
 ```
 
-### 2. Membangkitkan Layanan Backend 
+Pastikan variabel yang diperlukan cocok dengan skema Prisma serta kode aplikasi di versi proyek yang Anda gunakan.
+
+Jalankan migrasi dan *seed* jika konfigurasi Prisma proyek telah disiapkan:
+
 ```bash
-cd server
+npx prisma migrate dev
+npx prisma db seed
+```
+
+Jalankan layanan backend:
+
+```bash
 npm run dev
-# Server sekarang berjalan di http://localhost:5000 dan bersiap melayani perintah / API calls.
 ```
 
-### 3. Membangkitkan Klien Antarmuka (UI Frontend)
+### 3. Instal dan jalankan frontend
+
+Buka terminal baru dari direktori utama repositori:
+
 ```bash
 cd client
 npm install
 npm run dev
-# Selesai! Aplikasi antarmuka Kasir Anda tesedia di http://localhost:5173
 ```
 
-### 4. Akun Default (Siap Pakai)
-Setelah utilitas database *seeder* Anda dijalankan (`npx prisma db seed`), Anda dapat langsung masuk dengan akun berikut:
+Vite akan menampilkan URL lokal pada terminal, biasanya `http://localhost:5173`. Pastikan alamat API backend dan konfigurasi CORS sesuai lingkungan lokal Anda.
 
-**Administrator (Hak Akses Penuh):**
-- **Username:** `admin`
-- **Password:** `admin123`
+## 🔑 Akun Pengujian
 
-**Staf Kasir:**
-- **Username:** `user1`
-- **Password:** `123456`
+README sebelumnya mencantumkan akun *seed* berikut. Gunakan hanya pada lingkungan lokal setelah menjalankan seeder, dan ubah kredensial sebelum penggunaan yang dapat diakses pihak lain.
+
+| Peran | Username | Password |
+|---|---|---|
+| Administrator | `admin` | `admin123` |
+| Kasir | `user1` | `123456` |
+
+**Keamanan:** kredensial di atas bersifat untuk pengujian lokal dan bukan untuk server produksi. Jangan gunakan kata sandi tersebut pada akun atau layanan lain.
+
+## 🎨 Arah Desain
+
+- **Dark interface:** latar arang kehijauan untuk tampilan yang konsisten.
+- **Green accent:** aksen hijau untuk menonjolkan tindakan utama dan informasi penting.
+- **Operational dashboard:** kartu ringkasan, grafik, dan tabel transaksi untuk memudahkan pemantauan.
+- **Responsive workflow:** susunan antarmuka dibuat untuk mendukung kebutuhan operasional ritel.
+
+## 🗺️ Struktur Direktori
+
+```text
+Web-Based-POS-System/
+├── client/          # Frontend React + TypeScript
+├── server/          # Backend Express + TypeScript
+├── docs/            # Banner dan tangkapan layar dokumentasi
+└── README.md
+```
+
+## 🛡️ Catatan Keamanan
+
+- Simpan kredensial, API key, dan rahasia aplikasi hanya dalam variabel lingkungan.
+- Gunakan kata sandi kuat untuk akun di luar pengujian lokal.
+- Verifikasi konfigurasi autentikasi, otorisasi, CORS, dan database sebelum *deployment*.
+- Lakukan pencadangan basis data secara berkala sesuai kebutuhan operasional.
+
+## 📄 Lisensi
+
+Periksa berkas lisensi yang tersedia pada repositori untuk ketentuan penggunaan, distribusi, dan modifikasi proyek.
 
 ---
 
-## 🔒 Tata Letak Variabel Lingkungan (*Environment Variables*)
-Perhatikan `server/.env` agar program berinteraksi dengan wajar:
-- `DATABASE_URL`: URI *Postgres* esensial Anda seperti langkah awal di atas.
-- `JWT_SECRET`: Untaian string rahasia unik *(bebas, e.g. "my_super_secure_hash_secret_string"!)* agar klien tidak bisa meretas *cookies* kredensial masuk staf satu sama lain.
-- `PORT`: Port mesin backend default `5000`.
+<div align="center">
 
----
+**Midnight Glass POS Pro**  
+*More clarity in every transaction.*
 
-## 🎨 Konsep Kesepakatan Desain (UI/UX)
-Antarmuka sistem sangat dipengaruhi oleh estetika desain gelap korporasi:
-- **Card-Dark Contrast Themes:** Kami menggunakan warna arang gelap (`#111813`) dan tepian bergaris (`border-dark`) demi mencegah kelalahan mata staf (*eye-strain*) yang bekerja sif lebih dari 10 jam/hari.
-- **Accents:** Penggunaan elemen hijau cerah `#13ec5b` sebagai Call-To-Action yang jelas terlihat mata dalam kegelapan.
-- **Perpaduan Form Factor:** Komponen `<Modal>` sistem dirancang mengambang di luar arus dom DOM standar (lapisan *lay-over*) demi interaksi yang tidak merusak aliran posisi ketikan staf.
+Dibangun untuk mendukung pengelolaan ritel yang lebih teratur.
 
----
-
-## 📄 Lisensi Atribusi
-Sistem sumber didistribusikan di bawah naungan Lisensi MIT Publik. Silakan lihat salinan berkas `LICENSE` (jika tersedia) untuk syarat pengutipan pemanfaatan (*fair use*). 
-
----
-*Dibuat dengan efisiensi rekayasa mesin reaktif untuk mendorong ritel modern.*
+</div>
