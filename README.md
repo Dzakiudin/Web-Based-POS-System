@@ -5,7 +5,7 @@
 
 <div align="center">
 
-<img src="docs/pos-ad-banner.png" alt="Midnight Glass POS Pro — modern point of sale and retail management" width="100%">
+<img src="https://raw.githubusercontent.com/Dzakiudin/Web-Based-POS-System/main/docs/dashboard.png" alt="Midnight Glass POS Pro dashboard preview" width="100%">
 
 # Midnight Glass POS Pro
 
