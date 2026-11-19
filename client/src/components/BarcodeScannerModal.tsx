@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Camera, X, Flashlight, SwitchCamera, Check, Barcode, AlertCircle } from 'lucide-react';
+import { Camera, Flashlight, SwitchCamera, Check, Barcode, AlertCircle } from 'lucide-react';
+import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import { Button } from '@astryxdesign/core/Button';
-import { IconButton } from '@astryxdesign/core/IconButton';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { Badge } from '@astryxdesign/core/Badge';
 import { sound } from '../lib/sound';
@@ -25,7 +24,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     subtitle = 'Arahkan kamera ke barcode / QR code pada produk',
     allowContinuous = false,
 }) => {
-    const dialogRef = useRef<HTMLDialogElement | null>(null);
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const [cameraActive, setCameraActive] = useState<boolean>(false);
     const [errorMsg, setErrorMsg] = useState<string>('');
@@ -39,45 +37,28 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     const [continuous, setContinuous] = useState<boolean>(allowContinuous);
     const isScanningRef = useRef<boolean>(false);
 
-    // Synchronize HTML5 native <dialog> with isOpen state to place in browser's top layer
+    // Initialize scanner when modal opens
     useEffect(() => {
-        const dialog = dialogRef.current;
-        if (!dialog) return;
-
-        if (isOpen) {
-            if (!dialog.open) {
-                try {
-                    dialog.showModal();
-                } catch {
-                    // Fallback if already showing
-                }
-            }
-
-            setErrorMsg('');
-            setLastScanned('');
-            setScannedCount(0);
-            let mounted = true;
-
-            const timer = setTimeout(() => {
-                if (!mounted) return;
-                startScanner();
-            }, 150);
-
-            return () => {
-                mounted = false;
-                clearTimeout(timer);
-                stopScanner();
-            };
-        } else {
+        if (!isOpen) {
             stopScanner();
-            if (dialog.open) {
-                try {
-                    dialog.close();
-                } catch {
-                    // Fallback if already closed
-                }
-            }
+            return;
         }
+
+        setErrorMsg('');
+        setLastScanned('');
+        setScannedCount(0);
+        let mounted = true;
+
+        const timer = setTimeout(() => {
+            if (!mounted) return;
+            startScanner();
+        }, 220);
+
+        return () => {
+            mounted = false;
+            clearTimeout(timer);
+            stopScanner();
+        };
     }, [isOpen, cameraIndex]);
 
     const startScanner = async () => {
@@ -106,7 +87,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
             const config = {
                 fps: 15,
-                qrbox: { width: 280, height: 180 },
+                qrbox: { width: 260, height: 160 },
                 aspectRatio: 1.33,
             };
 
@@ -160,7 +141,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             console.warn('Camera scanner start error:', err);
             setCameraActive(false);
             if (String(err).includes('NotAllowedError') || String(err).includes('Permission')) {
-                setErrorMsg('Izin kamera ditolak. Berikan izin akses kamera di peramban Anda atau masukkan barcode secara manual di bawah.');
+                setErrorMsg('Izin kamera ditolak. Berikan izin akses kamera di browser Anda atau masukkan barcode secara manual di bawah.');
             } else if (String(err).includes('OverconstrainedError') || String(err).includes('Constraint')) {
                 setErrorMsg('Kamera yang diminta tidak didukung oleh perangkat ini.');
             } else {
@@ -238,73 +219,31 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         setManualCode('');
     };
 
-    if (!isOpen) return null;
-
-    const modalContent = (
-        <dialog
-            ref={dialogRef}
-            className="pos-scanner-dialog"
-            onCancel={(e) => {
-                e.preventDefault();
-                onClose();
+    return (
+        <Dialog
+            isOpen={isOpen}
+            onOpenChange={(open) => {
+                if (!open) {
+                    stopScanner();
+                    onClose();
+                }
             }}
-            style={{
-                margin: 'auto',
-                padding: 0,
-                border: 'none',
-                borderRadius: 20,
-                background: 'transparent',
-                maxWidth: 460,
-                width: 'calc(100% - 24px)',
-                overflow: 'visible',
-                outline: 'none',
-                boxShadow: 'none',
-            }}
+            width={460}
+            padding={0}
+            purpose="info"
         >
-            <div
-                style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: 20,
-                    width: '100%',
-                    overflow: 'hidden',
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    animation: 'posPageEnter 220ms cubic-bezier(0.16, 1, 0.3, 1) both',
-                }}
-            >
-                {/* Header */}
-                <div
-                    style={{
-                        padding: '16px 20px',
-                        borderBottom: '1px solid #e4e4e7',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' }}>
+                <DialogHeader
+                    title={title}
+                    subtitle={subtitle}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            stopScanner();
+                            onClose();
+                        }
                     }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div
-                            style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: 10,
-                                backgroundColor: '#f4f4f5',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#18181b',
-                            }}
-                        >
-                            <Camera size={18} />
-                        </div>
-                        <div>
-                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#18181b' }}>{title}</h3>
-                            <p style={{ margin: 0, fontSize: 12, color: '#71717a' }}>{subtitle}</p>
-                        </div>
-                    </div>
-                    <IconButton variant="ghost" size="sm" label="Tutup scanner" icon={<X size={18} />} onClick={onClose} />
-                </div>
+                    hasDivider
+                />
 
                 {/* Camera Viewport & Live Stream */}
                 <div
@@ -343,7 +282,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                                     overflow: 'hidden',
                                 }}
                             >
-                                {/* Animated Laser Scan Beam */}
                                 <div className="pos-scanner-laser" />
                             </div>
                         </div>
@@ -419,17 +357,17 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
-                                gap: 12,
+                                gap: 10,
+                                zIndex: 10,
                             }}
                         >
                             <AlertCircle size={36} color="#ef4444" />
-                            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: '#fca5a5' }}>{errorMsg}</p>
-                            <Button variant="secondary" size="sm" label="Coba Akses Lagi" onClick={startScanner} />
+                            <span style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.9 }}>{errorMsg}</span>
                         </div>
                     )}
 
-                    {/* Success Toast in continuous mode */}
-                    {lastScanned && continuous && (
+                    {/* Temporary toast on scan */}
+                    {lastScanned && (
                         <div
                             style={{
                                 position: 'absolute',
@@ -508,8 +446,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     </form>
                 </div>
             </div>
-        </dialog>,
-        document.body
+        </Dialog>
     );
 };
 

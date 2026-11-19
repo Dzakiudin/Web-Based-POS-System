@@ -253,9 +253,9 @@ const Products = () => {
     return (
         <VStack gap={4} width="100%">
             {/* Toolbar */}
-            <HStack justify="between" align="end" wrap="wrap" gap={3}>
-                <HStack gap={2} wrap="wrap" align="end" style={{ flex: 1, minWidth: isMobile ? '100%' : 240 }}>
-                    <div style={{ flex: 1, minWidth: isMobile ? '100%' : 240 }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: 10, width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, flex: 1, minWidth: 0, width: '100%' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                         <TextInput
                             label="Cari produk"
                             isLabelHidden
@@ -268,34 +268,31 @@ const Products = () => {
                             width="100%"
                         />
                     </div>
-                    <Selector
-                        label="Filter kategori"
-                        isLabelHidden
-                        options={categoryOptions}
-                        value={catFilter}
-                        onChange={(v) => setCatFilter(v)}
-                        placeholder="Semua Kategori"
-                        width={isMobile ? '100%' : 180}
-                    />
-                    <Button
-                        variant="secondary"
-                        size="md"
-                        icon={<Camera size={16} />}
-                        label={isMobile ? 'Scan' : 'Scan Barcode'}
-                        onClick={() => setCameraScanOpen(true)}
-                    />
-                </HStack>
+                    <div style={{ width: isMobile ? '100%' : 200, minWidth: 0 }}>
+                        <Selector
+                            label="Filter kategori"
+                            isLabelHidden
+                            options={categoryOptions}
+                            value={catFilter}
+                            onChange={(v) => setCatFilter(v)}
+                            placeholder="Semua Kategori"
+                            width="100%"
+                        />
+                    </div>
+                </div>
 
                 <HasPermission permission="product.crud">
-                    <Button
-                        variant="primary"
-                        label="Tambah Produk"
-                        width={isMobile ? '100%' : undefined}
-                        icon={<Plus size={16} />}
-                        onClick={() => { handleCloseModal(); setIsModalOpen(true); }}
-                    />
+                    <div style={{ width: isMobile ? '100%' : 'auto', flexShrink: 0 }}>
+                        <Button
+                            variant="primary"
+                            label="Tambah Produk"
+                            width={isMobile ? '100%' : undefined}
+                            icon={<Plus size={16} />}
+                            onClick={() => { handleCloseModal(); setIsModalOpen(true); }}
+                        />
+                    </div>
                 </HasPermission>
-            </HStack>
+            </div>
 
             {/* Product Grid */}
             {filtered.length > 0 ? (
