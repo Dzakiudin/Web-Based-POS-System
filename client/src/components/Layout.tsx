@@ -239,6 +239,14 @@ const Layout = () => {
     const topNavElement = (
         <TopNav
             label="Navigasi atas"
+            style={{
+                minHeight: isMobile ? 60 : 64,
+                padding: isMobile ? '8px 16px' : '10px 24px',
+                alignItems: 'center',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                borderBottom: '1px solid #e4e4e7',
+                backgroundColor: '#ffffff',
+            }}
             startContent={
                 isMobile ? undefined : (
                     <IconButton
@@ -252,48 +260,48 @@ const Layout = () => {
                 )
             }
             heading={
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                     <div
                         style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 10,
+                            width: 38,
+                            height: 38,
+                            borderRadius: 11,
                             background: 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
                             color: '#ffffff',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.12)',
+                            boxShadow: '0 2px 7px rgba(0, 0, 0, 0.14)',
                             flexShrink: 0,
                         }}
                     >
-                        <Store size={18} />
+                        <Store size={20} />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: 14, fontWeight: 750, color: '#09090b', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                            <span style={{ fontSize: 16, fontWeight: 750, color: '#09090b', letterSpacing: '-0.025em', lineHeight: 1.2 }}>
                                 POS System
                             </span>
                             <span
                                 style={{
-                                    width: 6,
-                                    height: 6,
+                                    width: 7,
+                                    height: 7,
                                     borderRadius: '50%',
                                     backgroundColor: isOnline ? '#16a34a' : '#ef4444',
-                                    boxShadow: isOnline ? '0 0 6px rgba(22, 163, 74, 0.6)' : 'none',
+                                    boxShadow: isOnline ? '0 0 6px rgba(22, 163, 74, 0.7)' : 'none',
                                     display: 'inline-block',
                                 }}
                                 title={isOnline ? 'Sistem Terhubung (Online)' : 'Jaringan Terputus (Offline)'}
                             />
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: 550, color: '#71717a', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#52525b', letterSpacing: '-0.01em', lineHeight: 1.15 }}>
                             {pageTitle}
                         </span>
                     </div>
                 </div>
             }
             endContent={
-                <HStack gap={isMobile ? 2 : 2.5} align="center" paddingInlineEnd={2}>
+                <HStack gap={isMobile ? 2.5 : 2.5} align="center" paddingInlineEnd={isMobile ? 0 : 2}>
                     {!isMobile && (
                         <Button
                             variant="secondary"
@@ -358,9 +366,9 @@ const Layout = () => {
                             onClick={() => setShowNotifications(true)}
                             aria-label="Lihat notifikasi"
                             style={{
-                                width: 34,
-                                height: 34,
-                                borderRadius: 10,
+                                width: 38,
+                                height: 38,
+                                borderRadius: 11,
                                 border: '1px solid #e4e4e7',
                                 backgroundColor: '#ffffff',
                                 color: '#3f3f46',
@@ -369,10 +377,10 @@ const Layout = () => {
                                 justifyContent: 'center',
                                 cursor: 'pointer',
                                 transition: 'all 150ms ease',
-                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
                             }}
                         >
-                            <Bell size={16} />
+                            <Bell size={18} />
                         </button>
                         {notifications.length > 0 && (
                             <span
@@ -420,17 +428,17 @@ const Layout = () => {
                         >
                             <div
                                 style={{
-                                    width: 34,
-                                    height: 34,
-                                    borderRadius: 10,
+                                    width: 38,
+                                    height: 38,
+                                    borderRadius: 11,
                                     background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                                     color: '#ffffff',
                                     fontWeight: 700,
-                                    fontSize: 13,
+                                    fontSize: 14,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.28)',
                                     border: '1.5px solid #ffffff',
                                 }}
                             >
