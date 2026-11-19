@@ -1,115 +1,226 @@
 import { useState, useEffect } from 'react';
+import { Plus, Pencil, Trash2, Tag, Package } from 'lucide-react';
+import { VStack } from '@astryxdesign/core/VStack';
+import { HStack } from '@astryxdesign/core/HStack';
+import { Grid } from '@astryxdesign/core/Grid';
+import { Card } from '@astryxdesign/core/Card';
+import { Text } from '@astryxdesign/core/Text';
+import { Button } from '@astryxdesign/core/Button';
+import { IconButton } from '@astryxdesign/core/IconButton';
+import { TextInput } from '@astryxdesign/core/TextInput';
+import { Badge } from '@astryxdesign/core/Badge';
+import { EmptyState } from '@astryxdesign/core/EmptyState';
 import api from '../lib/axios';
 import Modal from '../components/Modal';
 import HasPermission from '../components/HasPermission';
+import { useToast } from '../components/Toast';
 
-interface Category { id: number; name: string; description: string | null; color: string; icon: string; isActive: boolean; _count: { products: number }; }
+interface Category {
+    id: number;
+    name: string;
+    description: string | null;
+    color: string;
+    icon: string;
+    isActive: boolean;
+    _count?: { products: number };
+}
+
+const COLOR_OPTIONS = ['#18181b', '#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777'];
 
 const Categories = () => {
+    const toast = useToast();
     const [categories, setCategories] = useState<Category[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
-    const [form, setForm] = useState({ name: '', description: '', color: '#13ec5b' });
+    const [form, setForm] = useState({ name: '', description: '', color: '#18181b' });
 
     useEffect(() => { fetchCategories(); }, []);
 
-    const fetchCategories = async () => { try { const r = await api.get('/categories'); setCategories(r.data); } catch (e) { console.error(e); } };
+    const fetchCategories = async () => {
+        try {
+            const r = await api.get('/categories');
+            setCategories(Array.isArray(r.data) ? r.data : []);
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            if (editId) { await api.put(`/categories/${editId}`, form); }
-            else { await api.post('/categories', form); }
-            setShowModal(false); resetForm(); fetchCategories();
-        } catch (e: any) { alert(e.response?.data?.message || 'Error'); }
+            if (editId) {
+                await api.put(`/categories/${editId}`, form);
+                toast.success('Kategori berhasil diperbarui');
+            } else {
+                await api.post('/categories', form);
+                toast.success('Kategori berhasil ditambahkan');
+            }
+            setShowModal(false);
+            resetForm();
+            fetchCategories();
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Gagal menyimpan kategori');
+        }
     };
 
     const handleEdit = (cat: Category) => {
         setEditId(cat.id);
-        setForm({ name: cat.name, description: cat.description || '', color: cat.color });
+        setForm({ name: cat.name, description: cat.description || '', color: cat.color || '#18181b' });
         setShowModal(true);
     };
 
     const handleDelete = async (id: number) => {
         if (!confirm('Hapus kategori ini?')) return;
-        try { await api.delete(`/categories/${id}`); fetchCategories(); } catch (e) { console.error(e); }
+        try {
+            await api.delete(`/categories/${id}`);
+            toast.success('Kategori dihapus');
+            fetchCategories();
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Gagal menghapus kategori');
+        }
     };
 
-    const resetForm = () => { setForm({ name: '', description: '', color: '#13ec5b' }); setEditId(null); };
+    const resetForm = () => {
+        setForm({ name: '', description: '', color: '#18181b' });
+        setEditId(null);
+    };
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <span className="text-text-subtle text-sm">{categories.length} total</span>
-                </div>
+        <VStack gap={4} width="100%">
+            <HStack justify="between" align="center" wrap="wrap" gap={3}>
+                <HStack gap={2} align="center">
+                    <Text size="sm" color="secondary">Total kategori</Text>
+                    <Badge variant="neutral" label={categories.length} />
+                </HStack>
                 <HasPermission permission="category.manage">
-                    <button onClick={() => { resetForm(); setShowModal(true); }}
-                        className="px-4 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-all flex items-center gap-2 shadow-lg shadow-primary/20">
-                        <span className="material-symbols-outlined text-[18px]">add</span> Tambah Kategori
-                    </button>
+                    <Button
+                        variant="primary"
+                        label="Tambah Kategori"
+                        icon={<Plus size={16} />}
+                        onClick={() => { resetForm(); setShowModal(true); }}
+                    />
                 </HasPermission>
-            </div>
+            </HStack>
 
-            {/* Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {categories.map(cat => (
-                    <div key={cat.id} className="bg-card-dark rounded-xl border border-border-dark p-5 hover:border-primary/30 transition-all group shadow-lg">
-                        <div className="flex items-start justify-between mb-3">
-                            <div className="size-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: cat.color + '20' }}>
-                                <span className="material-symbols-outlined" style={{ color: cat.color }}>category</span>
-                            </div>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <HasPermission permission="category.manage">
-                                    <button onClick={() => handleEdit(cat)} className="p-1.5 rounded-lg bg-background-dark text-text-subtle hover:text-primary hover:bg-card-hover transition-colors border border-border-dark">
-                                        <span className="material-symbols-outlined text-[16px]">edit</span>
-                                    </button>
-                                    <button onClick={() => handleDelete(cat.id)} className="p-1.5 rounded-lg bg-background-dark text-text-subtle hover:text-red-400 hover:bg-red-500/10 transition-colors border border-border-dark">
-                                        <span className="material-symbols-outlined text-[16px]">delete</span>
-                                    </button>
-                                </HasPermission>
-                            </div>
-                        </div>
-                        <h3 className="text-white font-bold text-sm mb-1">{cat.name}</h3>
-                        {cat.description && <p className="text-text-subtle text-xs mb-2">{cat.description}</p>}
-                        <div className="flex items-center gap-1.5 text-text-subtle text-xs">
-                            <span className="material-symbols-outlined text-[14px]">inventory_2</span> {cat._count.products} produk
-                        </div>
-                    </div>
-                ))}
-            </div>
+            {categories.length > 0 ? (
+                <Grid columns={{ minWidth: 260, max: 3 }} gap={3}>
+                    {categories.map((cat) => (
+                        <Card key={cat.id} padding={3} elevation="none">
+                            <VStack gap={3}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                                        <div
+                                            style={{
+                                                width: 38,
+                                                height: 38,
+                                                borderRadius: 10,
+                                                backgroundColor: `${cat.color || '#18181b'}18`,
+                                                color: cat.color || '#18181b',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0,
+                                            }}
+                                        >
+                                            <Tag size={18} />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                                            <span style={{ fontSize: 14, fontWeight: 600, color: '#18181b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {cat.name}
+                                            </span>
+                                            {cat.description && (
+                                                <span style={{ fontSize: 12, color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    {cat.description}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
 
-            {showModal && (
-                <Modal isOpen={showModal} title={editId ? 'Edit Kategori' : 'Tambah Kategori'} onClose={() => setShowModal(false)}>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Nama</label>
-                            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required
-                                className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                        </div>
-                        <div>
-                            <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Deskripsi</label>
-                            <input type="text" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-                                className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                        </div>
-                        <div>
-                            <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Warna</label>
-                            <div className="flex gap-2">
-                                {['#13ec5b', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4'].map(c => (
-                                    <button key={c} type="button" onClick={() => setForm({ ...form, color: c })}
-                                        className={`size-8 rounded-lg border-2 transition-all ${form.color === c ? 'border-white scale-110' : 'border-transparent'}`}
-                                        style={{ backgroundColor: c }} />
-                                ))}
-                            </div>
-                        </div>
-                        <button type="submit" className="w-full py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-colors shadow-lg shadow-primary/20">
-                            {editId ? 'Update' : 'Simpan'}
-                        </button>
-                    </form>
-                </Modal>
+                                    <HasPermission permission="category.manage">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                                            <IconButton
+                                                variant="ghost"
+                                                size="sm"
+                                                label="Edit kategori"
+                                                icon={<Pencil size={15} />}
+                                                onClick={() => handleEdit(cat)}
+                                            />
+                                            <IconButton
+                                                variant="ghost"
+                                                size="sm"
+                                                label="Hapus kategori"
+                                                icon={<Trash2 size={15} />}
+                                                onClick={() => handleDelete(cat.id)}
+                                            />
+                                        </div>
+                                    </HasPermission>
+                                </div>
+
+                                <HStack gap={1.5} align="center">
+                                    <Package size={14} color="#71717a" />
+                                    <Text size="xsm" color="secondary">
+                                        {cat._count?.products ?? 0} produk
+                                    </Text>
+                                </HStack>
+                            </VStack>
+                        </Card>
+                    ))}
+                </Grid>
+            ) : (
+                <EmptyState
+                    icon={<Tag size={28} />}
+                    title="Belum ada kategori"
+                    description="Tambahkan kategori untuk mengelompokkan produk Anda."
+                />
             )}
-        </div>
+
+            <Modal isOpen={showModal} title={editId ? 'Edit Kategori' : 'Tambah Kategori'} onClose={() => setShowModal(false)}>
+                <form onSubmit={handleSubmit}>
+                    <VStack gap={4}>
+                        <TextInput
+                            label="Nama Kategori"
+                            placeholder="Contoh: Minuman"
+                            value={form.name}
+                            onChange={(val) => setForm({ ...form, name: val })}
+                            isRequired
+                        />
+                        <TextInput
+                            label="Deskripsi"
+                            placeholder="Opsional"
+                            value={form.description}
+                            onChange={(val) => setForm({ ...form, description: val })}
+                        />
+                        <VStack gap={2}>
+                            <Text size="sm" weight="medium">Warna Label</Text>
+                            <HStack gap={2} wrap="wrap">
+                                {COLOR_OPTIONS.map((c) => (
+                                    <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => setForm({ ...form, color: c })}
+                                        aria-label={`Pilih warna ${c}`}
+                                        style={{
+                                            width: 30,
+                                            height: 30,
+                                            borderRadius: 8,
+                                            backgroundColor: c,
+                                            border: form.color === c ? '2px solid #000' : '2px solid transparent',
+                                            outline: form.color === c ? '2px solid #fff' : 'none',
+                                            outlineOffset: -4,
+                                            cursor: 'pointer',
+                                        }}
+                                    />
+                                ))}
+                            </HStack>
+                        </VStack>
+                        <HStack justify="end" gap={2}>
+                            <Button variant="secondary" label="Batal" onClick={() => setShowModal(false)} />
+                            <Button type="submit" variant="primary" label={editId ? 'Simpan Perubahan' : 'Simpan'} />
+                        </HStack>
+                    </VStack>
+                </form>
+            </Modal>
+        </VStack>
     );
 };
 

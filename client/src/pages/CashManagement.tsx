@@ -1,215 +1,348 @@
 import { useState, useEffect } from 'react';
+import { Wallet, ArrowDownLeft, ArrowUpRight, Lock, Unlock } from 'lucide-react';
+import { VStack } from '@astryxdesign/core/VStack';
+import { HStack } from '@astryxdesign/core/HStack';
+import { Grid } from '@astryxdesign/core/Grid';
+import { Card } from '@astryxdesign/core/Card';
+import { Heading } from '@astryxdesign/core/Heading';
+import { Text } from '@astryxdesign/core/Text';
+import { Button } from '@astryxdesign/core/Button';
+import { Badge } from '@astryxdesign/core/Badge';
+import { Banner } from '@astryxdesign/core/Banner';
+import { Divider } from '@astryxdesign/core/Divider';
+import { NumberInput } from '@astryxdesign/core/NumberInput';
+import { TextInput } from '@astryxdesign/core/TextInput';
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl';
+import { Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell } from '@astryxdesign/core/Table';
+import { ScrollableArea } from '@astryxdesign/core/ScrollableArea';
+import { EmptyState } from '@astryxdesign/core/EmptyState';
+import { useMediaQuery } from '@astryxdesign/core/hooks';
 import api from '../lib/axios';
+import Modal from '../components/Modal';
+import { useToast } from '../components/Toast';
 
 interface CashSession {
-    id: number; openingBalance: string; closingBalance: string | null;
-    expectedBalance: string | null; difference: string | null;
-    status: string; openedAt: string; closedAt: string | null;
-    user: { name: string };
-    movements: { id: number; type: string; amount: string; reason: string; createdAt: string }[];
+    id: number;
+    openingBalance: string;
+    closingBalance: string | null;
+    expectedBalance: string | null;
+    difference: string | null;
+    status: string;
+    openedAt: string;
+    closedAt: string | null;
+    user?: { name: string } | null;
+    movements?: { id: number; type: string; amount: string; reason: string; createdAt: string }[];
 }
 
 const CashManagement = () => {
+    const toast = useToast();
+    const isMobile = useMediaQuery('(max-width: 768px)');
     const [activeSession, setActiveSession] = useState<CashSession | null>(null);
     const [sessions, setSessions] = useState<CashSession[]>([]);
     const [showOpen, setShowOpen] = useState(false);
     const [showClose, setShowClose] = useState(false);
     const [showMovement, setShowMovement] = useState(false);
-    const [openingBalance, setOpeningBalance] = useState('');
-    const [closingBalance, setClosingBalance] = useState('');
-    const [movementForm, setMovementForm] = useState({ type: 'CASH_IN', amount: '', reason: '' });
+    const [openingBalance, setOpeningBalance] = useState<number>(0);
+    const [closingBalance, setClosingBalance] = useState<number>(0);
+    const [movementForm, setMovementForm] = useState({ type: 'CASH_IN', amount: 0, reason: '' });
 
-    useEffect(() => { fetchActive(); fetchSessions(); }, []);
+    useEffect(() => {
+        fetchActive();
+        fetchSessions();
+    }, []);
 
-    const fetchActive = async () => { try { const r = await api.get('/cash-sessions/active'); setActiveSession(r.data); } catch { setActiveSession(null); } };
-    const fetchSessions = async () => { try { const r = await api.get('/cash-sessions'); setSessions(r.data); } catch (e) { console.error(e); } };
+    const fetchActive = async () => {
+        try {
+            const r = await api.get('/cash-sessions/active');
+            setActiveSession(r.data && r.data.id ? r.data : null);
+        } catch {
+            setActiveSession(null);
+        }
+    };
+
+    const fetchSessions = async () => {
+        try {
+            const r = await api.get('/cash-sessions');
+            setSessions(Array.isArray(r.data) ? r.data : []);
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     const handleOpen = async () => {
-        if (!openingBalance) return;
-        try { await api.post('/cash-sessions/open', { openingBalance: Number(openingBalance) }); setShowOpen(false); setOpeningBalance(''); fetchActive(); fetchSessions(); }
-        catch (e: any) { alert(e.response?.data?.message || 'Error'); }
+        try {
+            await api.post('/cash-sessions/open', { openingBalance: Number(openingBalance) });
+            toast.success('Sesi kas berhasil dibuka');
+            setShowOpen(false);
+            setOpeningBalance(0);
+            fetchActive();
+            fetchSessions();
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Gagal membuka sesi kas');
+        }
     };
 
     const handleClose = async () => {
-        if (!closingBalance || !activeSession) return;
-        try { await api.post(`/cash-sessions/${activeSession.id}/close`, { closingBalance: Number(closingBalance) }); setShowClose(false); setClosingBalance(''); fetchActive(); fetchSessions(); }
-        catch (e: any) { alert(e.response?.data?.message || 'Error'); }
+        if (!activeSession) return;
+        try {
+            await api.post(`/cash-sessions/${activeSession.id}/close`, { closingBalance: Number(closingBalance) });
+            toast.success('Sesi kas ditutup');
+            setShowClose(false);
+            setClosingBalance(0);
+            fetchActive();
+            fetchSessions();
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Gagal menutup sesi kas');
+        }
     };
 
     const handleMovement = async () => {
         if (!movementForm.amount || !movementForm.reason || !activeSession) return;
         try {
-            await api.post(`/cash-sessions/${activeSession.id}/movement`, { type: movementForm.type, amount: Number(movementForm.amount), reason: movementForm.reason });
-            setShowMovement(false); setMovementForm({ type: 'CASH_IN', amount: '', reason: '' }); fetchActive();
+            await api.post(`/cash-sessions/${activeSession.id}/movement`, {
+                type: movementForm.type,
+                amount: Number(movementForm.amount),
+                reason: movementForm.reason,
+            });
+            toast.success('Arus kas dicatat');
+            setShowMovement(false);
+            setMovementForm({ type: 'CASH_IN', amount: 0, reason: '' });
+            fetchActive();
+            fetchSessions();
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Gagal mencatat arus kas');
         }
-        catch (e: any) { alert(e.response?.data?.message || 'Error'); }
     };
 
     return (
-        <div className="space-y-6">
+        <VStack gap={5} width="100%">
             {/* Active Session Card */}
             {activeSession ? (
-                <div className="bg-card-dark rounded-xl border border-primary/20 p-6 shadow-lg">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                            <div className="size-3 rounded-full bg-primary animate-pulse" />
-                            <span className="text-primary text-sm font-semibold">Sesi Aktif — {activeSession.user?.name || 'Kasir'}</span>
-                        </div>
-                        <span className="text-text-subtle text-xs">{new Date(activeSession.openedAt).toLocaleString('id-ID')}</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div><p className="text-text-subtle text-xs mb-1">Saldo Awal</p><p className="text-white text-lg font-bold">Rp {Number(activeSession.openingBalance).toLocaleString('id-ID')}</p></div>
-                        <div><p className="text-text-subtle text-xs mb-1">Saldo Diharapkan</p><p className="text-primary text-lg font-bold">Rp {Number(activeSession.expectedBalance || 0).toLocaleString('id-ID')}</p></div>
-                        <div><p className="text-text-subtle text-xs mb-1">Pergerakan</p><p className="text-white text-lg font-bold">{activeSession.movements?.length || 0}</p></div>
-                    </div>
+                <Card padding={4} elevation="none">
+                    <VStack gap={4}>
+                        <HStack justify="between" align="center" wrap="wrap" gap={3}>
+                            <HStack gap={2} align="center">
+                                <Wallet size={20} />
+                                <VStack gap={0}>
+                                    <HStack gap={2} align="center">
+                                        <Heading level={4} weight="semibold">Sesi Kas Aktif #{activeSession.id}</Heading>
+                                        <Badge variant="success" label="OPEN" />
+                                    </HStack>
+                                    <Text size="xsm" color="secondary">
+                                        Dibuka oleh {activeSession.user?.name || 'Kasir'} · {new Date(activeSession.openedAt).toLocaleString('id-ID')}
+                                    </Text>
+                                </VStack>
+                            </HStack>
 
-                    {activeSession.movements?.length > 0 && (
-                        <div className="space-y-1.5 mb-4 max-h-48 overflow-y-auto">
-                            {activeSession.movements.map(m => (
-                                <div key={m.id} className="flex items-center justify-between bg-background-dark rounded-lg px-3 py-2 border border-border-dark">
-                                    <div className="flex items-center gap-2">
-                                        <span className="material-symbols-outlined text-[16px]" style={{ color: m.type === 'CASH_IN' ? '#13ec5b' : '#ef4444' }}>
-                                            {m.type === 'CASH_IN' ? 'trending_up' : 'trending_down'}
-                                        </span>
-                                        <span className="text-white text-xs">{m.reason}</span>
-                                    </div>
-                                    <span className={`text-xs font-semibold ${m.type === 'CASH_IN' ? 'text-primary' : 'text-red-400'}`}>
-                                        {m.type === 'CASH_IN' ? '+' : '-'}Rp {Number(m.amount).toLocaleString('id-ID')}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                            <HStack gap={2} wrap="wrap">
+                                <Button
+                                    variant="secondary"
+                                    label="Kas Masuk / Keluar"
+                                    icon={<ArrowDownLeft size={16} />}
+                                    onClick={() => setShowMovement(true)}
+                                />
+                                <Button
+                                    variant="destructive"
+                                    label="Tutup Shift"
+                                    icon={<Lock size={16} />}
+                                    onClick={() => setShowClose(true)}
+                                />
+                            </HStack>
+                        </HStack>
 
-                    <div className="flex gap-2">
-                        <button onClick={() => setShowMovement(true)} className="flex-1 py-2.5 rounded-lg bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors border border-primary/20 flex items-center justify-center gap-2">
-                            <span className="material-symbols-outlined text-[18px]">add</span> Kas Masuk/Keluar
-                        </button>
-                        <button onClick={() => setShowClose(true)} className="flex-1 py-2.5 rounded-lg bg-red-500/10 text-red-400 text-sm font-semibold hover:bg-red-500/20 transition-colors border border-red-500/20 flex items-center justify-center gap-2">
-                            <span className="material-symbols-outlined text-[18px]">schedule</span> Tutup Sesi
-                        </button>
-                    </div>
-                </div>
-            ) : (
-                <div className="bg-card-dark rounded-xl border border-border-dark p-8 text-center shadow-lg">
-                    <span className="material-symbols-outlined text-5xl text-text-subtle/30 mb-3 block">account_balance_wallet</span>
-                    <p className="text-text-subtle text-sm mb-4">Tidak ada sesi kas aktif</p>
-                    <button onClick={() => setShowOpen(true)}
-                        className="px-6 py-3 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-all shadow-lg shadow-primary/20">
-                        Buka Sesi Kas
-                    </button>
-                </div>
-            )}
+                        <Divider />
 
-            {/* Past Sessions */}
-            <div className="bg-card-dark rounded-xl border border-border-dark overflow-hidden shadow-lg">
-                <div className="p-4 border-b border-border-dark"><h3 className="text-white font-bold text-sm flex items-center gap-2"><span className="material-symbols-outlined text-primary text-[18px]">history</span> Riwayat Sesi Kas</h3></div>
-                <table className="w-full">
-                    <thead><tr className="border-b border-border-dark bg-background-dark">
-                        <th className="text-left px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Tanggal</th>
-                        <th className="text-left px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Kasir</th>
-                        <th className="text-right px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Saldo Awal</th>
-                        <th className="text-right px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Saldo Akhir</th>
-                        <th className="text-right px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Selisih</th>
-                        <th className="text-center px-5 py-3 text-xs text-text-subtle font-semibold uppercase tracking-wider">Status</th>
-                    </tr></thead>
-                    <tbody>
-                        {sessions.filter(s => s.status === 'CLOSED').map(s => (
-                            <tr key={s.id} className="border-b border-border-dark hover:bg-card-hover transition-colors">
-                                <td className="px-5 py-3.5 text-text-subtle text-xs">{new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short' })}</td>
-                                <td className="px-5 py-3.5 text-white text-sm">{s.user?.name || '-'}</td>
-                                <td className="px-5 py-3.5 text-right text-text-subtle text-sm">Rp {Number(s.openingBalance).toLocaleString('id-ID')}</td>
-                                <td className="px-5 py-3.5 text-right text-white text-sm font-semibold">Rp {Number(s.closingBalance || 0).toLocaleString('id-ID')}</td>
-                                <td className="px-5 py-3.5 text-right">
-                                    <span className={`text-xs font-semibold ${Number(s.difference) === 0 ? 'text-primary' : Number(s.difference) > 0 ? 'text-blue-400' : 'text-red-400'}`}>
-                                        {Number(s.difference) > 0 ? '+' : ''}Rp {Number(s.difference || 0).toLocaleString('id-ID')}
-                                    </span>
-                                </td>
-                                <td className="px-5 py-3.5 text-center">
-                                    <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${Number(s.difference) === 0 ? 'bg-primary/10 text-primary' : 'bg-amber-500/10 text-amber-400'}`}>
-                                        {Number(s.difference) === 0 ? 'Sesuai' : 'Selisih'}
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                        <Grid columns={{ minWidth: 180, max: 3 }} gap={3}>
+                            <Card padding={3} variant="muted" elevation="none">
+                                <VStack gap={0.5}>
+                                    <Text size="xsm" color="secondary">Saldo Awal</Text>
+                                    <Heading level={4} weight="bold">
+                                        Rp {Number(activeSession.openingBalance || 0).toLocaleString('id-ID')}
+                                    </Heading>
+                                </VStack>
+                            </Card>
+                            <Card padding={3} variant="muted" elevation="none">
+                                <VStack gap={0.5}>
+                                    <Text size="xsm" color="secondary">Estimasi Kas</Text>
+                                    <Heading level={4} weight="bold">
+                                        Rp {Number(activeSession.expectedBalance ?? activeSession.openingBalance ?? 0).toLocaleString('id-ID')}
+                                    </Heading>
+                                </VStack>
+                            </Card>
+                            <Card padding={3} variant="muted" elevation="none">
+                                <VStack gap={0.5}>
+                                    <Text size="xsm" color="secondary">Pergerakan Kas</Text>
+                                    <Heading level={4} weight="bold">{activeSession.movements?.length || 0} catatan</Heading>
+                                </VStack>
+                            </Card>
+                        </Grid>
 
-            {/* Open Session Modal */}
-            {showOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowOpen(false)}>
-                    <div className="w-full max-w-sm bg-card-dark rounded-xl border border-border-dark p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-primary">account_balance_wallet</span> Buka Sesi Kas
-                        </h2>
-                        <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Saldo Awal (Rp)</label>
-                        <input type="number" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)}
-                            placeholder="Contoh: 500000" autoFocus
-                            className="w-full px-4 py-3 rounded-lg bg-background-dark border border-border-dark text-white text-lg font-bold text-right focus:outline-none focus:ring-1 focus:ring-primary mb-4" />
-                        <button onClick={handleOpen} disabled={!openingBalance}
-                            className="w-full py-3 rounded-lg bg-primary text-background-dark text-sm font-bold disabled:opacity-30 hover:bg-green-400 shadow-lg shadow-primary/20 transition-all">
-                            Buka Sesi
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Close Session Modal */}
-            {showClose && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowClose(false)}>
-                    <div className="w-full max-w-sm bg-card-dark rounded-xl border border-border-dark p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-red-400">schedule</span> Tutup Sesi Kas
-                        </h2>
-                        <label className="text-text-subtle text-xs mb-1.5 block font-semibold">Saldo Akhir (Rp)</label>
-                        <input type="number" value={closingBalance} onChange={e => setClosingBalance(e.target.value)}
-                            placeholder="Hitung uang di laci kas" autoFocus
-                            className="w-full px-4 py-3 rounded-lg bg-background-dark border border-border-dark text-white text-lg font-bold text-right focus:outline-none focus:ring-1 focus:ring-primary mb-2" />
-                        {activeSession && (
-                            <p className="text-text-subtle text-xs mb-4">Diharapkan: Rp {Number(activeSession.expectedBalance || 0).toLocaleString('id-ID')}</p>
+                        {activeSession.movements && activeSession.movements.length > 0 && (
+                            <VStack gap={2}>
+                                <Text size="sm" weight="semibold">Pergerakan Shift Ini</Text>
+                                {activeSession.movements.map((m) => (
+                                    <HStack key={m.id} justify="between" align="center" padding={2} style={{ borderBottom: '1px solid var(--color-border-subtle, #e5e7eb)' }}>
+                                        <HStack gap={2} align="center">
+                                            {m.type === 'CASH_IN' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
+                                            <VStack gap={0}>
+                                                <Text size="sm" weight="medium">{m.reason}</Text>
+                                                <Text size="xsm" color="secondary">{new Date(m.createdAt).toLocaleTimeString('id-ID')}</Text>
+                                            </VStack>
+                                        </HStack>
+                                        <Badge
+                                            variant={m.type === 'CASH_IN' ? 'success' : 'error'}
+                                            label={`${m.type === 'CASH_IN' ? '+' : '-'} Rp ${Number(m.amount).toLocaleString('id-ID')}`}
+                                        />
+                                    </HStack>
+                                ))}
+                            </VStack>
                         )}
-                        <button onClick={handleClose} disabled={!closingBalance}
-                            className="w-full py-3 rounded-lg bg-red-500/10 text-red-400 text-sm font-bold border border-red-500/20 disabled:opacity-30 hover:bg-red-500/20 transition-colors">
-                            Tutup Sesi
-                        </button>
-                    </div>
-                </div>
+                    </VStack>
+                </Card>
+            ) : (
+                <Banner
+                    status="info"
+                    title="Belum ada sesi kas yang aktif"
+                    description="Buka shift kasir terlebih dahulu untuk mencatat saldo awal dan pergerakan uang tunai."
+                    container="card"
+                    elevation="none"
+                    endContent={
+                        <Button
+                            variant="primary"
+                            label="Buka Shift Kas"
+                            icon={<Unlock size={16} />}
+                            onClick={() => setShowOpen(true)}
+                        />
+                    }
+                />
             )}
 
-            {/* Movement Modal */}
-            {showMovement && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowMovement(false)}>
-                    <div className="w-full max-w-sm bg-card-dark rounded-xl border border-border-dark p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-primary">swap_vert</span> Pergerakan Kas
-                        </h2>
-                        <div className="flex gap-2 mb-4">
-                            <button onClick={() => setMovementForm({ ...movementForm, type: 'CASH_IN' })}
-                                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border transition-all ${movementForm.type === 'CASH_IN' ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-background-dark border-border-dark text-text-subtle'}`}>
-                                Kas Masuk
-                            </button>
-                            <button onClick={() => setMovementForm({ ...movementForm, type: 'CASH_OUT' })}
-                                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border transition-all ${movementForm.type === 'CASH_OUT' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-background-dark border-border-dark text-text-subtle'}`}>
-                                Kas Keluar
-                            </button>
-                        </div>
-                        <div className="space-y-3">
-                            <input type="number" value={movementForm.amount} onChange={e => setMovementForm({ ...movementForm, amount: e.target.value })}
-                                placeholder="Jumlah"
-                                className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                            <input type="text" value={movementForm.reason} onChange={e => setMovementForm({ ...movementForm, reason: e.target.value })}
-                                placeholder="Alasan (contoh: Tukar pecahan)"
-                                className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                            <button onClick={handleMovement} disabled={!movementForm.amount || !movementForm.reason}
-                                className="w-full py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold disabled:opacity-30 hover:bg-green-400 shadow-lg shadow-primary/20 transition-all">
-                                Simpan
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+            {/* History Records */}
+            <VStack gap={2}>
+                <Heading level={4} weight="semibold">Riwayat Sesi Kas</Heading>
+                {sessions.length > 0 ? (
+                    isMobile ? (
+                        <VStack gap={2}>
+                            {sessions.map((s) => (
+                                <Card key={s.id} padding={3} elevation="none">
+                                    <VStack gap={2}>
+                                        <HStack justify="between" align="center">
+                                            <HStack gap={1.5} align="center">
+                                                <Wallet size={16} />
+                                                <Text size="sm" weight="bold">Sesi #{s.id}</Text>
+                                            </HStack>
+                                            <Badge variant={s.status === 'OPEN' ? 'success' : 'neutral'} label={s.status} />
+                                        </HStack>
+                                        <HStack justify="between" align="center">
+                                            <Text size="xsm" color="secondary">
+                                                Kasir: {s.user?.name || '-'}
+                                            </Text>
+                                            <Text size="xsm" color="secondary">
+                                                {new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
+                                            </Text>
+                                        </HStack>
+                                        <Divider />
+                                        <HStack justify="between" align="center">
+                                            <VStack gap={0}>
+                                                <Text size="2xs" color="secondary">Saldo Awal</Text>
+                                                <Text size="sm" weight="bold" hasTabularNumbers>Rp {Number(s.openingBalance || 0).toLocaleString('id-ID')}</Text>
+                                            </VStack>
+                                            <VStack gap={0} align="center">
+                                                <Text size="2xs" color="secondary">Saldo Akhir</Text>
+                                                <Text size="sm" weight="bold" hasTabularNumbers>{s.closingBalance != null ? `Rp ${Number(s.closingBalance).toLocaleString('id-ID')}` : '-'}</Text>
+                                            </VStack>
+                                            <VStack gap={0} align="end">
+                                                <Text size="2xs" color="secondary">Selisih</Text>
+                                                <Text size="sm" weight="bold" hasTabularNumbers style={{ color: Number(s.difference || 0) < 0 ? '#dc2626' : '#16a34a' }}>
+                                                    {s.difference != null ? `Rp ${Number(s.difference).toLocaleString('id-ID')}` : '-'}
+                                                </Text>
+                                            </VStack>
+                                        </HStack>
+                                    </VStack>
+                                </Card>
+                            ))}
+                        </VStack>
+                    ) : (
+                        <Card padding={0} elevation="none">
+                            <ScrollableArea label="Tabel data">
+                                <Table density="balanced" dividers="rows" hasHover>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHeaderCell>ID</TableHeaderCell>
+                                            <TableHeaderCell>Kasir</TableHeaderCell>
+                                            <TableHeaderCell>Dibuka</TableHeaderCell>
+                                            <TableHeaderCell>Saldo Awal</TableHeaderCell>
+                                            <TableHeaderCell>Saldo Akhir</TableHeaderCell>
+                                            <TableHeaderCell>Selisih</TableHeaderCell>
+                                            <TableHeaderCell>Status</TableHeaderCell>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {sessions.map((s) => (
+                                            <TableRow key={s.id}>
+                                                <TableCell><Text size="sm" weight="medium">#{s.id}</Text></TableCell>
+                                                <TableCell><Text size="sm">{s.user?.name || '-'}</Text></TableCell>
+                                                <TableCell><Text size="xsm" color="secondary">{new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</Text></TableCell>
+                                                <TableCell><Text size="sm" hasTabularNumbers>Rp {Number(s.openingBalance || 0).toLocaleString('id-ID')}</Text></TableCell>
+                                                <TableCell><Text size="sm" hasTabularNumbers>{s.closingBalance != null ? `Rp ${Number(s.closingBalance).toLocaleString('id-ID')}` : '-'}</Text></TableCell>
+                                                <TableCell><Text size="sm" hasTabularNumbers>{s.difference != null ? `Rp ${Number(s.difference).toLocaleString('id-ID')}` : '-'}</Text></TableCell>
+                                                <TableCell>
+                                                    <Badge variant={s.status === 'OPEN' ? 'success' : 'neutral'} label={s.status} />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </ScrollableArea>
+                        </Card>
+                    )
+                ) : (
+                    <Card padding={6} elevation="none">
+                        <EmptyState title="Belum ada riwayat sesi kas" isCompact />
+                    </Card>
+                )}
+            </VStack>
+
+            <Modal isOpen={showOpen} onClose={() => setShowOpen(false)} title="Buka Shift Kas" width={420}>
+                <VStack gap={4}>
+                    <NumberInput label="Saldo Awal Laci (Rp)" value={openingBalance} onChange={(v) => setOpeningBalance(v || 0)} min={0} hasAutoFocus />
+                    <HStack justify="end" gap={2}>
+                        <Button variant="secondary" label="Batal" onClick={() => setShowOpen(false)} />
+                        <Button variant="primary" label="Buka Shift" onClick={handleOpen} />
+                    </HStack>
+                </VStack>
+            </Modal>
+
+            <Modal isOpen={showClose} onClose={() => setShowClose(false)} title="Tutup Shift Kas" width={420}>
+                <VStack gap={4}>
+                    <NumberInput label="Saldo Aktual di Laci (Rp)" value={closingBalance} onChange={(v) => setClosingBalance(v || 0)} min={0} hasAutoFocus />
+                    <HStack justify="end" gap={2}>
+                        <Button variant="secondary" label="Batal" onClick={() => setShowClose(false)} />
+                        <Button variant="destructive" label="Tutup Shift" onClick={handleClose} />
+                    </HStack>
+                </VStack>
+            </Modal>
+
+            <Modal isOpen={showMovement} onClose={() => setShowMovement(false)} title="Catat Arus Kas" width={440}>
+                <VStack gap={4}>
+                    <SegmentedControl
+                        label="Jenis arus kas"
+                        value={movementForm.type}
+                        onChange={(v) => setMovementForm({ ...movementForm, type: v })}
+                        layout="fill"
+                    >
+                        <SegmentedControlItem value="CASH_IN" label="Kas Masuk" />
+                        <SegmentedControlItem value="CASH_OUT" label="Kas Keluar" />
+                    </SegmentedControl>
+                    <NumberInput label="Nominal (Rp)" value={movementForm.amount} onChange={(v) => setMovementForm({ ...movementForm, amount: v || 0 })} min={1} />
+                    <TextInput label="Keterangan" placeholder="Contoh: Beli es batu / Tambah kembalian" value={movementForm.reason} onChange={(v) => setMovementForm({ ...movementForm, reason: v })} />
+                    <HStack justify="end" gap={2}>
+                        <Button variant="secondary" label="Batal" onClick={() => setShowMovement(false)} />
+                        <Button variant="primary" label="Simpan" isDisabled={!movementForm.amount || !movementForm.reason} onClick={handleMovement} />
+                    </HStack>
+                </VStack>
+            </Modal>
+        </VStack>
     );
 };
 

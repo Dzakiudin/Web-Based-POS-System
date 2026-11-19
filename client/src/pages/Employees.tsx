@@ -1,20 +1,43 @@
 import { useState, useEffect } from 'react';
+import { UserPlus, Pencil, Trash2, KeyRound, Mail, Users } from 'lucide-react';
+import { VStack } from '@astryxdesign/core/VStack';
+import { HStack } from '@astryxdesign/core/HStack';
+import { Grid } from '@astryxdesign/core/Grid';
+import { Card } from '@astryxdesign/core/Card';
+import { Heading } from '@astryxdesign/core/Heading';
+import { Text } from '@astryxdesign/core/Text';
+import { Button } from '@astryxdesign/core/Button';
+import { IconButton } from '@astryxdesign/core/IconButton';
+import { TextInput } from '@astryxdesign/core/TextInput';
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl';
+import { Avatar } from '@astryxdesign/core/Avatar';
+import { Badge } from '@astryxdesign/core/Badge';
+import { Divider } from '@astryxdesign/core/Divider';
+import { EmptyState } from '@astryxdesign/core/EmptyState';
 import api from '../lib/axios';
 import HasPermission from '../components/HasPermission';
+import Modal from '../components/Modal';
+import { useToast } from '../components/Toast';
 
 interface Employee {
-    id: number; name: string; username: string; email: string | null;
-    role: string; isActive: boolean; createdAt: string;
-    _count: { sales: number; cashSessions: number };
+    id: number;
+    name: string;
+    username: string;
+    email: string | null;
+    role: string;
+    isActive: boolean;
+    createdAt: string;
+    _count?: { sales: number; cashSessions: number };
 }
 
-const ROLE_STYLES: Record<string, { bg: string; icon: string }> = {
-    OWNER: { bg: 'bg-amber-500/10 text-amber-400 border-amber-500/20', icon: 'shield_person' },
-    ADMIN: { bg: 'bg-blue-500/10 text-blue-400 border-blue-500/20', icon: 'admin_panel_settings' },
-    CASHIER: { bg: 'bg-primary/10 text-primary border-primary/20', icon: 'badge' },
+const ROLE_VARIANT: Record<string, 'warning' | 'info' | 'success' | 'neutral'> = {
+    OWNER: 'warning',
+    ADMIN: 'info',
+    CASHIER: 'success',
 };
 
 const Employees = () => {
+    const toast = useToast();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
@@ -23,15 +46,32 @@ const Employees = () => {
     const [newPassword, setNewPassword] = useState('');
 
     useEffect(() => { fetchEmployees(); }, []);
-    const fetchEmployees = async () => { try { const r = await api.get('/users'); setEmployees(r.data); } catch (e) { console.error(e); } };
+
+    const fetchEmployees = async () => {
+        try {
+            const r = await api.get('/users');
+            setEmployees(Array.isArray(r.data) ? r.data : []);
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            if (editId) await api.put(`/users/${editId}`, { name: form.name, email: form.email, role: form.role });
-            else await api.post('/users', form);
-            setShowModal(false); resetForm(); fetchEmployees();
-        } catch (e: any) { alert(e.response?.data?.message || 'Error'); }
+            if (editId) {
+                await api.put(`/users/${editId}`, { name: form.name, email: form.email, role: form.role });
+                toast.success('Data karyawan diperbarui');
+            } else {
+                await api.post('/users', form);
+                toast.success('Karyawan berhasil ditambahkan');
+            }
+            setShowModal(false);
+            resetForm();
+            fetchEmployees();
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Gagal menyimpan karyawan');
+        }
     };
 
     const handleEdit = (emp: Employee) => {
@@ -42,115 +82,148 @@ const Employees = () => {
 
     const handleDelete = async (id: number) => {
         if (!confirm('Nonaktifkan karyawan ini?')) return;
-        try { await api.delete(`/users/${id}`); fetchEmployees(); } catch (e: any) { alert(e.response?.data?.message || 'Error'); }
+        try {
+            await api.delete(`/users/${id}`);
+            toast.success('Karyawan dinonaktifkan');
+            fetchEmployees();
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Gagal menonaktifkan karyawan');
+        }
     };
 
     const handleResetPassword = async () => {
         if (!newPassword || !showResetPass) return;
-        try { await api.post(`/users/${showResetPass}/reset-password`, { newPassword }); setShowResetPass(null); setNewPassword(''); alert('Password berhasil direset'); }
-        catch (e: any) { alert(e.response?.data?.message || 'Error'); }
+        try {
+            await api.post(`/users/${showResetPass}/reset-password`, { newPassword });
+            setShowResetPass(null);
+            setNewPassword('');
+            toast.success('Password berhasil direset');
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Gagal mereset password');
+        }
     };
 
-    const resetForm = () => { setForm({ name: '', username: '', password: '', email: '', role: 'CASHIER' }); setEditId(null); };
+    const resetForm = () => {
+        setForm({ name: '', username: '', password: '', email: '', role: 'CASHIER' });
+        setEditId(null);
+    };
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <p className="text-text-subtle text-sm">{employees.length} karyawan</p>
+        <VStack gap={4} width="100%">
+            <HStack justify="between" align="center" wrap="wrap" gap={3}>
+                <HStack gap={2} align="center">
+                    <Text size="sm" color="secondary">Total karyawan</Text>
+                    <Badge variant="neutral" label={employees.length} />
+                </HStack>
                 <HasPermission permission="user.create_cashier">
-                    <button onClick={() => { resetForm(); setShowModal(true); }}
-                        className="px-4 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 transition-all flex items-center gap-2 shadow-lg shadow-primary/20">
-                        <span className="material-symbols-outlined text-[18px]">person_add</span> Tambah Karyawan
-                    </button>
+                    <Button
+                        variant="primary"
+                        label="Tambah Karyawan"
+                        icon={<UserPlus size={16} />}
+                        onClick={() => { resetForm(); setShowModal(true); }}
+                    />
                 </HasPermission>
-            </div>
+            </HStack>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {employees.map(emp => {
-                    const rs = ROLE_STYLES[emp.role] || ROLE_STYLES.CASHIER;
-                    return (
-                        <div key={emp.id} className={`bg-card-dark rounded-xl border p-5 hover:border-primary/30 transition-all group shadow-lg ${emp.isActive ? 'border-border-dark' : 'border-red-500/10 opacity-60'}`}>
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-sm font-bold">{emp.name.charAt(0).toUpperCase()}</div>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <HasPermission permission="user.reset_pin">
-                                        <button onClick={() => setShowResetPass(emp.id)} className="p-1.5 rounded-lg bg-background-dark text-text-subtle hover:text-amber-400 border border-border-dark" title="Reset Password">
-                                            <span className="material-symbols-outlined text-[14px]">key</span>
-                                        </button>
-                                    </HasPermission>
-                                    <HasPermission permission="user.manage">
-                                        <button onClick={() => handleEdit(emp)} className="p-1.5 rounded-lg bg-background-dark text-text-subtle hover:text-primary border border-border-dark">
-                                            <span className="material-symbols-outlined text-[14px]">edit</span>
-                                        </button>
-                                    </HasPermission>
-                                    <HasPermission permission="role.manage">
-                                        <button onClick={() => handleDelete(emp.id)} className="p-1.5 rounded-lg bg-background-dark text-text-subtle hover:text-red-400 border border-border-dark">
-                                            <span className="material-symbols-outlined text-[14px]">delete</span>
-                                        </button>
-                                    </HasPermission>
-                                </div>
-                            </div>
-                            <h3 className="text-white font-bold text-sm">{emp.name}</h3>
-                            <p className="text-text-subtle/60 text-xs mb-2">@{emp.username}</p>
-                            <div className="flex items-center gap-2 mb-3">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold border ${rs.bg}`}>
-                                    <span className="material-symbols-outlined text-[14px]">{rs.icon}</span>{emp.role}
-                                </span>
-                                {!emp.isActive && <span className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">Nonaktif</span>}
-                            </div>
-                            <div className="flex gap-4 text-xs text-text-subtle/60">
-                                <span>{emp._count.sales} penjualan</span>
-                                <span>{emp._count.cashSessions} sesi kas</span>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+            {employees.length > 0 ? (
+                <Grid columns={{ minWidth: 280, max: 3 }} gap={3}>
+                    {employees.map((emp) => (
+                        <Card key={emp.id} padding={4} elevation="none">
+                            <VStack gap={3}>
+                                <HStack justify="between" align="start" gap={2}>
+                                    <HStack gap={2} align="center">
+                                        <Avatar name={emp.name} size="md" />
+                                        <VStack gap={0.5}>
+                                            <Heading level={5} weight="semibold">{emp.name}</Heading>
+                                            <Text size="xsm" color="secondary">@{emp.username}</Text>
+                                        </VStack>
+                                    </HStack>
+                                    <HStack gap={1}>
+                                        <HasPermission permission="user.reset_pin">
+                                            <IconButton variant="ghost" size="sm" label="Reset Password" icon={<KeyRound size={15} />} onClick={() => setShowResetPass(emp.id)} />
+                                        </HasPermission>
+                                        <HasPermission permission="role.manage">
+                                            <IconButton variant="ghost" size="sm" label="Edit" icon={<Pencil size={15} />} onClick={() => handleEdit(emp)} />
+                                            <IconButton variant="ghost" size="sm" label="Nonaktifkan" icon={<Trash2 size={15} />} onClick={() => handleDelete(emp.id)} />
+                                        </HasPermission>
+                                    </HStack>
+                                </HStack>
 
-            {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)}>
-                    <div className="w-full max-w-md bg-card-dark rounded-xl border border-border-dark p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between mb-5">
-                            <h2 className="text-white font-bold text-lg">{editId ? 'Edit Karyawan' : 'Tambah Karyawan'}</h2>
-                            <button onClick={() => setShowModal(false)} className="text-text-subtle hover:text-white"><span className="material-symbols-outlined">close</span></button>
-                        </div>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div><label className="text-text-subtle text-xs mb-1.5 block font-semibold">Nama</label>
-                                <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                            {!editId && (<>
-                                <div><label className="text-text-subtle text-xs mb-1.5 block font-semibold">Username</label>
-                                    <input type="text" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} required className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                                <div><label className="text-text-subtle text-xs mb-1.5 block font-semibold">Password</label>
-                                    <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                            </>)}
-                            <div><label className="text-text-subtle text-xs mb-1.5 block font-semibold">Email</label>
-                                <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                            <div><label className="text-text-subtle text-xs mb-1.5 block font-semibold">Role</label>
-                                <div className="flex gap-2">
-                                    {(['CASHIER', 'ADMIN', 'OWNER'] as const).map(r => (
-                                        <button key={r} type="button" onClick={() => setForm({ ...form, role: r })}
-                                            className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${form.role === r ? (ROLE_STYLES[r]?.bg || '') : 'bg-background-dark border-border-dark text-text-subtle'}`}>{r}</button>
-                                    ))}
-                                </div>
-                            </div>
-                            <button type="submit" className="w-full py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold hover:bg-green-400 shadow-lg shadow-primary/20">{editId ? 'Update' : 'Simpan'}</button>
-                        </form>
-                    </div>
-                </div>
+                                <HStack gap={2} align="center" wrap="wrap">
+                                    <Badge variant={ROLE_VARIANT[emp.role] || 'neutral'} label={emp.role} />
+                                    <Badge variant={emp.isActive ? 'success' : 'error'} label={emp.isActive ? 'Aktif' : 'Nonaktif'} />
+                                </HStack>
+
+                                {emp.email && (
+                                    <HStack gap={1.5} align="center">
+                                        <Mail size={13} />
+                                        <Text size="xsm" color="secondary">{emp.email}</Text>
+                                    </HStack>
+                                )}
+
+                                <Divider />
+
+                                <HStack justify="between" align="center">
+                                    <Text size="xsm" color="secondary">{emp._count?.sales ?? 0} penjualan</Text>
+                                    <Text size="xsm" color="secondary">{emp._count?.cashSessions ?? 0} sesi kas</Text>
+                                </HStack>
+                            </VStack>
+                        </Card>
+                    ))}
+                </Grid>
+            ) : (
+                <EmptyState icon={<Users size={28} />} title="Belum ada data karyawan" />
             )}
 
-            {showResetPass && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowResetPass(null)}>
-                    <div className="w-full max-w-sm bg-card-dark rounded-xl border border-border-dark p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-amber-400">key</span> Reset Password</h2>
-                        <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Password baru" autoFocus
-                            className="w-full px-4 py-2.5 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary mb-4" />
-                        <button onClick={handleResetPassword} disabled={!newPassword}
-                            className="w-full py-2.5 rounded-lg bg-amber-500/10 text-amber-400 text-sm font-bold border border-amber-500/20 disabled:opacity-30 hover:bg-amber-500/20">Reset Password</button>
-                    </div>
-                </div>
-            )}
-        </div>
+            <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editId ? 'Edit Karyawan' : 'Tambah Karyawan'}>
+                <form onSubmit={handleSubmit}>
+                    <VStack gap={4}>
+                        <TextInput label="Nama Lengkap" value={form.name} onChange={(v) => setForm({ ...form, name: v })} isRequired />
+                        {!editId && (
+                            <>
+                                <TextInput label="Username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} isRequired />
+                                <TextInput label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} isRequired />
+                            </>
+                        )}
+                        <TextInput label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+                        <VStack gap={1.5}>
+                            <Text size="sm" weight="medium">Role</Text>
+                            <SegmentedControl
+                                label="Role karyawan"
+                                value={form.role}
+                                onChange={(v) => setForm({ ...form, role: v })}
+                                layout="fill"
+                            >
+                                <SegmentedControlItem value="CASHIER" label="CASHIER" />
+                                <SegmentedControlItem value="ADMIN" label="ADMIN" />
+                                <SegmentedControlItem value="OWNER" label="OWNER" />
+                            </SegmentedControl>
+                        </VStack>
+                        <HStack justify="end" gap={2}>
+                            <Button variant="secondary" label="Batal" onClick={() => setShowModal(false)} />
+                            <Button type="submit" variant="primary" label={editId ? 'Update' : 'Simpan'} />
+                        </HStack>
+                    </VStack>
+                </form>
+            </Modal>
+
+            <Modal isOpen={showResetPass !== null} onClose={() => setShowResetPass(null)} title="Reset Password" width={400}>
+                <VStack gap={4}>
+                    <TextInput
+                        label="Password Baru"
+                        type="password"
+                        placeholder="Masukkan password baru"
+                        value={newPassword}
+                        onChange={(v) => setNewPassword(v)}
+                        hasAutoFocus
+                    />
+                    <HStack justify="end" gap={2}>
+                        <Button variant="secondary" label="Batal" onClick={() => setShowResetPass(null)} />
+                        <Button variant="primary" label="Reset Password" isDisabled={!newPassword} onClick={handleResetPassword} />
+                    </HStack>
+                </VStack>
+            </Modal>
+        </VStack>
     );
 };
 

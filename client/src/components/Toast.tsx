@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { Banner } from '@astryxdesign/core/Banner';
+import { VStack } from '@astryxdesign/core/VStack';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
-interface Toast {
+interface ToastItem {
     id: string;
     message: string;
     type: ToastType;
@@ -24,22 +26,8 @@ export const useToast = () => {
     return ctx;
 };
 
-const TOAST_ICONS: Record<ToastType, string> = {
-    success: 'check_circle',
-    error: 'error',
-    warning: 'warning',
-    info: 'info',
-};
-
-const TOAST_STYLES: Record<ToastType, { bg: string; border: string; text: string }> = {
-    success: { bg: 'bg-primary/10', border: 'border-primary/30', text: 'text-primary' },
-    error: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400' },
-    warning: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400' },
-    info: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400' },
-};
-
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [toasts, setToasts] = useState<Toast[]>([]);
+    const [toasts, setToasts] = useState<ToastItem[]>([]);
     const timerRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
     const removeToast = useCallback((id: string) => {
@@ -65,27 +53,32 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return (
         <ToastContext.Provider value={value}>
             {children}
-            {/* Toast Container */}
-            <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none" style={{ maxWidth: '380px' }}>
-                {toasts.map((t) => {
-                    const style = TOAST_STYLES[t.type];
-                    return (
-                        <div
-                            key={t.id}
-                            className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl ${style.bg} border ${style.border} shadow-2xl`}
-                        >
-                            <span className={`material-symbols-outlined mt-0.5 flex-shrink-0 ${style.text}`}>{TOAST_ICONS[t.type]}</span>
-                            <p className="text-white/80 text-sm flex-1 font-medium">{t.message}</p>
-                            <button
-                                onClick={() => removeToast(t.id)}
-                                className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0 mt-0.5"
-                            >
-                                <span className="material-symbols-outlined text-[18px]">close</span>
-                            </button>
-                        </div>
-                    );
-                })}
-            </div>
+            {toasts.length > 0 && (
+                <VStack
+                    gap={2}
+                    style={{
+                        position: 'fixed',
+                        top: 16,
+                        right: 16,
+                        zIndex: 9999,
+                        width: 'min(360px, calc(100vw - 32px))',
+                        pointerEvents: 'none',
+                    }}
+                >
+                    {toasts.map((t) => (
+                        <VStack key={t.id} style={{ pointerEvents: 'auto' }}>
+                            <Banner
+                                status={t.type}
+                                title={t.message}
+                                container="card"
+                                elevation="med"
+                                isDismissable
+                                onDismiss={() => removeToast(t.id)}
+                            />
+                        </VStack>
+                    ))}
+                </VStack>
+            )}
         </ToastContext.Provider>
     );
 };

@@ -1,64 +1,296 @@
-@import "tailwindcss";
-
-@theme {
-  --color-primary: #13ec5b;
-  --color-background-dark: #111813;
-  --color-card-dark: #1a261e;
-  --color-card-hover: #223026;
-  --color-border-dark: #28392e;
-  --color-text-subtle: #9db9a6;
-  --color-surface-dark: #1c2e24;
-  --color-surface-highlight: #253b30;
-  --color-input-dark: #1c3828;
-}
-
 :root {
-  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #111813;
-  color: #e2e8f0;
+  background-color: #fafafa;
+  color: #18181b;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   overflow-x: hidden;
 }
 
-/* Material Symbols */
-.material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+/* Exact structural hairline borders — ONLY on shell landmarks, never child items */
+nav.astryx-top-nav,
+header.astryx-top-nav {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e4e4e7;
 }
 
-.material-symbols-outlined.fill-1 {
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+aside.astryx-side-nav,
+nav.astryx-side-nav {
+  background-color: #ffffff;
+  border-right: 1px solid #e4e4e7;
 }
 
-/* Custom Scrollbar */
+/* Crisp hairline borders on cards with smooth hover transitions */
+[data-astryx-theme="neutral"] .astryx-card {
+  background-color: #ffffff;
+  border: 1px solid #e4e4e7;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Interactive card hover lift & tactile press */
+.pos-interactive-card {
+  border-radius: 12px;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pos-interactive-card:hover {
+  transform: translateY(-2px);
+}
+
+.pos-interactive-card:hover .astryx-card {
+  border-color: #d4d4d8;
+  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.08), 0 2px 6px -2px rgba(0, 0, 0, 0.04);
+}
+
+.pos-interactive-card:active {
+  transform: translateY(0) scale(0.99);
+}
+
+/* Smooth clickable list rows */
+.pos-row-hover {
+  border-radius: 8px;
+  padding-inline: 8px;
+  margin-inline: -8px;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.pos-row-hover:hover {
+  background-color: #f4f4f5;
+}
+
+/* Native View Transitions (Chrome, Edge, Safari 18+) */
+::view-transition-old(root) {
+  animation: 160ms cubic-bezier(0.4, 0, 1, 1) both posFadeOut;
+}
+
+::view-transition-new(root) {
+  animation: 240ms cubic-bezier(0.16, 1, 0.3, 1) both posFadeSlideIn;
+}
+
+@keyframes posFadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.995);
+  }
+}
+
+@keyframes posFadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Fallback smooth page enter transition */
+@keyframes posPageEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.994);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pos-page-enter {
+  animation: posPageEnter 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+@keyframes posDotPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Smooth tactile feel on buttons & nav items */
+button {
+  transition: background-color 150ms ease,
+              border-color 150ms ease,
+              color 150ms ease,
+              transform 120ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 150ms ease;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Subtle light scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #111813;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #28392e;
-  border-radius: 4px;
+  background: rgba(24, 24, 27, 0.14);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b5443;
+  background: rgba(24, 24, 27, 0.28);
 }
 
-/* Hide scrollbar for category pills */
-.hide-scrollbar::-webkit-scrollbar {
+/* Mobile Native App Touch & Viewport Polish */
+@media (max-width: 768px) {
+  html, body {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Force full width edge-to-edge container without Astryx CQ margins */
+  [role="main"],
+  main,
+  .astryx-app-shell-content,
+  div[class*="LayoutContent"],
+  div[class*="contentWrapper"] {
+    padding-inline-start: 0 !important;
+    padding-inline-end: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden;
+  }
+
+  /* Prevent horizontal layout spill */
+  .astryx-app-shell-content {
+    overflow-x: hidden;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 8px)) !important;
+  }
+
+  /* Tables keep their readable width and scroll smoothly horizontally */
+  table,
+  .astryx-table,
+  [class*="Table"] table {
+    min-width: 660px !important;
+    table-layout: auto !important;
+  }
+
+  th,
+  td,
+  .astryx-table-header-cell,
+  .astryx-table-cell,
+  [class*="TableHeaderCell"],
+  [class*="TableCell"] {
+    white-space: nowrap !important;
+    word-break: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  /* Table containers scroll horizontally without cutting off */
+  .astryx-scrollable-area,
+  .astryx-table-container,
+  [class*="ScrollableArea"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-width: 100% !important;
+    display: block !important;
+  }
+}
+
+/* Category Horizontal Scroll Pills */
+.pos-category-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 2px 4px 2px;
+}
+.pos-category-scroll::-webkit-scrollbar {
   display: none;
 }
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+
+/* Floating Cart Capsule */
+.pos-floating-cart-pill {
+  background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
+  border-radius: 9999px;
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.35), 0 4px 12px -2px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+  user-select: none;
+  touch-action: manipulation;
 }
+.pos-floating-cart-pill:active {
+  transform: scale(0.97);
+}
+
+/* Quick Touch Stepper on Product Cards */
+.pos-quick-stepper-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #e4e4e7;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #18181b;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.pos-quick-stepper-btn:hover {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+}
+.pos-quick-stepper-btn:active {
+  transform: scale(0.9);
+}
+
+/* Mobile Menu Tile with Squircle Icon */
+.pos-menu-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background-color: #ffffff;
+  border: 1px solid #e4e4e7;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  cursor: pointer;
+  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+.pos-menu-tile:hover {
+  border-color: #d4d4d8;
+  transform: translateY(-1px);
+}
+.pos-menu-tile:active {
+  transform: scale(0.97);
+  background-color: #f4f4f5;
+}
+
+
