@@ -65,13 +65,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ onOpenMenu, cartCoun
             onOpenMenu();
         } else if (tab.path) {
             if (location.pathname === tab.path) return;
-            if ('startViewTransition' in document) {
-                (document as any).startViewTransition(() => {
-                    navigate(tab.path!);
-                });
-            } else {
-                navigate(tab.path);
-            }
+            navigate(tab.path);
         }
     };
 

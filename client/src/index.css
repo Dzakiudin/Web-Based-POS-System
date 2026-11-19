@@ -179,52 +179,39 @@ nav.astryx-side-nav {
   background-color: #f4f4f5;
 }
 
-/* Native View Transitions (Chrome, Edge, Safari 18+) */
-::view-transition-old(root) {
-  animation: 160ms cubic-bezier(0.4, 0, 1, 1) both posFadeOut;
+/* App Shell Landmarks stay completely frozen and static (No jumping or flickering) */
+nav.astryx-top-nav,
+header.astryx-top-nav,
+aside.astryx-side-nav,
+nav.astryx-side-nav,
+.pos-bottom-nav,
+nav[aria-label="Navigasi bawah mobile"] {
+  view-transition-name: none !important;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
-::view-transition-new(root) {
-  animation: 240ms cubic-bezier(0.16, 1, 0.3, 1) both posFadeSlideIn;
-}
-
-@keyframes posFadeOut {
-  from {
-    opacity: 1;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(0.995);
-  }
-}
-
-@keyframes posFadeSlideIn {
+/* Professional Micro-Fade Page Transition (Enterprise Linear & Stripe style) */
+@keyframes posPageFadeIn {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.995);
+    transform: translateY(3px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Fallback smooth page enter transition */
-@keyframes posPageEnter {
-  0% {
-    opacity: 0;
-    transform: translateY(8px) scale(0.994);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
 .pos-page-enter {
-  animation: posPageEnter 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: posPageFadeIn 140ms cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: opacity, transform;
+  transform: translateZ(0);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none !important;
 }
 
 @keyframes posDotPop {

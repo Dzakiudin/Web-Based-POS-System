@@ -107,13 +107,7 @@ const Layout = () => {
 
     const smoothNavigate = (to: string) => {
         if (location.pathname === to) return;
-        if ('startViewTransition' in document) {
-            (document as any).startViewTransition(() => {
-                navigate(to);
-            });
-        } else {
-            navigate(to);
-        }
+        navigate(to);
     };
 
     // Network connection status detection
