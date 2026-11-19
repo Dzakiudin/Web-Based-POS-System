@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Camera, X, Flashlight, SwitchCamera, Check, Barcode, AlertCircle } from 'lucide-react';
 import { Button } from '@astryxdesign/core/Button';
@@ -29,7 +30,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     const [errorMsg, setErrorMsg] = useState<string>('');
     const [manualCode, setManualCode] = useState<string>('');
     const [torchOn, setTorchOn] = useState<boolean>(false);
-    const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+    const [torchSupported, setTorchSupported] = useState<boolean>(false);
+    const [availableCameras, setAvailableCameras] = useState<Array<{ id: string; label: string }>>([]);
+    const [cameraIndex, setCameraIndex] = useState<number>(0);
     const [lastScanned, setLastScanned] = useState<string>('');
     const [scannedCount, setScannedCount] = useState<number>(0);
     const [continuous, setContinuous] = useState<boolean>(allowContinuous);
@@ -57,7 +60,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             clearTimeout(timer);
             stopScanner();
         };
-    }, [isOpen, facingMode]);
+    }, [isOpen, cameraIndex]);
 
     const startScanner = async () => {
         const readerElement = document.getElementById('pos-html5-qr-reader');
@@ -89,24 +92,62 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 aspectRatio: 1.33,
             };
 
-            await html5QrCode.start(
-                { facingMode },
-                config,
-                (decodedText) => {
-                    handleScanSuccess(decodedText);
-                },
-                () => {
-                    // Ignore transient frame parsing errors
+            // 1. Probe available cameras to avoid OverconstrainedError on PC/laptop webcams
+            let cameras: Array<{ id: string; label: string }> = [];
+            try {
+                cameras = await Html5Qrcode.getCameras();
+                setAvailableCameras(cameras);
+            } catch {
+                cameras = [];
+            }
+
+            if (cameras && cameras.length > 0) {
+                // Determine selected camera
+                const activeCam = cameras[cameraIndex % cameras.length];
+                await html5QrCode.start(
+                    activeCam.id,
+                    config,
+                    (decodedText) => handleScanSuccess(decodedText),
+                    () => {}
+                );
+            } else {
+                // If getCameras() returned empty, use ideal constraint (never exact constraint)
+                try {
+                    await html5QrCode.start(
+                        { facingMode: { ideal: 'environment' } },
+                        config,
+                        (decodedText) => handleScanSuccess(decodedText),
+                        () => {}
+                    );
+                } catch {
+                    // Fallback to front/default camera
+                    await html5QrCode.start(
+                        { facingMode: 'user' },
+                        config,
+                        (decodedText) => handleScanSuccess(decodedText),
+                        () => {}
+                    );
                 }
-            );
+            }
 
             setCameraActive(true);
             setErrorMsg('');
+
+            // Check torch capabilities safely without throwing OverconstrainedError
+            try {
+                const capabilities = html5QrCode.getRunningTrackCameraCapabilities();
+                const canTorch = capabilities?.torchFeature?.()?.isSupported?.() ?? false;
+                setTorchSupported(Boolean(canTorch));
+            } catch {
+                setTorchSupported(false);
+            }
         } catch (err: any) {
             console.warn('Camera scanner start error:', err);
             setCameraActive(false);
             if (String(err).includes('NotAllowedError') || String(err).includes('Permission')) {
-                setErrorMsg('Izin kamera ditolak. Berikan izin kamera di browser atau gunakan input manual di bawah.');
+                setErrorMsg('Izin kamera ditolak. Berikan izin akses kamera di peramban Anda atau masukkan barcode secara manual di bawah.');
+            } else if (String(err).includes('OverconstrainedError') || String(err).includes('Constraint')) {
+                setErrorMsg('Resolusi/kamera yang diminta tidak didukung oleh perangkat ini.');
             } else {
                 setErrorMsg('Kamera tidak dapat diakses atau sedang digunakan oleh aplikasi lain.');
             }
@@ -121,11 +162,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 }
                 scannerRef.current.clear();
             } catch {
-                // Ignore stop errors
+                // Ignore transient stop errors
             } finally {
                 scannerRef.current = null;
                 setCameraActive(false);
                 setTorchOn(false);
+                setTorchSupported(false);
             }
         }
     };
@@ -156,20 +198,21 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     };
 
     const toggleTorch = async () => {
-        if (!scannerRef.current || !cameraActive) return;
+        if (!scannerRef.current || !cameraActive || !torchSupported) return;
         try {
             const nextState = !torchOn;
             await scannerRef.current.applyVideoConstraints({
                 advanced: [{ torch: nextState }] as any,
             });
             setTorchOn(nextState);
-        } catch (e) {
-            console.warn('Torch toggle not supported on this device', e);
+        } catch {
+            setTorchSupported(false);
         }
     };
 
-    const toggleFacingMode = () => {
-        setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
+    const switchCamera = () => {
+        if (availableCameras.length <= 1) return;
+        setCameraIndex((prev) => (prev + 1) % availableCameras.length);
     };
 
     const handleManualSubmit = (e: React.FormEvent) => {
@@ -182,12 +225,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
     if (!isOpen) return null;
 
-    return (
+    const modalContent = (
         <div
             style={{
                 position: 'fixed',
                 inset: 0,
-                zIndex: 100,
+                zIndex: 999999,
                 backgroundColor: 'rgba(0, 0, 0, 0.78)',
                 backdropFilter: 'blur(8px)',
                 WebkitBackdropFilter: 'blur(8px)',
@@ -204,7 +247,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     width: '100%',
                     maxWidth: 460,
                     overflow: 'hidden',
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45)',
                     display: 'flex',
                     flexDirection: 'column',
                     animation: 'posPageEnter 220ms cubic-bezier(0.16, 1, 0.3, 1) both',
@@ -286,7 +329,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                         </div>
                     )}
 
-                    {/* Camera Control Overlays */}
+                    {/* Camera Control Overlays (Flashlight & Camera Switcher) */}
                     {cameraActive && (
                         <div
                             style={{
@@ -298,46 +341,50 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                                 zIndex: 10,
                             }}
                         >
-                            <button
-                                type="button"
-                                onClick={toggleTorch}
-                                aria-label="Nyalakan senter"
-                                style={{
-                                    width: 36,
-                                    height: 36,
-                                    borderRadius: 999,
-                                    backgroundColor: torchOn ? '#eab308' : 'rgba(0,0,0,0.65)',
-                                    color: torchOn ? '#000' : '#fff',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    backdropFilter: 'blur(4px)',
-                                }}
-                            >
-                                <Flashlight size={16} />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={toggleFacingMode}
-                                aria-label="Ganti kamera"
-                                style={{
-                                    width: 36,
-                                    height: 36,
-                                    borderRadius: 999,
-                                    backgroundColor: 'rgba(0,0,0,0.65)',
-                                    color: '#fff',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    backdropFilter: 'blur(4px)',
-                                }}
-                            >
-                                <SwitchCamera size={16} />
-                            </button>
+                            {torchSupported && (
+                                <button
+                                    type="button"
+                                    onClick={toggleTorch}
+                                    aria-label="Nyalakan senter"
+                                    style={{
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: 999,
+                                        backgroundColor: torchOn ? '#eab308' : 'rgba(0,0,0,0.65)',
+                                        color: torchOn ? '#000' : '#fff',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        backdropFilter: 'blur(4px)',
+                                    }}
+                                >
+                                    <Flashlight size={16} />
+                                </button>
+                            )}
+                            {availableCameras.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={switchCamera}
+                                    aria-label="Ganti kamera"
+                                    style={{
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: 999,
+                                        backgroundColor: 'rgba(0,0,0,0.65)',
+                                        color: '#fff',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        backdropFilter: 'blur(4px)',
+                                    }}
+                                >
+                                    <SwitchCamera size={16} />
+                                </button>
+                            )}
                         </div>
                     )}
 
@@ -443,6 +490,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 };
 
 export default BarcodeScannerModal;
