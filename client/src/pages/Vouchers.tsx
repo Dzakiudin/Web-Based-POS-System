@@ -99,7 +99,7 @@ const Vouchers = () => {
     return (
         <VStack gap={4} width="100%">
             {isMobile ? (
-                <VStack gap={2.5} width="100%">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', paddingTop: 4, paddingBottom: 2 }}>
                     <div style={{ width: '100%', minWidth: 0 }}>
                         <Button
                             variant="primary"
@@ -121,10 +121,10 @@ const Vouchers = () => {
                             <SegmentedControlItem value="" label="Semua" />
                             <SegmentedControlItem value="active" label="Aktif" />
                             <SegmentedControlItem value="used" label="Terpakai" />
-                            <SegmentedControlItem value="expired" label="Kedaluwarsa" />
+                            <SegmentedControlItem value="expired" label={isMobile ? 'Hangus' : 'Kedaluwarsa'} />
                         </SegmentedControl>
                     </div>
-                </VStack>
+                </div>
             ) : (
                 <HStack justify="between" align="center" width="100%">
                     <SegmentedControl
