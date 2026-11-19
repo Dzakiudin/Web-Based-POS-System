@@ -22,9 +22,6 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -36,6 +33,10 @@ jobs:
           npm ci --legacy-peer-deps || npm install
           npm run build
           npx cap sync android
+
+      - name: Accept Android SDK licenses
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
 
       - name: Build Android Debug APK
         run: |
