@@ -1,5 +1,17 @@
 :root {
   color-scheme: light;
+  --font-family-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  --font-family-heading: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  --font-family-code: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace !important;
+  --font-family-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  --font-family-base: var(--font-family-body) !important;
+}
+
+html, body, button, input, select, textarea {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -7,11 +19,90 @@ body {
   min-height: 100vh;
   background-color: #fafafa;
   color: #18181b;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-size: 14px;
+  line-height: 1.5;
   overflow-x: hidden;
 }
+
+/* Typography Polish: Headings & Brand Titles */
+h1, h2, h3, h4, h5, h6,
+.astryx-heading,
+[class*="Heading"] {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  letter-spacing: -0.026em !important;
+  font-weight: 700 !important;
+  line-height: 1.28 !important;
+}
+
+/* Top brand header logo & title */
+.astryx-top-nav-heading,
+[class*="TopNavHeading"],
+[class*="TopNavHeading"] span {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  letter-spacing: -0.03em !important;
+}
+
+/* Subtitles, Paragraphs & Descriptions */
+p,
+.astryx-text,
+[class*="Text"] {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  letter-spacing: -0.01em;
+}
+
+/* Tabular Numbers for Prices, Totals, Quantities, and Financial Figures */
+.astryx-tabular-numbers,
+[class*="tabularNumbers"],
+[hasTabularNumbers],
+.pos-price-tag {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-variant-numeric: tabular-nums lining-nums !important;
+  letter-spacing: -0.02em !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+}
+
+/* Monospace for Barcodes, SKUs, and Receipt IDs */
+code, pre, .pos-mono-code {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-feature-settings: "liga" 0 !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Button Typography */
+button,
+.astryx-button,
+[class*="Button"] {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  letter-spacing: -0.014em !important;
+  font-weight: 600 !important;
+}
+
+/* Input Fields & Selectors Typography */
+input,
+select,
+textarea,
+.astryx-text-input,
+[class*="TextInput"] {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Segmented Control & Navigation Pills */
+.astryx-segmented-control-item,
+[class*="SegmentedControlItem"] {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  letter-spacing: -0.014em !important;
+  font-weight: 600 !important;
+}
+
+/* Badges & Tags */
+.astryx-badge,
+[class*="Badge"] {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  letter-spacing: -0.008em !important;
+  font-weight: 650 !important;
+}
+
 
 /* Exact structural hairline borders — ONLY on shell landmarks, never child items */
 nav.astryx-top-nav,
