@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Package, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Search, Camera, Barcode, Sparkles, Loader2 } from 'lucide-react';
 import { VStack } from '@astryxdesign/core/VStack';
 import { HStack } from '@astryxdesign/core/HStack';
 import { Grid } from '@astryxdesign/core/Grid';
@@ -17,14 +17,21 @@ import { EmptyState } from '@astryxdesign/core/EmptyState';
 import { Divider } from '@astryxdesign/core/Divider';
 import { useMediaQuery } from '@astryxdesign/core/hooks';
 import api from '../lib/axios';
+import { sound } from '../lib/sound';
 import Modal from '../components/Modal';
 import HasPermission from '../components/HasPermission';
 import { useToast } from '../components/Toast';
+import useHardwareScanner from '../hooks/useHardwareScanner';
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
+import { lookupBarcodeInfo } from '../lib/barcodeCatalog';
 
 interface Product {
     id: number;
     name: string;
+    sku?: string | null;
+    barcode?: string | null;
     price: string;
+    costPrice?: string;
     stock: number;
     minStock?: number;
     image: string | null;
@@ -47,9 +54,15 @@ const Products = () => {
     const [catFilter, setCatFilter] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [cameraScanOpen, setCameraScanOpen] = useState(false);
+    const [isLookingUp, setIsLookingUp] = useState(false);
+
     const [formData, setFormData] = useState({
         name: '',
+        sku: '',
+        barcode: '',
         price: 0,
+        costPrice: 0,
         stock: 0,
         categoryId: '',
         image: null as File | null,
@@ -78,21 +91,77 @@ const Products = () => {
         }
     };
 
+    // Packaging Barcode Auto-Fill from Catalog & Open Food Facts
+    const handleBarcodeAutoFill = async (scannedBarcode: string) => {
+        const cleanBarcode = scannedBarcode.trim();
+        setFormData((prev) => ({ ...prev, barcode: cleanBarcode }));
+        setIsLookingUp(true);
+        try {
+            const info = await lookupBarcodeInfo(cleanBarcode);
+            if (info) {
+                sound.playSuccess();
+                toast.success(`Ditemukan: "${info.name}"! Data kemasan otomatis terisi.`);
+
+                // Match category name
+                let matchedCatId = '';
+                if (info.category) {
+                    const matched = categories.find(
+                        (c) =>
+                            c.name.toLowerCase().includes(info.category!.toLowerCase()) ||
+                            info.category!.toLowerCase().includes(c.name.toLowerCase())
+                    );
+                    if (matched) matchedCatId = String(matched.id);
+                }
+
+                setFormData((prev) => ({
+                    ...prev,
+                    barcode: cleanBarcode,
+                    name: prev.name ? prev.name : info.name,
+                    sku: prev.sku
+                        ? prev.sku
+                        : info.brand
+                        ? `${info.brand.slice(0, 3).toUpperCase()}-${cleanBarcode.slice(-4)}`
+                        : `SKU-${cleanBarcode.slice(-4)}`,
+                    price: prev.price > 0 ? prev.price : (info.suggestedPrice || 0),
+                    costPrice: prev.costPrice > 0 ? prev.costPrice : (info.costPrice || 0),
+                    categoryId: prev.categoryId ? prev.categoryId : matchedCatId,
+                }));
+            } else {
+                toast.info(`Barcode ${cleanBarcode} tercatat. Lengkapi nama dan harga produk.`);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsLookingUp(false);
+        }
+    };
+
+    // Hardware USB/Bluetooth barcode scanner listener when modal is open
+    useHardwareScanner({
+        enabled: isModalOpen && !cameraScanOpen,
+        onScan: (code) => {
+            handleBarcodeAutoFill(code);
+        },
+    });
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const data = new FormData();
-        data.append('name', formData.name);
-        data.append('price', String(formData.price));
-        data.append('stock', String(formData.stock));
-        if (formData.categoryId) data.append('categoryId', formData.categoryId);
-        if (formData.image) data.append('image', formData.image);
+        const payload = {
+            name: formData.name,
+            sku: formData.sku || null,
+            barcode: formData.barcode || null,
+            price: Number(formData.price),
+            costPrice: Number(formData.costPrice || 0),
+            stock: Number(formData.stock),
+            categoryId: formData.categoryId ? Number(formData.categoryId) : null,
+        };
 
         try {
             if (editingProduct) {
-                await api.put(`/products/${editingProduct.id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+                await api.put(`/products/${editingProduct.id}`, payload);
                 toast.success('Produk berhasil diperbarui');
             } else {
-                await api.post('/products', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+                await api.post('/products', payload);
                 toast.success('Produk berhasil ditambahkan');
             }
             fetchProducts();
@@ -106,7 +175,10 @@ const Products = () => {
         setEditingProduct(product);
         setFormData({
             name: product.name,
+            sku: product.sku || '',
+            barcode: product.barcode || '',
             price: Number(product.price) || 0,
+            costPrice: Number(product.costPrice) || 0,
             stock: product.stock || 0,
             categoryId: product.categoryId ? String(product.categoryId) : '',
             image: null,
@@ -128,7 +200,7 @@ const Products = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingProduct(null);
-        setFormData({ name: '', price: 0, stock: 0, categoryId: '', image: null });
+        setFormData({ name: '', sku: '', barcode: '', price: 0, costPrice: 0, stock: 0, categoryId: '', image: null });
     };
 
     const filtered = products.filter((p) => {
@@ -224,9 +296,16 @@ const Products = () => {
                                                 label={`Stok ${product.stock}`}
                                             />
                                         </HStack>
-                                        <Text size="xsm" color="secondary">
-                                            {product.category?.name || 'Umum'}
-                                        </Text>
+                                        <HStack justify="between" align="center">
+                                            <Text size="xsm" color="secondary">
+                                                {product.category?.name || 'Umum'}
+                                            </Text>
+                                            {product.barcode && (
+                                                <span style={{ fontSize: 10, fontFamily: 'monospace', color: '#71717a', backgroundColor: '#f4f4f5', padding: '1px 6px', borderRadius: 4, border: '1px solid #e4e4e7' }}>
+                                                    {product.barcode}
+                                                </span>
+                                            )}
+                                        </HStack>
                                     </VStack>
 
                                     <Divider />
@@ -267,28 +346,85 @@ const Products = () => {
                 />
             )}
 
-            {/* Modal */}
+            {/* Modal Tambah / Edit Produk */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
                 title={editingProduct ? 'Edit Produk' : 'Tambah Produk Baru'}
+                width={520}
             >
                 <form onSubmit={handleSubmit}>
                     <VStack gap={4}>
-                        <TextInput
-                            label="Nama Produk"
-                            placeholder="Contoh: Kopi Susu Gula Aren"
-                            value={formData.name}
-                            onChange={(val) => setFormData({ ...formData, name: val })}
-                            isRequired
-                        />
+                        {/* Barcode & Packaging Auto-Lookup Section */}
+                        <VStack gap={1.5}>
+                            <Text size="sm" weight="semibold">Barcode Kemasan (Isi Data Otomatis)</Text>
+                            <HStack gap={2} align="center" width="100%">
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <TextInput
+                                        label="Barcode Kemasan"
+                                        isLabelHidden
+                                        placeholder="Scan barcode kemasan atau ketik..."
+                                        value={formData.barcode}
+                                        onChange={(val) => setFormData({ ...formData, barcode: val })}
+                                        startIcon={<Barcode size={16} />}
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="md"
+                                    icon={<Camera size={16} />}
+                                    label="Scan Kemasan"
+                                    onClick={() => setCameraScanOpen(true)}
+                                />
+                                {formData.barcode && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="md"
+                                        icon={isLookingUp ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} color="#2563eb" />}
+                                        tooltip="Cari otomatis data produk dari kemasan"
+                                        label="Cari Info"
+                                        onClick={() => handleBarcodeAutoFill(formData.barcode)}
+                                    />
+                                )}
+                            </HStack>
+                            <span style={{ fontSize: 11, color: '#71717a' }}>
+                                Scan barcode kemasan produk (Aqua, Indomie, Ultra Milk, dll) untuk mengisi nama, kategori, & harga secara otomatis.
+                            </span>
+                        </VStack>
+
                         <Grid columns={{ minWidth: 160, max: 2 }} gap={3}>
+                            <TextInput
+                                label="Nama Produk"
+                                placeholder="Contoh: Indomie Mi Goreng Spesial 85g"
+                                value={formData.name}
+                                onChange={(val) => setFormData({ ...formData, name: val })}
+                                isRequired
+                            />
+                            <TextInput
+                                label="SKU / Kode Barang"
+                                placeholder="Contoh: IND-85G / Minyak-01"
+                                value={formData.sku}
+                                onChange={(val) => setFormData({ ...formData, sku: val })}
+                                isOptional
+                            />
+                        </Grid>
+
+                        <Grid columns={{ minWidth: 130, max: 3 }} gap={3}>
                             <NumberInput
-                                label="Harga (Rp)"
+                                label="Harga Jual (Rp)"
                                 value={formData.price}
                                 onChange={(val) => setFormData({ ...formData, price: val || 0 })}
                                 min={0}
                                 isRequired
+                            />
+                            <NumberInput
+                                label="Harga Modal (Rp)"
+                                value={formData.costPrice}
+                                onChange={(val) => setFormData({ ...formData, costPrice: val || 0 })}
+                                min={0}
+                                isOptional
                             />
                             <NumberInput
                                 label="Stok"
@@ -299,22 +435,13 @@ const Products = () => {
                                 isRequired
                             />
                         </Grid>
+
                         <Selector
                             label="Kategori"
                             options={formCategoryOptions}
                             value={formData.categoryId}
                             onChange={(val) => setFormData({ ...formData, categoryId: val })}
                             placeholder="Pilih kategori"
-                        />
-                        <FileInput
-                            label="Gambar Produk"
-                            isOptional
-                            accept="image/*"
-                            value={formData.image}
-                            onChange={(files) => {
-                                const file = Array.isArray(files) ? files[0] : files;
-                                setFormData({ ...formData, image: file || null });
-                            }}
                         />
                         <HStack justify="end" gap={2}>
                             <Button variant="secondary" label="Batal" onClick={handleCloseModal} />
@@ -323,6 +450,18 @@ const Products = () => {
                     </VStack>
                 </form>
             </Modal>
+
+            {/* Mobile / Camera Barcode Scanner Modal for Packaging */}
+            <BarcodeScannerModal
+                isOpen={cameraScanOpen}
+                onClose={() => setCameraScanOpen(false)}
+                onScan={(code) => {
+                    handleBarcodeAutoFill(code);
+                    setCameraScanOpen(false);
+                }}
+                title="Scan Barcode Kemasan Produk"
+                subtitle="Posisikan barcode pada kemasan produk di dalam kotak pemindai"
+            />
         </VStack>
     );
 };

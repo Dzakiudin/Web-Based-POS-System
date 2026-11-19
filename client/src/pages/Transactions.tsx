@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Tag, CheckCircle2, Printer, Package, Volume2, VolumeX, ArrowRight } from 'lucide-react';
+import {
+    Search, ShoppingCart, Plus, Minus, Trash2, Tag, CheckCircle2,
+    Printer, Package, Volume2, VolumeX, ArrowRight, Camera, Clock,
+    Copy, CreditCard, QrCode, ReceiptText, Sparkles, Check
+} from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Layout, LayoutContent, LayoutPanel } from '@astryxdesign/core/Layout';
@@ -25,6 +29,8 @@ import api from '../lib/axios';
 import { sound } from '../lib/sound';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
+import useHardwareScanner from '../hooks/useHardwareScanner';
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 
 interface Category { id: number; name: string; color: string; }
 interface Product {
@@ -55,6 +61,29 @@ export const Transactions = () => {
     const [paymentRef, setPaymentRef] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // Barcode Scanner & Cart Queue State
+    const [cameraScanOpen, setCameraScanOpen] = useState(false);
+    const [heldOrders, setHeldOrders] = useState<Array<{
+        id: string;
+        time: string;
+        customerId: string;
+        customerName: string;
+        items: CartItem[];
+        promoDiscount: any;
+        promoCode: string;
+        total: number;
+    }>>([]);
+    const [showHeldModal, setShowHeldModal] = useState(false);
+
+    // Enhanced Payment States
+    const [cardBank, setCardBank] = useState('BCA');
+    const [cardNumber, setCardNumber] = useState('');
+    const [approvalCode, setApprovalCode] = useState('');
+    const [transferBank, setTransferBank] = useState('BCA');
+    const [qrisTimer, setQrisTimer] = useState(900);
+    const [qrisSimulated, setQrisSimulated] = useState(false);
+    const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
+
     const [promoCode, setPromoCode] = useState('');
     const [promoDiscount, setPromoDiscount] = useState<{ type: string; value: number; name: string } | null>(null);
     const [promoError, setPromoError] = useState('');
@@ -66,6 +95,43 @@ export const Transactions = () => {
         fetchCustomers();
         fetchCategories();
     }, []);
+
+    // 15-Minute Countdown for QRIS Payment
+    useEffect(() => {
+        if (!showCheckout || paymentMethod !== 'QRIS') return;
+        setQrisTimer(900);
+        setQrisSimulated(false);
+        const interval = setInterval(() => {
+            setQrisTimer((prev) => (prev > 0 ? prev - 1 : 0));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [showCheckout, paymentMethod]);
+
+    // Barcode Scanning logic (Supports Desktop USB/BT scanner + Mobile camera scanner)
+    const handleBarcodeScan = (code: string) => {
+        const clean = code.trim().toLowerCase();
+        const match = products.find(
+            (p) =>
+                (p.barcode && p.barcode.toLowerCase() === clean) ||
+                (p.sku && p.sku.toLowerCase() === clean) ||
+                String(p.id) === clean
+        );
+        if (match) {
+            addToCart(match);
+            toast.success(`Discan: ${match.name}`);
+        } else {
+            sound.playWarning();
+            toast.error(`Barcode "${code}" tidak ditemukan dalam daftar produk.`);
+        }
+    };
+
+    // Hardware USB / Bluetooth Scanner listener (always active except when camera modal is open)
+    useHardwareScanner({
+        enabled: !cameraScanOpen,
+        onScan: (code) => {
+            handleBarcodeScan(code);
+        },
+    });
 
     // Enterprise Cashier Keyboard Shortcuts (F1: Cari, F2: Bayar, F4: Kosongkan, Esc: Tutup)
     useEffect(() => {
@@ -156,6 +222,50 @@ export const Transactions = () => {
         setSelectedCustomerId('');
     };
 
+    // Hold & Resume Queue Functions (Tahan & Muat Pesanan)
+    const holdCurrentOrder = () => {
+        if (cart.length === 0) return;
+        const cust = customers.find((c) => String(c.id) === selectedCustomerId);
+        const newHeld = {
+            id: Date.now().toString(),
+            time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+            customerId: selectedCustomerId,
+            customerName: cust ? cust.name : 'Pelanggan Umum',
+            items: [...cart],
+            promoDiscount,
+            promoCode,
+            total: grandTotal,
+        };
+        setHeldOrders((prev) => [newHeld, ...prev]);
+        clearCart();
+        toast.info(`Pesanan #${newHeld.time} disimpan di antrean`);
+    };
+
+    const resumeHeldOrder = (heldId: string) => {
+        const target = heldOrders.find((h) => h.id === heldId);
+        if (!target) return;
+        setCart(target.items);
+        setSelectedCustomerId(target.customerId);
+        setPromoDiscount(target.promoDiscount);
+        setPromoCode(target.promoCode);
+        setHeldOrders((prev) => prev.filter((h) => h.id !== heldId));
+        setShowHeldModal(false);
+        toast.success('Pesanan dimuat kembali ke keranjang');
+        sound.playSuccess();
+    };
+
+    const deleteHeldOrder = (heldId: string) => {
+        setHeldOrders((prev) => prev.filter((h) => h.id !== heldId));
+        toast.info('Antrean pesanan dihapus');
+    };
+
+    const copyToClipboard = (text: string, label: string) => {
+        navigator.clipboard.writeText(text);
+        setCopiedAccount(text);
+        toast.success(`${label} berhasil disalin`);
+        setTimeout(() => setCopiedAccount(null), 2000);
+    };
+
     const toggleSound = () => {
         const next = sound.toggle();
         setSoundEnabled(next);
@@ -191,6 +301,9 @@ export const Transactions = () => {
         setCashPaid(grandTotal);
         setPaymentMethod('CASH');
         setPaymentRef('');
+        setCardNumber('');
+        setApprovalCode('');
+        setQrisSimulated(false);
         setMobileCartOpen(false);
         setShowCheckout(true);
     };
@@ -203,6 +316,15 @@ export const Transactions = () => {
         setIsProcessing(true);
         try {
             const mappedMethod = paymentMethod === 'TRANSFER' ? 'EWALLET' : paymentMethod;
+            let finalReference = paymentRef.trim();
+            if (paymentMethod === 'CARD') {
+                finalReference = `EDC ${cardBank}${cardNumber ? ` · Kartu *${cardNumber.slice(-4)}` : ''}${approvalCode ? ` · Auth ${approvalCode}` : ''}`;
+            } else if (paymentMethod === 'QRIS') {
+                finalReference = `QRIS NMID ID1020039281902${paymentRef ? ` · ${paymentRef}` : ` · TRX-${Date.now().toString().slice(-6)}`}`;
+            } else if (paymentMethod === 'TRANSFER') {
+                finalReference = `Transfer ${transferBank}${paymentRef ? ` · ${paymentRef}` : ''}`;
+            }
+
             const payload = {
                 totalPrice: subtotal,
                 discountAmount: totalDiscount,
@@ -227,7 +349,7 @@ export const Transactions = () => {
                         method: mappedMethod,
                         amount: paymentMethod === 'CASH' ? cashPaid : grandTotal,
                         change: paymentMethod === 'CASH' ? change : 0,
-                        reference: paymentRef || null,
+                        reference: finalReference || null,
                     },
                 ],
             };
@@ -239,6 +361,7 @@ export const Transactions = () => {
                 paid: paymentMethod === 'CASH' ? cashPaid : grandTotal,
                 change,
                 method: paymentMethod,
+                reference: finalReference,
             });
             setShowCheckout(false);
             clearCart();
@@ -305,9 +428,30 @@ export const Transactions = () => {
                         onClick={toggleSound}
                     />
                 </HStack>
-                {cart.length > 0 && (
-                    <Button variant="ghost" size="sm" label="Kosongkan · F4" onClick={clearCart} />
-                )}
+                <HStack gap={1} align="center">
+                    {heldOrders.length > 0 && (
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            label={`Antrean (${heldOrders.length})`}
+                            icon={<Clock size={13} />}
+                            onClick={() => setShowHeldModal(true)}
+                        />
+                    )}
+                    {cart.length > 0 && (
+                        <>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                label="Tahan"
+                                icon={<Clock size={13} />}
+                                tooltip="Tahan pesanan ke antrean"
+                                onClick={holdCurrentOrder}
+                            />
+                            <Button variant="ghost" size="sm" label="F4" tooltip="Kosongkan keranjang" onClick={clearCart} />
+                        </>
+                    )}
+                </HStack>
             </HStack>
 
             <Selector
@@ -418,26 +562,62 @@ export const Transactions = () => {
                 content={
                     <LayoutContent padding={isNarrow ? 3 : 4} isScrollable>
                         <VStack gap={3} style={{ paddingBottom: isNarrow ? 100 : 0 }}>
-                            {/* Search & Category Pills */}
+                            {/* Search Bar & Camera Barcode Scanner Trigger */}
                             <VStack gap={2}>
-                                <TextInput
-                                    label="Cari produk atau scan barcode"
-                                    isLabelHidden
-                                    type="search"
-                                    placeholder="Cari produk, SKU, barcode (F1)..."
-                                    value={searchQuery}
-                                    onChange={(v) => setSearchQuery(v)}
-                                    onEnter={() => {
-                                        const match = products.find((p) => p.barcode === searchQuery || p.sku === searchQuery);
-                                        if (match) {
-                                            addToCart(match);
-                                            setSearchQuery('');
-                                        }
-                                    }}
-                                    startIcon={<Search size={16} />}
-                                    hasClear
-                                    width={isNarrow ? '100%' : 340}
-                                />
+                                <HStack gap={2} align="center" width="100%">
+                                    <div style={{ flex: 1, minWidth: 0, maxWidth: isNarrow ? '100%' : 380 }}>
+                                        <TextInput
+                                            label="Cari produk atau scan barcode"
+                                            isLabelHidden
+                                            type="search"
+                                            placeholder="Cari nama, SKU, barcode (F1)..."
+                                            value={searchQuery}
+                                            onChange={(v) => setSearchQuery(v)}
+                                            onEnter={() => {
+                                                const clean = searchQuery.trim().toLowerCase();
+                                                const match = products.find(
+                                                    (p) =>
+                                                        (p.barcode && p.barcode.toLowerCase() === clean) ||
+                                                        (p.sku && p.sku.toLowerCase() === clean) ||
+                                                        p.name.toLowerCase().includes(clean)
+                                                );
+                                                if (match) {
+                                                    addToCart(match);
+                                                    setSearchQuery('');
+                                                }
+                                            }}
+                                            startIcon={<Search size={16} />}
+                                            hasClear
+                                            width="100%"
+                                        />
+                                    </div>
+                                    <Button
+                                        variant="secondary"
+                                        size="md"
+                                        icon={<Camera size={16} />}
+                                        label={isNarrow ? 'Scan' : 'Scan Kamera'}
+                                        onClick={() => setCameraScanOpen(true)}
+                                    />
+                                    {!isNarrow && (
+                                        <div
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 6,
+                                                padding: '6px 12px',
+                                                borderRadius: 8,
+                                                backgroundColor: '#f4f4f5',
+                                                border: '1px solid #e4e4e7',
+                                                fontSize: 12,
+                                                color: '#52525b',
+                                                fontWeight: 500,
+                                            }}
+                                        >
+                                            <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} />
+                                            <span>Scanner Barcode USB Siap</span>
+                                        </div>
+                                    )}
+                                </HStack>
 
                                 {/* Horizontal Scrollable Category Track with Count Badges */}
                                 <div className="pos-category-scroll">
@@ -793,7 +973,7 @@ export const Transactions = () => {
             </BottomSheet>
 
             {/* Checkout Modal */}
-            <Modal isOpen={showCheckout} onClose={() => setShowCheckout(false)} title="Pembayaran" width={460}>
+            <Modal isOpen={showCheckout} onClose={() => setShowCheckout(false)} title="Pembayaran" width={500}>
                 <VStack gap={4}>
                     <Card padding={3} variant="muted" elevation="none">
                         <HStack justify="between" align="center">
@@ -807,17 +987,21 @@ export const Transactions = () => {
                         <SegmentedControl
                             label="Metode Pembayaran"
                             value={paymentMethod}
-                            onChange={(v) => setPaymentMethod(v as any)}
+                            onChange={(v) => {
+                                setPaymentMethod(v as any);
+                                setQrisSimulated(false);
+                            }}
                             layout="fill"
                         >
                             <SegmentedControlItem value="CASH" label="Tunai" />
                             <SegmentedControlItem value="QRIS" label="QRIS" />
+                            <SegmentedControlItem value="CARD" label="Kartu / EDC" />
                             <SegmentedControlItem value="TRANSFER" label="Transfer" />
-                            <SegmentedControlItem value="CARD" label="Kartu" />
                         </SegmentedControl>
                     </VStack>
 
-                    {paymentMethod === 'CASH' ? (
+                    {/* 1. TUNAI / CASH */}
+                    {paymentMethod === 'CASH' && (
                         <VStack gap={3}>
                             <NumberInput
                                 label="Uang Diterima (Rp)"
@@ -827,7 +1011,7 @@ export const Transactions = () => {
                                 hasAutoFocus
                             />
                             <HStack gap={1.5} wrap="wrap">
-                                {[grandTotal, 50000, 100000, 200000].filter((v, i) => i === 0 || v >= grandTotal).map((amt, idx) => (
+                                {[grandTotal, 20000, 50000, 100000, 200000].filter((v, i) => i === 0 || v >= grandTotal).map((amt, idx) => (
                                     <Button
                                         key={idx}
                                         size="sm"
@@ -839,16 +1023,233 @@ export const Transactions = () => {
                             </HStack>
                             <HStack justify="between">
                                 <Text size="sm" color="secondary">Kembalian</Text>
-                                <Text size="base" weight="bold" hasTabularNumbers>Rp {change.toLocaleString('id-ID')}</Text>
+                                <Text size="base" weight="bold" hasTabularNumbers style={{ color: change > 0 ? '#16a34a' : 'inherit' }}>
+                                    Rp {change.toLocaleString('id-ID')}
+                                </Text>
                             </HStack>
                         </VStack>
-                    ) : (
-                        <TextInput
-                            label="Nomor Referensi (Opsional)"
-                            placeholder="Contoh: No. transaksi QRIS / Transfer"
-                            value={paymentRef}
-                            onChange={(v) => setPaymentRef(v)}
-                        />
+                    )}
+
+                    {/* 2. QRIS (QRIS Standard Indonesia) */}
+                    {paymentMethod === 'QRIS' && (
+                        <VStack gap={3} align="center">
+                            <div
+                                style={{
+                                    width: '100%',
+                                    backgroundColor: '#ffffff',
+                                    border: '1.5px solid #e4e4e7',
+                                    borderRadius: 14,
+                                    padding: 16,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: 12,
+                                    boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+                                }}
+                            >
+                                {/* Header QRIS Indonesia */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderBottom: '1px solid #f4f4f5', paddingBottom: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <QrCode size={20} color="#dc2626" />
+                                        <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '0.05em', color: '#18181b' }}>QRIS</span>
+                                    </div>
+                                    <span style={{ fontSize: 10, color: '#71717a', fontWeight: 600 }}>NMID: ID1020039281902</span>
+                                </div>
+
+                                {/* QR Code Graphic Representation */}
+                                <div
+                                    style={{
+                                        position: 'relative',
+                                        width: 170,
+                                        height: 170,
+                                        padding: 8,
+                                        backgroundColor: '#ffffff',
+                                        border: '1px solid #e4e4e7',
+                                        borderRadius: 12,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}
+                                >
+                                    <svg viewBox="0 0 100 100" width="150" height="150">
+                                        <rect width="100" height="100" fill="#ffffff" />
+                                        {/* Outer corners */}
+                                        <rect x="5" y="5" width="28" height="28" fill="#18181b" rx="2" />
+                                        <rect x="9" y="9" width="20" height="20" fill="#ffffff" rx="1" />
+                                        <rect x="13" y="13" width="12" height="12" fill="#18181b" rx="1" />
+
+                                        <rect x="67" y="5" width="28" height="28" fill="#18181b" rx="2" />
+                                        <rect x="71" y="9" width="20" height="20" fill="#ffffff" rx="1" />
+                                        <rect x="75" y="13" width="12" height="12" fill="#18181b" rx="1" />
+
+                                        <rect x="5" y="67" width="28" height="28" fill="#18181b" rx="2" />
+                                        <rect x="9" y="71" width="20" height="20" fill="#ffffff" rx="1" />
+                                        <rect x="13" y="75" width="12" height="12" fill="#18181b" rx="1" />
+
+                                        {/* Dynamic pattern dots */}
+                                        <rect x="40" y="8" width="8" height="8" fill="#18181b" />
+                                        <rect x="52" y="8" width="6" height="14" fill="#18181b" />
+                                        <rect x="42" y="24" width="16" height="8" fill="#18181b" />
+                                        <rect x="10" y="42" width="18" height="8" fill="#18181b" />
+                                        <rect x="36" y="38" width="10" height="10" fill="#18181b" />
+                                        <rect x="54" y="40" width="12" height="12" fill="#18181b" />
+                                        <rect x="74" y="42" width="18" height="6" fill="#18181b" />
+                                        <rect x="40" y="58" width="14" height="8" fill="#18181b" />
+                                        <rect x="62" y="60" width="12" height="14" fill="#18181b" />
+                                        <rect x="42" y="76" width="18" height="16" fill="#18181b" />
+                                        <rect x="68" y="82" width="14" height="10" fill="#18181b" />
+                                        <rect x="86" y="72" width="8" height="20" fill="#18181b" />
+                                    </svg>
+
+                                    {qrisSimulated && (
+                                        <div
+                                            style={{
+                                                position: 'absolute',
+                                                inset: 0,
+                                                backgroundColor: 'rgba(255, 255, 255, 0.92)',
+                                                borderRadius: 12,
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: 6,
+                                            }}
+                                        >
+                                            <CheckCircle2 size={36} color="#16a34a" />
+                                            <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>Pembayaran Diterima</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: '#18181b' }}>POS STORE INDONESIA</div>
+                                    <div style={{ fontSize: 11, color: '#71717a' }}>BCA / Mandiri / GoPay / OVO / Dana / ShopeePay</div>
+                                    <div style={{ fontSize: 12, fontWeight: 650, color: '#2563eb', marginTop: 4 }}>
+                                        Batas Waktu: {Math.floor(qrisTimer / 60)}:{('0' + (qrisTimer % 60)).slice(-2)}
+                                    </div>
+                                </div>
+
+                                {!qrisSimulated ? (
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        icon={<Sparkles size={14} color="#16a34a" />}
+                                        label="Simulasikan Notifikasi Pembayaran Sukses"
+                                        onClick={() => {
+                                            setQrisSimulated(true);
+                                            setPaymentRef(`QRIS-${Date.now().toString().slice(-6)}`);
+                                            toast.success('Notifikasi QRIS Berhasil Masuk!');
+                                            sound.playSuccess();
+                                        }}
+                                    />
+                                ) : (
+                                    <Badge variant="success" label={`Ref: ${paymentRef || 'QRIS-OK'}`} />
+                                )}
+                            </div>
+                        </VStack>
+                    )}
+
+                    {/* 3. KARTU / EDC TERMINAL */}
+                    {paymentMethod === 'CARD' && (
+                        <VStack gap={3}>
+                            <VStack gap={1}>
+                                <Text size="xsm" color="secondary">Pilih Mesin EDC / Bank</Text>
+                                <HStack gap={1.5} wrap="wrap">
+                                    {['BCA', 'Mandiri', 'BRI', 'BNI', 'CIMB'].map((bank) => (
+                                        <button
+                                            key={bank}
+                                            type="button"
+                                            onClick={() => setCardBank(bank)}
+                                            style={{
+                                                padding: '6px 14px',
+                                                borderRadius: 8,
+                                                border: cardBank === bank ? '1.5px solid #18181b' : '1px solid #e4e4e7',
+                                                backgroundColor: cardBank === bank ? '#18181b' : '#ffffff',
+                                                color: cardBank === bank ? '#ffffff' : '#3f3f46',
+                                                fontSize: 12,
+                                                fontWeight: 650,
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            {bank}
+                                        </button>
+                                    ))}
+                                </HStack>
+                            </VStack>
+
+                            <Grid columns={{ minWidth: 180, max: 2 }} gap={2}>
+                                <TextInput
+                                    label="4 Digit Terakhir Kartu"
+                                    placeholder="Contoh: 8842"
+                                    value={cardNumber}
+                                    onChange={(v) => setCardNumber(v.replace(/\D/g, '').slice(0, 4))}
+                                />
+                                <TextInput
+                                    label="Approval / Trace Code"
+                                    placeholder="Contoh: 182940"
+                                    value={approvalCode}
+                                    onChange={(v) => setApprovalCode(v)}
+                                />
+                            </Grid>
+                        </VStack>
+                    )}
+
+                    {/* 4. TRANSFER / E-WALLET */}
+                    {paymentMethod === 'TRANSFER' && (
+                        <VStack gap={3}>
+                            <VStack gap={1.5}>
+                                <Text size="xsm" color="secondary">Rekening & Akun Tujuan Toko</Text>
+                                {[
+                                    { bank: 'BCA', no: '8830192831', an: 'POS Store Official' },
+                                    { bank: 'Mandiri', no: '137001928312', an: 'POS Store Official' },
+                                    { bank: 'GoPay / OVO / Dana', no: '081234567890', an: 'POS Store' },
+                                ].map((acc) => (
+                                    <div
+                                        key={acc.bank}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            padding: '8px 12px',
+                                            backgroundColor: '#f4f4f5',
+                                            borderRadius: 8,
+                                            border: '1px solid #e4e4e7',
+                                        }}
+                                    >
+                                        <div>
+                                            <div style={{ fontSize: 12, fontWeight: 700, color: '#18181b' }}>{acc.bank}</div>
+                                            <div style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 600 }}>{acc.no} <span style={{ fontSize: 11, color: '#71717a' }}>({acc.an})</span></div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => copyToClipboard(acc.no, acc.bank)}
+                                            style={{
+                                                padding: '4px 8px',
+                                                borderRadius: 6,
+                                                border: '1px solid #d4d4d8',
+                                                backgroundColor: '#ffffff',
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 4,
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                            }}
+                                        >
+                                            {copiedAccount === acc.no ? <Check size={12} color="#16a34a" /> : <Copy size={12} />}
+                                            <span>{copiedAccount === acc.no ? 'Disalin' : 'Salin'}</span>
+                                        </button>
+                                    </div>
+                                ))}
+                            </VStack>
+
+                            <TextInput
+                                label="Nomor Referensi / Catatan Transfer"
+                                placeholder="Contoh: Transfer BCA an Budi / Ref: 98124"
+                                value={paymentRef}
+                                onChange={(v) => setPaymentRef(v)}
+                            />
+                        </VStack>
                     )}
 
                     <HStack justify="end" gap={2}>
@@ -863,24 +1264,155 @@ export const Transactions = () => {
                 </VStack>
             </Modal>
 
+            {/* Antrean / Held Orders Modal */}
+            <Modal isOpen={showHeldModal} onClose={() => setShowHeldModal(false)} title="Antrean Pesanan Ditahan" width={480}>
+                <VStack gap={3}>
+                    {heldOrders.length > 0 ? (
+                        heldOrders.map((h) => (
+                            <Card key={h.id} padding={3} elevation="none">
+                                <HStack justify="between" align="center">
+                                    <VStack gap={0.5}>
+                                        <HStack gap={1.5} align="center">
+                                            <Clock size={14} color="#71717a" />
+                                            <Text size="sm" weight="bold">Jam {h.time}</Text>
+                                            <Badge variant="neutral" label={`${h.items.length} item`} />
+                                        </HStack>
+                                        <Text size="xsm" color="secondary">Pelanggan: {h.customerName}</Text>
+                                        <Text size="sm" weight="semibold" hasTabularNumbers>
+                                            Rp {h.total.toLocaleString('id-ID')}
+                                        </Text>
+                                    </VStack>
+                                    <HStack gap={1}>
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            label="Muat"
+                                            onClick={() => resumeHeldOrder(h.id)}
+                                        />
+                                        <IconButton
+                                            variant="ghost"
+                                            size="sm"
+                                            label="Hapus antrean"
+                                            icon={<Trash2 size={14} />}
+                                            onClick={() => deleteHeldOrder(h.id)}
+                                        />
+                                    </HStack>
+                                </HStack>
+                            </Card>
+                        ))
+                    ) : (
+                        <EmptyState title="Tidak ada antrean pesanan" description="Gunakan tombol Tahan di keranjang untuk menyimpan pesanan sementara." isCompact />
+                    )}
+                    <HStack justify="end">
+                        <Button variant="secondary" label="Tutup" onClick={() => setShowHeldModal(false)} />
+                    </HStack>
+                </VStack>
+            </Modal>
+
+            {/* Mobile / Camera Barcode Scanner Modal */}
+            <BarcodeScannerModal
+                isOpen={cameraScanOpen}
+                onClose={() => setCameraScanOpen(false)}
+                onScan={handleBarcodeScan}
+                allowContinuous={true}
+                title="Scan Barcode Produk"
+                subtitle="Arahkan kamera ke barcode kemasan untuk langsung memasukkan ke keranjang"
+            />
+
             {/* Success Receipt Modal */}
-            <Modal isOpen={!!successSale} onClose={() => setSuccessSale(null)} title="Transaksi Berhasil" width={420}>
+            <Modal isOpen={!!successSale} onClose={() => setSuccessSale(null)} title="Transaksi Berhasil" width={440}>
                 {successSale && (
                     <VStack gap={4}>
                         <Banner
                             status="success"
                             title={`Struk ${successSale.receiptNumber || ''}`}
-                            description={`Total Rp ${Number(successSale.finalPrice || 0).toLocaleString('id-ID')} · Kembalian Rp ${Number(successSale.change || 0).toLocaleString('id-ID')}`}
+                            description={`Total: Rp ${Number(successSale.finalPrice || 0).toLocaleString('id-ID')} · Kembalian: Rp ${Number(successSale.change || 0).toLocaleString('id-ID')}`}
                             icon={<CheckCircle2 size={18} />}
                             container="section"
                         />
-                        <HStack justify="end" gap={2}>
-                            <Button variant="secondary" label="Cetak PDF" icon={<Printer size={16} />} onClick={printReceiptPDF} />
-                            <Button variant="primary" label="Transaksi Baru" onClick={() => setSuccessSale(null)} />
+                        <HStack justify="end" gap={2} wrap="wrap">
+                            <Button
+                                variant="secondary"
+                                label="Cetak Struk Thermal"
+                                icon={<Printer size={16} />}
+                                onClick={() => window.print()}
+                            />
+                            <Button
+                                variant="secondary"
+                                label="Download PDF"
+                                icon={<Printer size={16} />}
+                                onClick={printReceiptPDF}
+                            />
+                            <Button
+                                variant="primary"
+                                label="Transaksi Baru"
+                                onClick={() => setSuccessSale(null)}
+                            />
                         </HStack>
                     </VStack>
                 )}
             </Modal>
+
+            {/* Native Printable Thermal Receipt (58mm / 80mm Standard) */}
+            {successSale && (
+                <div id="pos-printable-receipt" style={{ display: 'none' }}>
+                    <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                        <div style={{ fontWeight: 'bold', fontSize: 13 }}>POS SYSTEM STORE</div>
+                        <div>Jl. Jendral Sudirman Kav. 52, Jakarta</div>
+                        <div>Telp: (021) 5299-1000</div>
+                        <div>================================</div>
+                    </div>
+                    <div style={{ marginBottom: 6 }}>
+                        <div>No. Struk : {successSale.receiptNumber || '-'}</div>
+                        <div>Waktu     : {new Date().toLocaleString('id-ID')}</div>
+                        <div>Kasir     : Kasir Utama</div>
+                        <div>Metode    : {successSale.method || 'TUNAI'}</div>
+                        {successSale.reference && <div>Ref       : {successSale.reference}</div>}
+                        <div>--------------------------------</div>
+                    </div>
+                    <div style={{ marginBottom: 6 }}>
+                        {(successSale.items || []).map((it: any, idx: number) => (
+                            <div key={idx} style={{ marginBottom: 3 }}>
+                                <div>{it.name}</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>{it.quantity} x {Number(it.price).toLocaleString('id-ID')}</span>
+                                    <span>Rp {(Number(it.price) * it.quantity).toLocaleString('id-ID')}</span>
+                                </div>
+                            </div>
+                        ))}
+                        <div>--------------------------------</div>
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Subtotal:</span>
+                            <span>Rp {Number(successSale.totalPrice || successSale.finalPrice || 0).toLocaleString('id-ID')}</span>
+                        </div>
+                        {Number(successSale.discountAmount || 0) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Diskon:</span>
+                                <span>-Rp {Number(successSale.discountAmount).toLocaleString('id-ID')}</span>
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: 12 }}>
+                            <span>TOTAL:</span>
+                            <span>Rp {Number(successSale.finalPrice || 0).toLocaleString('id-ID')}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>BAYAR:</span>
+                            <span>Rp {Number(successSale.paid || 0).toLocaleString('id-ID')}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>KEMBALI:</span>
+                            <span>Rp {Number(successSale.change || 0).toLocaleString('id-ID')}</span>
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'center', marginTop: 10 }}>
+                        <div>================================</div>
+                        <div>Terima kasih atas kunjungan Anda!</div>
+                        <div>Barang yang dibeli tidak dapat ditukar</div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };
