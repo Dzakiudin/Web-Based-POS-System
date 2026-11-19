@@ -5,6 +5,8 @@ import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import { Button } from '@astryxdesign/core/Button';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { Badge } from '@astryxdesign/core/Badge';
+import { VStack } from '@astryxdesign/core/VStack';
+import { useMediaQuery } from '@astryxdesign/core/hooks';
 import { sound } from '../lib/sound';
 
 interface BarcodeScannerModalProps {
@@ -24,6 +26,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     subtitle = 'Arahkan kamera ke barcode / QR code pada produk',
     allowContinuous = false,
 }) => {
+    const isMobile = useMediaQuery('(max-width: 768px)');
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const [cameraActive, setCameraActive] = useState<boolean>(false);
     const [errorMsg, setErrorMsg] = useState<string>('');
@@ -228,11 +231,11 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     onClose();
                 }
             }}
-            width={460}
-            padding={0}
-            purpose="info"
+            width={isMobile ? 'calc(100vw - 28px)' : 500}
+            padding={isMobile ? 3 : 4}
+            purpose="form"
         >
-            <div style={{ display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' }}>
+            <VStack gap={3} width="100%">
                 <DialogHeader
                     title={title}
                     subtitle={subtitle}
@@ -250,14 +253,17 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     style={{
                         position: 'relative',
                         backgroundColor: '#09090b',
-                        minHeight: 280,
+                        borderRadius: 12,
+                        width: '100%',
+                        aspectRatio: isMobile ? '4 / 3' : '16 / 10',
+                        maxHeight: isMobile ? 260 : 300,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         overflow: 'hidden',
                     }}
                 >
-                    <div id="pos-html5-qr-reader" style={{ width: '100%' }} />
+                    <div id="pos-html5-qr-reader" style={{ width: '100%', height: '100%' }} />
 
                     {/* Laser Target Reticle Overlay */}
                     {cameraActive && (
@@ -273,10 +279,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                         >
                             <div
                                 style={{
-                                    width: 260,
-                                    height: 160,
+                                    width: isMobile ? 230 : 260,
+                                    height: isMobile ? 140 : 160,
                                     borderRadius: 16,
-                                    border: '2px dashed rgba(255, 255, 255, 0.65)',
+                                    border: '2px dashed rgba(255, 255, 255, 0.75)',
                                     boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.45)',
                                     position: 'relative',
                                     overflow: 'hidden',
@@ -292,10 +298,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                         <div
                             style={{
                                 position: 'absolute',
-                                top: 12,
-                                right: 12,
+                                top: 10,
+                                right: 10,
                                 display: 'flex',
-                                gap: 8,
+                                gap: 6,
                                 zIndex: 10,
                             }}
                         >
@@ -305,8 +311,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                                     onClick={toggleTorch}
                                     aria-label="Nyalakan senter"
                                     style={{
-                                        width: 36,
-                                        height: 36,
+                                        width: 34,
+                                        height: 34,
                                         borderRadius: 999,
                                         backgroundColor: torchOn ? '#eab308' : 'rgba(0,0,0,0.65)',
                                         color: torchOn ? '#000' : '#fff',
@@ -318,7 +324,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                                         backdropFilter: 'blur(4px)',
                                     }}
                                 >
-                                    <Flashlight size={16} />
+                                    <Flashlight size={15} />
                                 </button>
                             )}
                             {availableCameras.length > 1 && (
@@ -327,8 +333,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                                     onClick={switchCamera}
                                     aria-label="Ganti kamera"
                                     style={{
-                                        width: 36,
-                                        height: 36,
+                                        width: 34,
+                                        height: 34,
                                         borderRadius: 999,
                                         backgroundColor: 'rgba(0,0,0,0.65)',
                                         color: '#fff',
@@ -340,7 +346,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                                         backdropFilter: 'blur(4px)',
                                     }}
                                 >
-                                    <SwitchCamera size={16} />
+                                    <SwitchCamera size={15} />
                                 </button>
                             )}
                         </div>
@@ -350,19 +356,19 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     {errorMsg && (
                         <div
                             style={{
-                                padding: 24,
+                                padding: 20,
                                 textAlign: 'center',
                                 color: '#ffffff',
-                                maxWidth: 360,
+                                maxWidth: 340,
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
-                                gap: 10,
+                                gap: 8,
                                 zIndex: 10,
                             }}
                         >
-                            <AlertCircle size={36} color="#ef4444" />
-                            <span style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.9 }}>{errorMsg}</span>
+                            <AlertCircle size={32} color="#ef4444" />
+                            <span style={{ fontSize: 13, fontWeight: 600 }}>{errorMsg}</span>
                         </div>
                     )}
 
@@ -393,7 +399,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 </div>
 
                 {/* Footer Controls & Manual Input */}
-                <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <VStack gap={2.5} width="100%">
                     {allowContinuous && (
                         <div
                             style={{
@@ -401,8 +407,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
                                 padding: '8px 12px',
-                                borderRadius: 10,
+                                borderRadius: 8,
                                 backgroundColor: '#f4f4f5',
+                                width: '100%',
                             }}
                         >
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -431,12 +438,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                         </div>
                     )}
 
-                    <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: 8 }}>
-                        <div style={{ flex: 1 }}>
+                    <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: 8, width: '100%' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                             <TextInput
                                 label="Input Barcode Manual"
                                 isLabelHidden
-                                placeholder="Ketik barcode manual..."
+                                placeholder="Ketik barcode jika kamera buram..."
                                 value={manualCode}
                                 onChange={(v) => setManualCode(v)}
                                 startIcon={<Barcode size={15} />}
@@ -444,8 +451,18 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                         </div>
                         <Button type="submit" variant="primary" label="Input" isDisabled={!manualCode.trim()} />
                     </form>
-                </div>
-            </div>
+
+                    <Button
+                        variant="secondary"
+                        label="Tutup Pemindai"
+                        onClick={() => {
+                            stopScanner();
+                            onClose();
+                        }}
+                        width="100%"
+                    />
+                </VStack>
+            </VStack>
         </Dialog>
     );
 };

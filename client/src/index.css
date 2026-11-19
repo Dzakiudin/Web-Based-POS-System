@@ -429,6 +429,31 @@ button:active:not(:disabled) {
   z-index: 20;
 }
 
+/* Html5Qrcode video containment & cleanup */
+#pos-html5-qr-reader {
+  border: none !important;
+  background: transparent !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+#pos-html5-qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 12px !important;
+}
+
+#pos-html5-qr-reader__scan_region {
+  border: none !important;
+}
+
+#pos-html5-qr-reader__dashboard_section_csr,
+#pos-html5-qr-reader__dashboard_section_swaplink,
+#pos-html5-qr-reader__status_span {
+  display: none !important;
+}
+
 /* Printable Thermal Receipt (58mm / 80mm standard) */
 @media print {
   body * {
