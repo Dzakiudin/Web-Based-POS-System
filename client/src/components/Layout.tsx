@@ -389,15 +389,16 @@ const Layout = () => {
                                     width: 38,
                                     height: 38,
                                     borderRadius: 11,
-                                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                                    color: '#ffffff',
+                                    backgroundColor: '#f4f4f5',
+                                    color: '#18181b',
                                     fontWeight: 700,
                                     fontSize: 14,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.28)',
-                                    border: '1.5px solid #ffffff',
+                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                                    border: '1px solid #e4e4e7',
+                                    transition: 'all 150ms ease',
                                 }}
                             >
                                 {(user?.name || 'A').charAt(0).toUpperCase()}
