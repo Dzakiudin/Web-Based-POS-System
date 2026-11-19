@@ -5,12 +5,15 @@ export const getServerBaseUrl = (): string => {
     if (saved) {
         return saved.replace(/\/+$/, '');
     }
-    // If running in browser and not on localhost:5173
+    // If running in browser
     if (typeof window !== 'undefined') {
-        const { hostname, port, protocol } = window.location;
-        // In mobile browser accessing server via LAN IP (e.g. 192.168.1.100:5000)
-        if (hostname !== 'localhost' && hostname !== '127.0.0.1' && port !== '5173') {
-            return `${protocol}//${hostname}:${port || '5000'}`;
+        const { hostname, port, origin } = window.location;
+        // Accessing via Cloudflare domain or LAN IP or standard web
+        if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+            return origin;
+        }
+        if (port === '5000') {
+            return origin;
         }
     }
     return 'http://localhost:5000';
