@@ -304,48 +304,6 @@ const Layout = () => {
                 <HStack gap={isMobile ? 2.5 : 2.5} align="center" paddingInlineEnd={isMobile ? 0 : 2}>
                     {!isMobile && (
                         <Button
-                            variant="secondary"
-                            size="sm"
-                            icon={<Search size={14} />}
-                            label="Cari Menu · Ctrl+K"
-                            onClick={() => {
-                                setQuickQuery('');
-                                setShowQuickJump(true);
-                            }}
-                        />
-                    )}
-
-                    {!isMobile && (
-                        <div
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                padding: '4px 10px',
-                                borderRadius: 999,
-                                background: isOnline ? '#f0fdf4' : '#fef2f2',
-                                border: isOnline ? '1px solid #bbf7d0' : '1px solid #fecaca',
-                            }}
-                            title={isOnline ? 'Server & jaringan terhubung' : 'Jaringan terputus'}
-                        >
-                            <span
-                                style={{
-                                    width: 7,
-                                    height: 7,
-                                    borderRadius: '50%',
-                                    backgroundColor: isOnline ? '#16a34a' : '#ef4444',
-                                    boxShadow: isOnline ? '0 0 6px rgba(22, 163, 74, 0.6)' : 'none',
-                                    display: 'inline-block',
-                                }}
-                            />
-                            <Text size="xsm" weight="semibold" style={{ color: isOnline ? '#15803d' : '#b91c1c' }}>
-                                {isOnline ? 'Online' : 'Offline'}
-                            </Text>
-                        </div>
-                    )}
-
-                    {!isMobile && (
-                        <Button
                             variant="ghost"
                             size="sm"
                             icon={
