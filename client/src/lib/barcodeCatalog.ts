@@ -160,6 +160,13 @@ const INDONESIAN_RETAIL_CATALOG: Record<string, Omit<BarcodeProductInfo, 'barcod
     },
 
     // Biskuit, Cokelat & Camilan
+    '8994834007682': {
+        name: 'Goriorio Biskuit Sandwich Rasa Vanilla',
+        brand: 'Goriorio',
+        category: 'Snacks & Finger Food',
+        suggestedPrice: 1000,
+        costPrice: 750,
+    },
     '8992760221028': {
         name: 'Oreo Original Biskuit Vanilla 133g',
         brand: 'Mondelez Oreo',
@@ -242,6 +249,93 @@ const INDONESIAN_RETAIL_CATALOG: Record<string, Omit<BarcodeProductInfo, 'barcod
 };
 
 /**
+ * Robust extractor that handles incomplete / user-submitted data models from Open Food Facts,
+ * including cases where product titles are stored in categories or category tags.
+ */
+function extractProductInfo(p: any, cleanCode: string): BarcodeProductInfo | null {
+    if (!p) return null;
+
+    // 1. Extract Name
+    let rawName =
+        p.product_name_id ||
+        p.product_name ||
+        p.product_name_en ||
+        p.generic_name_id ||
+        p.generic_name ||
+        p.abbreviated_product_name;
+
+    // If explicit product name is missing, extract from categories / categories_tags
+    // (very common for Indonesian products where contributor typed title into category field)
+    if (!rawName && p.categories && typeof p.categories === 'string') {
+        const firstCat = p.categories.split(',')[0].replace(/^[a-z]{2}:/i, '').trim();
+        if (firstCat && !firstCat.startsWith('en:')) {
+            rawName = firstCat;
+        }
+    }
+
+    if (!rawName && Array.isArray(p.categories_tags) && p.categories_tags.length > 0) {
+        for (const tag of p.categories_tags) {
+            const cleanTag = String(tag).replace(/^[a-z]{2}:/i, '').trim();
+            if (cleanTag && !cleanTag.startsWith('en:')) {
+                rawName = cleanTag;
+                break;
+            }
+        }
+    }
+
+    if (!rawName && p.brands) {
+        rawName = String(p.brands).trim();
+    }
+
+    if (!rawName) return null;
+
+    // Clean up name
+    let name = String(rawName).trim();
+
+    // 2. Extract Brand
+    let brand = (p.brands && typeof p.brands === 'string') ? p.brands.trim() : '';
+    if (!brand) {
+        // If name starts with all-caps brand like "GORIORIO", "INDOMIE", extract it
+        const firstWord = name.split(' ')[0];
+        if (firstWord && firstWord.length >= 3 && firstWord === firstWord.toUpperCase()) {
+            brand = firstWord;
+        }
+    }
+
+    // Prepend brand if not already in title
+    if (brand && !name.toLowerCase().includes(brand.toLowerCase())) {
+        name = `${brand} ${name}`;
+    }
+
+    // 3. Extract Category
+    let category = p.categories?.split(',')[0]?.replace(/^[a-z]{2}:/i, '')?.trim();
+    if (!category || category === name) {
+        // Infer category from product name keywords
+        const lower = name.toLowerCase();
+        if (lower.match(/biskuit|biscuit|wafer|snack|kripik|keripik|chitato|lays|taro|oreo|goriorio|kue|roti/)) {
+            category = 'Snacks & Finger Food';
+        } else if (lower.match(/mie|noodle|rice|nasi|bubur|makanan/)) {
+            category = 'Makanan';
+        } else if (lower.match(/air|mineral|teh|kopi|coffee|tea|susu|milk|juice|jus|drink|beverage|minuman/)) {
+            category = 'Minuman';
+        } else if (lower.match(/sabun|shampo|odol|pasta gigi|deterjen|pembersih|care/)) {
+            category = 'Perawatan & Kebersihan';
+        }
+    }
+
+    // 4. Extract Image
+    const image = p.image_front_small_url || p.image_url || undefined;
+
+    return {
+        barcode: cleanCode,
+        name,
+        brand,
+        category,
+        image,
+    };
+}
+
+/**
  * Searches local catalog first, then falls back to Open Food Facts,
  * Open Beauty Facts, and Open Products Facts public APIs in real-time.
  */
@@ -268,10 +362,10 @@ export async function lookupBarcodeInfo(barcode: string): Promise<BarcodeProduct
     if (cleanCode.length === 12) codeVariants.push('0' + cleanCode);
     if (cleanCode.length === 13 && cleanCode.startsWith('0')) codeVariants.push(cleanCode.slice(1));
 
-    const fields = 'product_name,product_name_id,product_name_en,generic_name,brands,categories,image_front_small_url';
+    const fields = 'product_name,product_name_id,product_name_en,generic_name,generic_name_id,brands,categories,categories_tags,image_front_small_url';
 
     for (const code of codeVariants) {
-        // Query Open Food Facts v2
+        // Step A: Query Open Food Facts v2
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 4000);
@@ -285,30 +379,15 @@ export async function lookupBarcodeInfo(barcode: string): Promise<BarcodeProduct
             if (res.ok) {
                 const data = await res.json();
                 if (data.status === 1 && data.product) {
-                    const p = data.product;
-                    const name =
-                        p.product_name_id ||
-                        p.product_name ||
-                        p.product_name_en ||
-                        p.generic_name;
-                    if (name) {
-                        const brand = p.brands || '';
-                        const fullName = brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${name}` : name;
-                        return {
-                            barcode: cleanCode,
-                            name: fullName.trim(),
-                            brand,
-                            category: p.categories?.split(',')[0]?.trim() || undefined,
-                            image: p.image_front_small_url,
-                        };
-                    }
+                    const info = extractProductInfo(data.product, cleanCode);
+                    if (info) return info;
                 }
             }
         } catch {
             // fallback to next service
         }
 
-        // Query Open Beauty Facts (Cosmetics, Body Care, Shampoos, Soaps)
+        // Step B: Query Open Beauty Facts (Cosmetics, Body Care, Shampoos, Soaps) ONLY if Food Facts didn't resolve
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3500);
@@ -322,30 +401,15 @@ export async function lookupBarcodeInfo(barcode: string): Promise<BarcodeProduct
             if (res.ok) {
                 const data = await res.json();
                 if (data.status === 1 && data.product) {
-                    const p = data.product;
-                    const name =
-                        p.product_name_id ||
-                        p.product_name ||
-                        p.product_name_en ||
-                        p.generic_name;
-                    if (name) {
-                        const brand = p.brands || '';
-                        const fullName = brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${name}` : name;
-                        return {
-                            barcode: cleanCode,
-                            name: fullName.trim(),
-                            brand,
-                            category: p.categories?.split(',')[0]?.trim() || 'Perawatan & Kebersihan',
-                            image: p.image_front_small_url,
-                        };
-                    }
+                    const info = extractProductInfo(data.product, cleanCode);
+                    if (info) return info;
                 }
             }
         } catch {
             // fallback
         }
 
-        // Query Open Products Facts (General Goods & Household)
+        // Step C: Query Open Products Facts (General Goods & Household)
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3500);
@@ -359,23 +423,8 @@ export async function lookupBarcodeInfo(barcode: string): Promise<BarcodeProduct
             if (res.ok) {
                 const data = await res.json();
                 if (data.status === 1 && data.product) {
-                    const p = data.product;
-                    const name =
-                        p.product_name_id ||
-                        p.product_name ||
-                        p.product_name_en ||
-                        p.generic_name;
-                    if (name) {
-                        const brand = p.brands || '';
-                        const fullName = brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${name}` : name;
-                        return {
-                            barcode: cleanCode,
-                            name: fullName.trim(),
-                            brand,
-                            category: p.categories?.split(',')[0]?.trim() || undefined,
-                            image: p.image_front_small_url,
-                        };
-                    }
+                    const info = extractProductInfo(data.product, cleanCode);
+                    if (info) return info;
                 }
             }
         } catch {
