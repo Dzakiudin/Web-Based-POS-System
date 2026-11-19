@@ -94,6 +94,7 @@ const Products = () => {
     // Packaging Barcode Auto-Fill from Catalog & Open Food Facts
     const handleBarcodeAutoFill = async (scannedBarcode: string) => {
         const cleanBarcode = scannedBarcode.trim();
+        setIsModalOpen(true);
         setFormData((prev) => ({ ...prev, barcode: cleanBarcode }));
         setIsLookingUp(true);
         try {
@@ -127,7 +128,7 @@ const Products = () => {
                     categoryId: prev.categoryId ? prev.categoryId : matchedCatId,
                 }));
             } else {
-                toast.info(`Barcode ${cleanBarcode} tercatat. Lengkapi nama dan harga produk.`);
+                toast.info(`Barcode ${cleanBarcode} tercatat di form. Silakan lengkapi nama dan harga produk.`);
             }
         } catch (err) {
             console.error(err);
@@ -136,11 +137,36 @@ const Products = () => {
         }
     };
 
-    // Hardware USB/Bluetooth barcode scanner listener when modal is open
+    // Scan Barcode from main list: if exists, search it; if not, open Add form!
+    const handleScanOrSearch = async (scannedBarcode: string) => {
+        const cleanBarcode = scannedBarcode.trim();
+        if (!cleanBarcode) return;
+
+        const existing = products.find(
+            (p) =>
+                (p.barcode && p.barcode.toLowerCase() === cleanBarcode.toLowerCase()) ||
+                (p.sku && p.sku.toLowerCase() === cleanBarcode.toLowerCase())
+        );
+
+        if (existing) {
+            setSearch(existing.name);
+            toast.success(`Produk ditemukan: "${existing.name}"`);
+            sound.playBeep();
+        } else {
+            toast.info(`Barcode belum terdaftar. Membuka form tambah produk...`);
+            handleBarcodeAutoFill(cleanBarcode);
+        }
+    };
+
+    // Hardware USB/Bluetooth barcode scanner listener
     useHardwareScanner({
-        enabled: isModalOpen && !cameraScanOpen,
+        enabled: !cameraScanOpen,
         onScan: (code) => {
-            handleBarcodeAutoFill(code);
+            if (isModalOpen) {
+                handleBarcodeAutoFill(code);
+            } else {
+                handleScanOrSearch(code);
+            }
         },
     });
 
@@ -204,7 +230,12 @@ const Products = () => {
     };
 
     const filtered = products.filter((p) => {
-        const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
+        const q = search.toLowerCase().trim();
+        const matchSearch =
+            !q ||
+            p.name.toLowerCase().includes(q) ||
+            (p.barcode && p.barcode.toLowerCase().includes(q)) ||
+            (p.sku && p.sku.toLowerCase().includes(q));
         const matchCat = !catFilter || String(p.categoryId) === catFilter;
         return matchSearch && matchCat;
     });
@@ -224,17 +255,19 @@ const Products = () => {
             {/* Toolbar */}
             <HStack justify="between" align="end" wrap="wrap" gap={3}>
                 <HStack gap={2} wrap="wrap" align="end" style={{ flex: 1, minWidth: isMobile ? '100%' : 240 }}>
-                    <TextInput
-                        label="Cari produk"
-                        isLabelHidden
-                        type="search"
-                        placeholder="Cari nama produk..."
-                        value={search}
-                        onChange={(v) => setSearch(v)}
-                        startIcon={<Search size={16} />}
-                        hasClear
-                        width={isMobile ? '100%' : 260}
-                    />
+                    <div style={{ flex: 1, minWidth: isMobile ? '100%' : 240 }}>
+                        <TextInput
+                            label="Cari produk"
+                            isLabelHidden
+                            type="search"
+                            placeholder="Cari nama produk, SKU, barcode..."
+                            value={search}
+                            onChange={(v) => setSearch(v)}
+                            startIcon={<Search size={16} />}
+                            hasClear
+                            width="100%"
+                        />
+                    </div>
                     <Selector
                         label="Filter kategori"
                         isLabelHidden
@@ -242,7 +275,14 @@ const Products = () => {
                         value={catFilter}
                         onChange={(v) => setCatFilter(v)}
                         placeholder="Semua Kategori"
-                        width={isMobile ? '100%' : 200}
+                        width={isMobile ? '100%' : 180}
+                    />
+                    <Button
+                        variant="secondary"
+                        size="md"
+                        icon={<Camera size={16} />}
+                        label={isMobile ? 'Scan' : 'Scan Barcode'}
+                        onClick={() => setCameraScanOpen(true)}
                     />
                 </HStack>
 
@@ -456,8 +496,12 @@ const Products = () => {
                 isOpen={cameraScanOpen}
                 onClose={() => setCameraScanOpen(false)}
                 onScan={(code) => {
-                    handleBarcodeAutoFill(code);
                     setCameraScanOpen(false);
+                    if (isModalOpen) {
+                        handleBarcodeAutoFill(code);
+                    } else {
+                        handleScanOrSearch(code);
+                    }
                 }}
                 title="Scan Barcode Kemasan Produk"
                 subtitle="Posisikan barcode pada kemasan produk di dalam kotak pemindai"

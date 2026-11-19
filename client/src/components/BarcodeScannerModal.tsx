@@ -25,6 +25,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     subtitle = 'Arahkan kamera ke barcode / QR code pada produk',
     allowContinuous = false,
 }) => {
+    const dialogRef = useRef<HTMLDialogElement | null>(null);
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const [cameraActive, setCameraActive] = useState<boolean>(false);
     const [errorMsg, setErrorMsg] = useState<string>('');
@@ -38,28 +39,45 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     const [continuous, setContinuous] = useState<boolean>(allowContinuous);
     const isScanningRef = useRef<boolean>(false);
 
-    // Initialize scanner when modal opens
+    // Synchronize HTML5 native <dialog> with isOpen state to place in browser's top layer
     useEffect(() => {
-        if (!isOpen) {
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+
+        if (isOpen) {
+            if (!dialog.open) {
+                try {
+                    dialog.showModal();
+                } catch {
+                    // Fallback if already showing
+                }
+            }
+
+            setErrorMsg('');
+            setLastScanned('');
+            setScannedCount(0);
+            let mounted = true;
+
+            const timer = setTimeout(() => {
+                if (!mounted) return;
+                startScanner();
+            }, 150);
+
+            return () => {
+                mounted = false;
+                clearTimeout(timer);
+                stopScanner();
+            };
+        } else {
             stopScanner();
-            return;
+            if (dialog.open) {
+                try {
+                    dialog.close();
+                } catch {
+                    // Fallback if already closed
+                }
+            }
         }
-
-        setErrorMsg('');
-        setLastScanned('');
-        setScannedCount(0);
-        let mounted = true;
-
-        const timer = setTimeout(() => {
-            if (!mounted) return;
-            startScanner();
-        }, 150);
-
-        return () => {
-            mounted = false;
-            clearTimeout(timer);
-            stopScanner();
-        };
     }, [isOpen, cameraIndex]);
 
     const startScanner = async () => {
@@ -92,7 +110,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 aspectRatio: 1.33,
             };
 
-            // 1. Probe available cameras to avoid OverconstrainedError on PC/laptop webcams
+            // Query available cameras to avoid OverconstrainedError on PC/laptop webcams
             let cameras: Array<{ id: string; label: string }> = [];
             try {
                 cameras = await Html5Qrcode.getCameras();
@@ -102,7 +120,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             }
 
             if (cameras && cameras.length > 0) {
-                // Determine selected camera
                 const activeCam = cameras[cameraIndex % cameras.length];
                 await html5QrCode.start(
                     activeCam.id,
@@ -111,7 +128,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     () => {}
                 );
             } else {
-                // If getCameras() returned empty, use ideal constraint (never exact constraint)
                 try {
                     await html5QrCode.start(
                         { facingMode: { ideal: 'environment' } },
@@ -120,7 +136,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                         () => {}
                     );
                 } catch {
-                    // Fallback to front/default camera
                     await html5QrCode.start(
                         { facingMode: 'user' },
                         config,
@@ -133,7 +148,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             setCameraActive(true);
             setErrorMsg('');
 
-            // Check torch capabilities safely without throwing OverconstrainedError
+            // Safely check torch capability
             try {
                 const capabilities = html5QrCode.getRunningTrackCameraCapabilities();
                 const canTorch = capabilities?.torchFeature?.()?.isSupported?.() ?? false;
@@ -147,7 +162,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             if (String(err).includes('NotAllowedError') || String(err).includes('Permission')) {
                 setErrorMsg('Izin kamera ditolak. Berikan izin akses kamera di peramban Anda atau masukkan barcode secara manual di bawah.');
             } else if (String(err).includes('OverconstrainedError') || String(err).includes('Constraint')) {
-                setErrorMsg('Resolusi/kamera yang diminta tidak didukung oleh perangkat ini.');
+                setErrorMsg('Kamera yang diminta tidak didukung oleh perangkat ini.');
             } else {
                 setErrorMsg('Kamera tidak dapat diakses atau sedang digunakan oleh aplikasi lain.');
             }
@@ -190,7 +205,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             stopScanner();
             onClose();
         } else {
-            // Cool down before reading the next barcode
+            // Cool down before reading next barcode
             setTimeout(() => {
                 isScanningRef.current = false;
             }, 1200);
@@ -226,18 +241,24 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     if (!isOpen) return null;
 
     const modalContent = (
-        <div
+        <dialog
+            ref={dialogRef}
+            className="pos-scanner-dialog"
+            onCancel={(e) => {
+                e.preventDefault();
+                onClose();
+            }}
             style={{
-                position: 'fixed',
-                inset: 0,
-                zIndex: 999999,
-                backgroundColor: 'rgba(0, 0, 0, 0.78)',
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 14,
+                margin: 'auto',
+                padding: 0,
+                border: 'none',
+                borderRadius: 20,
+                background: 'transparent',
+                maxWidth: 460,
+                width: 'calc(100% - 24px)',
+                overflow: 'visible',
+                outline: 'none',
+                boxShadow: 'none',
             }}
         >
             <div
@@ -245,7 +266,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     backgroundColor: '#ffffff',
                     borderRadius: 20,
                     width: '100%',
-                    maxWidth: 460,
                     overflow: 'hidden',
                     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45)',
                     display: 'flex',
@@ -329,7 +349,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                         </div>
                     )}
 
-                    {/* Camera Control Overlays (Flashlight & Camera Switcher) */}
+                    {/* Camera Control Overlays */}
                     {cameraActive && (
                         <div
                             style={{
@@ -488,10 +508,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     </form>
                 </div>
             </div>
-        </div>
+        </dialog>,
+        document.body
     );
-
-    return createPortal(modalContent, document.body);
 };
 
 export default BarcodeScannerModal;
