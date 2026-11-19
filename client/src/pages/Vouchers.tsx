@@ -98,19 +98,49 @@ const Vouchers = () => {
 
     return (
         <VStack gap={4} width="100%">
-            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: 10, width: '100%' }}>
-                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%', paddingBottom: 2 }}>
-                    <SegmentedControl label="Filter status voucher" value={statusFilter} onChange={setStatusFilter} size="sm">
+            {isMobile ? (
+                <VStack gap={2.5} width="100%">
+                    <div style={{ width: '100%', minWidth: 0 }}>
+                        <Button
+                            variant="primary"
+                            label="Buat Voucher"
+                            icon={<Plus size={16} />}
+                            onClick={() => setShowCreate(true)}
+                            width="100%"
+                        />
+                    </div>
+                    <div style={{ width: '100%', minWidth: 0 }}>
+                        <SegmentedControl
+                            label="Filter status voucher"
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            size="sm"
+                            layout="fill"
+                            style={{ width: '100%' }}
+                        >
+                            <SegmentedControlItem value="" label="Semua" />
+                            <SegmentedControlItem value="active" label="Aktif" />
+                            <SegmentedControlItem value="used" label="Terpakai" />
+                            <SegmentedControlItem value="expired" label="Kedaluwarsa" />
+                        </SegmentedControl>
+                    </div>
+                </VStack>
+            ) : (
+                <HStack justify="between" align="center" width="100%">
+                    <SegmentedControl
+                        label="Filter status voucher"
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                        size="sm"
+                    >
                         <SegmentedControlItem value="" label="Semua" />
                         <SegmentedControlItem value="active" label="Aktif" />
                         <SegmentedControlItem value="used" label="Terpakai" />
                         <SegmentedControlItem value="expired" label="Kedaluwarsa" />
                     </SegmentedControl>
-                </div>
-                <div style={{ width: isMobile ? '100%' : 'auto' }}>
-                    <Button variant="primary" label="Buat Voucher" icon={<Plus size={16} />} onClick={() => setShowCreate(true)} width={isMobile ? '100%' : undefined} />
-                </div>
-            </div>
+                    <Button variant="primary" label="Buat Voucher" icon={<Plus size={16} />} onClick={() => setShowCreate(true)} />
+                </HStack>
+            )}
 
             <Card padding={0} elevation="none">
                 <ScrollableArea label="Tabel data">

@@ -88,17 +88,51 @@ const TransactionHistory = () => {
 
     return (
         <VStack gap={4} width="100%">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, width: '100%', flexWrap: 'wrap' }}>
-                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
-                    <SegmentedControl label="Filter status transaksi" value={statusFilter} onChange={setStatusFilter} size="sm">
-                        <SegmentedControlItem value="" label="Semua" />
-                        <SegmentedControlItem value="COMPLETED" label="Selesai" />
-                        <SegmentedControlItem value="VOIDED" label="Void" />
-                        <SegmentedControlItem value="REFUNDED" label="Refund" />
-                    </SegmentedControl>
-                </div>
-                <Badge variant="neutral" label={`${sales.length} transaksi`} />
-            </div>
+            {isMobile ? (
+                <VStack gap={2.5} width="100%">
+                    <HStack justify="between" align="center" width="100%">
+                        <HStack gap={2} align="center">
+                            <Text size="sm" color="secondary">Total riwayat</Text>
+                            <Badge variant="neutral" label={`${sales.length} transaksi`} />
+                        </HStack>
+                    </HStack>
+                    <div style={{ width: '100%', minWidth: 0 }}>
+                        <SegmentedControl
+                            label="Filter status transaksi"
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            size="sm"
+                            layout="fill"
+                            style={{ width: '100%' }}
+                        >
+                            <SegmentedControlItem value="" label="Semua" />
+                            <SegmentedControlItem value="COMPLETED" label="Selesai" />
+                            <SegmentedControlItem value="VOIDED" label="Void" />
+                            <SegmentedControlItem value="REFUNDED" label="Refund" />
+                        </SegmentedControl>
+                    </div>
+                </VStack>
+            ) : (
+                <HStack justify="between" align="center" width="100%">
+                    <HStack gap={2} align="center">
+                        <Text size="sm" color="secondary">Total riwayat</Text>
+                        <Badge variant="neutral" label={`${sales.length} transaksi`} />
+                    </HStack>
+                    <div>
+                        <SegmentedControl
+                            label="Filter status transaksi"
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            size="sm"
+                        >
+                            <SegmentedControlItem value="" label="Semua" />
+                            <SegmentedControlItem value="COMPLETED" label="Selesai" />
+                            <SegmentedControlItem value="VOIDED" label="Void" />
+                            <SegmentedControlItem value="REFUNDED" label="Refund" />
+                        </SegmentedControl>
+                    </div>
+                </HStack>
+            )}
 
             {sales.length > 0 ? (
                 isMobile ? (
