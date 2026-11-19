@@ -91,7 +91,7 @@ const Products = () => {
         }
     };
 
-    // Packaging Barcode Auto-Fill from Catalog & Open Food Facts
+    // Packaging Barcode Auto-Fill from Catalog & Internet Databases
     const handleBarcodeAutoFill = async (scannedBarcode: string) => {
         const cleanBarcode = scannedBarcode.trim();
         setIsModalOpen(true);
@@ -101,23 +101,31 @@ const Products = () => {
             const info = await lookupBarcodeInfo(cleanBarcode);
             if (info) {
                 sound.playSuccess();
-                toast.success(`Ditemukan: "${info.name}"! Data kemasan otomatis terisi.`);
+                toast.success(`Ditemukan di internet: "${info.name}"!`);
 
-                // Match category name
+                // Match category name or keywords
                 let matchedCatId = '';
                 if (info.category) {
-                    const matched = categories.find(
+                    const catLower = info.category.toLowerCase();
+                    let matched = categories.find(
                         (c) =>
-                            c.name.toLowerCase().includes(info.category!.toLowerCase()) ||
-                            info.category!.toLowerCase().includes(c.name.toLowerCase())
+                            c.name.toLowerCase().includes(catLower) ||
+                            catLower.includes(c.name.toLowerCase())
                     );
+                    if (!matched) {
+                        if (catLower.match(/drink|beverage|water|tea|coffee|milk|juice|air|teh|kopi|susu/)) {
+                            matched = categories.find((c) => c.name.toLowerCase().match(/minuman|coffee|tea/));
+                        } else if (catLower.match(/noodle|mie|biscuit|snack|food|makanan|rice|bread|roti/)) {
+                            matched = categories.find((c) => c.name.toLowerCase().match(/makanan|snack|pastry/));
+                        }
+                    }
                     if (matched) matchedCatId = String(matched.id);
                 }
 
                 setFormData((prev) => ({
                     ...prev,
                     barcode: cleanBarcode,
-                    name: prev.name ? prev.name : info.name,
+                    name: info.name,
                     sku: prev.sku
                         ? prev.sku
                         : info.brand
@@ -125,10 +133,10 @@ const Products = () => {
                         : `SKU-${cleanBarcode.slice(-4)}`,
                     price: prev.price > 0 ? prev.price : (info.suggestedPrice || 0),
                     costPrice: prev.costPrice > 0 ? prev.costPrice : (info.costPrice || 0),
-                    categoryId: prev.categoryId ? prev.categoryId : matchedCatId,
+                    categoryId: matchedCatId || prev.categoryId,
                 }));
             } else {
-                toast.info(`Barcode ${cleanBarcode} tercatat di form. Silakan lengkapi nama dan harga produk.`);
+                toast.info(`Barcode ${cleanBarcode} tercatat. Data nama belum ada di internet, silakan lengkapi nama produk.`);
             }
         } catch (err) {
             console.error(err);
@@ -412,7 +420,10 @@ const Products = () => {
                                     size="md"
                                     icon={<Camera size={16} />}
                                     label="Scan Kemasan"
-                                    onClick={() => setCameraScanOpen(true)}
+                                    onClick={() => {
+                                        setIsModalOpen(false);
+                                        setCameraScanOpen(true);
+                                    }}
                                 />
                                 {formData.barcode && (
                                     <Button
@@ -488,14 +499,14 @@ const Products = () => {
             {/* Mobile / Camera Barcode Scanner Modal for Packaging */}
             <BarcodeScannerModal
                 isOpen={cameraScanOpen}
-                onClose={() => setCameraScanOpen(false)}
+                onClose={() => {
+                    setCameraScanOpen(false);
+                    setIsModalOpen(true);
+                }}
                 onScan={(code) => {
                     setCameraScanOpen(false);
-                    if (isModalOpen) {
-                        handleBarcodeAutoFill(code);
-                    } else {
-                        handleScanOrSearch(code);
-                    }
+                    setIsModalOpen(true);
+                    handleBarcodeAutoFill(code);
                 }}
                 title="Scan Barcode Kemasan Produk"
                 subtitle="Posisikan barcode pada kemasan produk di dalam kotak pemindai"
