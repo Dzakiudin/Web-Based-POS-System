@@ -1,0 +1,57 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies & Build Client
+        run: |
+          cd client
+          npm ci --legacy-peer-deps || npm install
+          npm run build
+          npx cap sync android
+
+      - name: Build Android Debug APK
+        run: |
+          cd client/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-system-android-apk
+          path: client/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload APK to GitHub Release v2.0.0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp client/android/app/build/outputs/apk/debug/app-debug.apk pos-system-v2.0.0.apk
+          gh release upload v2.0.0 pos-system-v2.0.0.apk --clobber
