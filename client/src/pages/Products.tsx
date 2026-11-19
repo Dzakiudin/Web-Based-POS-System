@@ -403,7 +403,7 @@ const Products = () => {
                                     <TextInput
                                         label="Barcode Kemasan"
                                         isLabelHidden
-                                        placeholder="Scan barcode kemasan atau ketik..."
+                                        placeholder="Ketik / scan barcode..."
                                         value={formData.barcode}
                                         onChange={(val) => setFormData({ ...formData, barcode: val })}
                                         startIcon={<Barcode size={16} />}
@@ -436,53 +436,50 @@ const Products = () => {
 
                         <Grid columns={{ minWidth: 160, max: 2 }} gap={3}>
                             <TextInput
-                                label="Nama Produk"
+                                label="Nama Produk *"
                                 placeholder="Contoh: Indomie Mi Goreng Spesial 85g"
                                 value={formData.name}
                                 onChange={(val) => setFormData({ ...formData, name: val })}
-                                isRequired
                             />
                             <TextInput
                                 label="SKU / Kode Barang"
                                 placeholder="Contoh: IND-85G / Minyak-01"
                                 value={formData.sku}
                                 onChange={(val) => setFormData({ ...formData, sku: val })}
-                                isOptional
                             />
                         </Grid>
 
-                        <Grid columns={{ minWidth: 130, max: 3 }} gap={3}>
+                        <Grid columns={{ minWidth: 140, max: 2 }} gap={3}>
                             <NumberInput
-                                label="Harga Jual (Rp)"
+                                label="Harga Jual (Rp) *"
                                 value={formData.price}
                                 onChange={(val) => setFormData({ ...formData, price: val || 0 })}
                                 min={0}
-                                isRequired
                             />
                             <NumberInput
                                 label="Harga Modal (Rp)"
                                 value={formData.costPrice}
                                 onChange={(val) => setFormData({ ...formData, costPrice: val || 0 })}
                                 min={0}
-                                isOptional
                             />
+                        </Grid>
+
+                        <Grid columns={{ minWidth: 140, max: 2 }} gap={3}>
                             <NumberInput
-                                label="Stok"
+                                label="Stok Barang *"
                                 value={formData.stock}
                                 onChange={(val) => setFormData({ ...formData, stock: val || 0 })}
                                 min={0}
                                 isIntegerOnly
-                                isRequired
+                            />
+                            <Selector
+                                label="Kategori Produk"
+                                options={formCategoryOptions}
+                                value={formData.categoryId}
+                                onChange={(val) => setFormData({ ...formData, categoryId: val })}
+                                placeholder="Pilih kategori"
                             />
                         </Grid>
-
-                        <Selector
-                            label="Kategori"
-                            options={formCategoryOptions}
-                            value={formData.categoryId}
-                            onChange={(val) => setFormData({ ...formData, categoryId: val })}
-                            placeholder="Pilih kategori"
-                        />
                         <HStack justify="end" gap={2}>
                             <Button variant="secondary" label="Batal" onClick={handleCloseModal} />
                             <Button type="submit" variant="primary" label={editingProduct ? 'Simpan Perubahan' : 'Simpan Produk'} />

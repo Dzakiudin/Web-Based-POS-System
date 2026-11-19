@@ -61,7 +61,7 @@ export const Transactions = () => {
     const [paymentRef, setPaymentRef] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // Barcode Scanner & Cart Queue State
+    // Barcode Scanner & Cart Queue State (Persisted in localStorage)
     const [cameraScanOpen, setCameraScanOpen] = useState(false);
     const [heldOrders, setHeldOrders] = useState<Array<{
         id: string;
@@ -72,8 +72,24 @@ export const Transactions = () => {
         promoDiscount: any;
         promoCode: string;
         total: number;
-    }>>([]);
+    }>>(() => {
+        try {
+            const saved = localStorage.getItem('pos_held_orders');
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
     const [showHeldModal, setShowHeldModal] = useState(false);
+
+    // Sync held orders to localStorage
+    useEffect(() => {
+        try {
+            localStorage.setItem('pos_held_orders', JSON.stringify(heldOrders));
+        } catch (e) {
+            console.error('Failed to save held orders', e);
+        }
+    }, [heldOrders]);
 
     // Enhanced Payment States
     const [cardBank, setCardBank] = useState('BCA');
@@ -428,27 +444,48 @@ export const Transactions = () => {
                         onClick={toggleSound}
                     />
                 </HStack>
-                <HStack gap={1} align="center">
+                <HStack gap={1.5} align="center">
                     {heldOrders.length > 0 && (
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            label={`Antrean (${heldOrders.length})`}
-                            icon={<Clock size={13} />}
+                        <button
+                            type="button"
                             onClick={() => setShowHeldModal(true)}
-                        />
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                padding: '4px 10px',
+                                borderRadius: 8,
+                                border: '1px solid #fde047',
+                                backgroundColor: '#fefce8',
+                                color: '#854d0e',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                            }}
+                            title="Buka daftar antrean pesanan yang ditahan"
+                        >
+                            <Clock size={13} />
+                            <span>Antrean ({heldOrders.length})</span>
+                        </button>
                     )}
                     {cart.length > 0 && (
                         <>
                             <Button
                                 variant="secondary"
                                 size="sm"
-                                label="Tahan"
+                                label="Tahan Pesanan"
                                 icon={<Clock size={13} />}
-                                tooltip="Tahan pesanan ke antrean"
+                                tooltip="Tahan transaksi pelanggan ini sementara agar bisa melayani pelanggan berikutnya"
                                 onClick={holdCurrentOrder}
                             />
-                            <Button variant="ghost" size="sm" label="F4" tooltip="Kosongkan keranjang" onClick={clearCart} />
+                            <IconButton
+                                variant="ghost"
+                                size="sm"
+                                icon={<Trash2 size={14} color="#71717a" />}
+                                tooltip="Kosongkan Keranjang (F4)"
+                                label="Kosongkan Keranjang"
+                                onClick={clearCart}
+                            />
                         </>
                     )}
                 </HStack>
@@ -1265,8 +1302,22 @@ export const Transactions = () => {
             </Modal>
 
             {/* Antrean / Held Orders Modal */}
-            <Modal isOpen={showHeldModal} onClose={() => setShowHeldModal(false)} title="Antrean Pesanan Ditahan" width={480}>
+            <Modal isOpen={showHeldModal} onClose={() => setShowHeldModal(false)} title="Antrean Pesanan Ditahan (Hold Orders)" width={480}>
                 <VStack gap={3}>
+                    <div
+                        style={{
+                            backgroundColor: '#f0fdf4',
+                            border: '1px solid #bbf7d0',
+                            borderRadius: 10,
+                            padding: '10px 14px',
+                            fontSize: 12,
+                            color: '#166534',
+                            lineHeight: 1.45,
+                        }}
+                    >
+                        <strong>Fungsi Tahan Pesanan:</strong> Digunakan saat pelanggan menambah belanjaan atau dompet tertinggal, agar kasir dapat melayani pelanggan di belakangnya tanpa membatalkan transaksi ini. Pesanan disimpan di memori kasir (localStorage) dan bisa dimuat kembali ke keranjang kapan saja.
+                    </div>
+
                     {heldOrders.length > 0 ? (
                         heldOrders.map((h) => (
                             <Card key={h.id} padding={3} elevation="none">

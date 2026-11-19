@@ -140,11 +140,11 @@ const Discounts = () => {
             {discounts.length > 0 ? (
                 <Grid columns={{ minWidth: 280, max: 3 }} gap={3}>
                     {discounts.map((d) => (
-                        <Card key={d.id} padding={3} elevation="none">
-                            <VStack gap={3}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                                        <span style={{ fontSize: 14, fontWeight: 600, color: '#18181b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <Card key={d.id} padding={3} elevation="none" style={{ minWidth: 0, width: '100%', overflow: 'hidden' }}>
+                            <VStack gap={3} style={{ minWidth: 0, width: '100%' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%', minWidth: 0 }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 0%', overflow: 'hidden' }}>
+                                        <span style={{ fontSize: 14, fontWeight: 600, color: '#18181b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
                                             {d.name}
                                         </span>
                                         {d.code && (
@@ -153,7 +153,7 @@ const Discounts = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, marginLeft: 'auto' }}>
                                         <IconButton variant="ghost" size="sm" label="Edit" icon={<Pencil size={15} />} onClick={() => handleEdit(d)} />
                                         <IconButton variant="ghost" size="sm" label="Hapus" icon={<Trash2 size={15} />} onClick={() => handleDelete(d.id)} />
                                     </div>

@@ -360,13 +360,21 @@ pub struct CreateSaleRequest {
 }
 
 // --- Discounts & Vouchers ---
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "DiscountType", rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DiscountType {
+    Percentage,
+    Fixed,
+}
+
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
 pub struct Discount {
     pub id: i32,
     pub name: String,
     #[sqlx(rename = "type")]
     #[serde(rename = "type")]
-    pub discount_type: String,
+    pub discount_type: DiscountType,
     pub value: Decimal,
     #[sqlx(rename = "minPurchase")]
     #[serde(rename = "minPurchase")]
@@ -399,7 +407,7 @@ pub struct Discount {
 pub struct CreateDiscountRequest {
     pub name: String,
     #[serde(rename = "type")]
-    pub discount_type: String,
+    pub discount_type: DiscountType,
     pub value: Decimal,
     #[serde(rename = "minPurchase")]
     pub min_purchase: Option<Decimal>,

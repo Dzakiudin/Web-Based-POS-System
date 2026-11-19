@@ -1,14 +1,14 @@
 :root {
   color-scheme: light;
-  --font-family-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
-  --font-family-heading: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  --font-family-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  --font-family-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
   --font-family-code: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace !important;
-  --font-family-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   --font-family-base: var(--font-family-body) !important;
 }
 
 html, body, button, input, select, textarea {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -28,25 +28,42 @@ body {
 h1, h2, h3, h4, h5, h6,
 .astryx-heading,
 [class*="Heading"] {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  letter-spacing: -0.026em !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  letter-spacing: -0.022em !important;
   font-weight: 700 !important;
-  line-height: 1.28 !important;
+  line-height: 1.25 !important;
 }
 
 /* Top brand header logo & title */
 .astryx-top-nav-heading,
 [class*="TopNavHeading"],
 [class*="TopNavHeading"] span {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  letter-spacing: -0.03em !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  letter-spacing: -0.025em !important;
+  font-weight: 700 !important;
 }
 
 /* Subtitles, Paragraphs & Descriptions */
 p,
 .astryx-text,
 [class*="Text"] {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  letter-spacing: -0.006em;
+}
+
+/* Buttons, Badges, Tabs & Interactive elements */
+button,
+input,
+select,
+textarea,
+.astryx-button,
+[class*="Button"],
+[class*="Badge"],
+[class*="SegmentedControl"],
+[class*="Selector"],
+[class*="TextInput"],
+[class*="NumberInput"] {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   letter-spacing: -0.01em;
 }
 
@@ -55,7 +72,7 @@ p,
 [class*="tabularNumbers"],
 [hasTabularNumbers],
 .pos-price-tag {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: 'Inter', sans-serif !important;
   font-variant-numeric: tabular-nums lining-nums !important;
   letter-spacing: -0.02em !important;
   font-feature-settings: "tnum" 1, "lnum" 1 !important;

@@ -1,7 +1,7 @@
 use crate::{
     error::AppError,
     middleware::auth::AuthUser,
-    models::{CreateDiscountRequest, Discount},
+    models::{CreateDiscountRequest, Discount, DiscountType},
     state::SharedState,
 };
 use axum::{
@@ -24,7 +24,7 @@ pub async fn get_discounts(
 ) -> Result<Json<Vec<Discount>>, AppError> {
     let discounts = sqlx::query_as::<_, Discount>(
         r#"
-        SELECT id, name, type::text as type, value, "minPurchase", code, "startDate", "endDate",
+        SELECT id, name, type, value, "minPurchase", code, "startDate", "endDate",
                "isActive", "maxUses", "usedCount", "createdAt", "updatedAt"
         FROM discounts
         ORDER BY id DESC
@@ -49,8 +49,8 @@ pub async fn create_discount(
     let discount = sqlx::query_as::<_, Discount>(
         r#"
         INSERT INTO discounts (name, type, value, "minPurchase", code, "startDate", "endDate", "isActive", "maxUses", "usedCount", "updatedAt")
-        VALUES ($1, $2::"DiscountType", $3, $4, $5, $6, $7, true, $8, 0, NOW())
-        RETURNING id, name, type::text as type, value, "minPurchase", code, "startDate", "endDate", "isActive", "maxUses", "usedCount", "createdAt", "updatedAt"
+        VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, 0, NOW())
+        RETURNING id, name, type, value, "minPurchase", code, "startDate", "endDate", "isActive", "maxUses", "usedCount", "createdAt", "updatedAt"
         "#
     )
     .bind(payload.name)
@@ -80,10 +80,10 @@ pub async fn update_discount(
     let discount = sqlx::query_as::<_, Discount>(
         r#"
         UPDATE discounts
-        SET name = $1, type = $2::"DiscountType", value = $3, "minPurchase" = $4, code = $5,
+        SET name = $1, type = $2, value = $3, "minPurchase" = $4, code = $5,
             "endDate" = $6, "maxUses" = $7, "updatedAt" = NOW()
         WHERE id = $8
-        RETURNING id, name, type::text as type, value, "minPurchase", code, "startDate", "endDate", "isActive", "maxUses", "usedCount", "createdAt", "updatedAt"
+        RETURNING id, name, type, value, "minPurchase", code, "startDate", "endDate", "isActive", "maxUses", "usedCount", "createdAt", "updatedAt"
         "#
     )
     .bind(payload.name)
@@ -127,7 +127,7 @@ pub async fn validate_promo_code(
 ) -> Result<Json<Value>, AppError> {
     let discount = sqlx::query_as::<_, Discount>(
         r#"
-        SELECT id, name, type::text as type, value, "minPurchase", code, "startDate", "endDate",
+        SELECT id, name, type, value, "minPurchase", code, "startDate", "endDate",
                "isActive", "maxUses", "usedCount", "createdAt", "updatedAt"
         FROM discounts
         WHERE code = $1 AND "isActive" = true
@@ -145,7 +145,7 @@ pub async fn validate_promo_code(
         )));
     }
 
-    let discount_amount = if discount.discount_type == "PERCENTAGE" {
+    let discount_amount = if discount.discount_type == DiscountType::Percentage {
         (payload.subtotal * discount.value) / Decimal::from(100)
     } else {
         discount.value

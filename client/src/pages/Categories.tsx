@@ -105,10 +105,10 @@ const Categories = () => {
             {categories.length > 0 ? (
                 <Grid columns={{ minWidth: 260, max: 3 }} gap={3}>
                     {categories.map((cat) => (
-                        <Card key={cat.id} padding={3} elevation="none">
-                            <VStack gap={3}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                        <Card key={cat.id} padding={3} elevation="none" style={{ minWidth: 0, width: '100%', overflow: 'hidden' }}>
+                            <VStack gap={3} style={{ minWidth: 0, width: '100%' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%', minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: '1 1 0%', overflow: 'hidden' }}>
                                         <div
                                             style={{
                                                 width: 38,
@@ -124,12 +124,12 @@ const Categories = () => {
                                         >
                                             <Tag size={18} />
                                         </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                                            <span style={{ fontSize: 14, fontWeight: 600, color: '#18181b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 0%', overflow: 'hidden' }}>
+                                            <span style={{ fontSize: 14, fontWeight: 600, color: '#18181b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
                                                 {cat.name}
                                             </span>
                                             {cat.description && (
-                                                <span style={{ fontSize: 12, color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                <span style={{ fontSize: 12, color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
                                                     {cat.description}
                                                 </span>
                                             )}
@@ -137,7 +137,7 @@ const Categories = () => {
                                     </div>
 
                                     <HasPermission permission="category.manage">
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, marginLeft: 'auto' }}>
                                             <IconButton
                                                 variant="ghost"
                                                 size="sm"

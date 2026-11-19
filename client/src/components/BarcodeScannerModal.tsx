@@ -498,7 +498,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                             <TextInput
                                 label="Input Barcode Manual"
                                 isLabelHidden
-                                placeholder="Ketik barcode jika kamera buram..."
+                                placeholder="Ketik barcode manual..."
                                 value={manualCode}
                                 onChange={(v) => setManualCode(v)}
                                 startIcon={<Barcode size={15} />}

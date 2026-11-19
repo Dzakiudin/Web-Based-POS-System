@@ -99,7 +99,7 @@ const Vouchers = () => {
     return (
         <VStack gap={4} width="100%">
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: 10, width: '100%' }}>
-                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%', paddingBottom: 2 }}>
                     <SegmentedControl label="Filter status voucher" value={statusFilter} onChange={setStatusFilter} size="sm">
                         <SegmentedControlItem value="" label="Semua" />
                         <SegmentedControlItem value="active" label="Aktif" />
@@ -107,7 +107,9 @@ const Vouchers = () => {
                         <SegmentedControlItem value="expired" label="Kedaluwarsa" />
                     </SegmentedControl>
                 </div>
-                <Button variant="primary" label="Buat Voucher" icon={<Plus size={16} />} onClick={() => setShowCreate(true)} width={isMobile ? '100%' : undefined} />
+                <div style={{ width: isMobile ? '100%' : 'auto' }}>
+                    <Button variant="primary" label="Buat Voucher" icon={<Plus size={16} />} onClick={() => setShowCreate(true)} width={isMobile ? '100%' : undefined} />
+                </div>
             </div>
 
             <Card padding={0} elevation="none">
