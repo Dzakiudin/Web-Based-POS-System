@@ -89,13 +89,13 @@ const TransactionHistory = () => {
     return (
         <VStack gap={4} width="100%">
             {isMobile ? (
-                <VStack gap={2.5} width="100%">
-                    <HStack justify="between" align="center" width="100%">
-                        <HStack gap={2} align="center">
-                            <Text size="sm" color="secondary">Total riwayat</Text>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', paddingTop: 6, paddingBottom: 2 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Text size="sm" color="secondary" weight="medium">Total riwayat</Text>
                             <Badge variant="neutral" label={`${sales.length} transaksi`} />
-                        </HStack>
-                    </HStack>
+                        </div>
+                    </div>
                     <div style={{ width: '100%', minWidth: 0 }}>
                         <SegmentedControl
                             label="Filter status transaksi"
@@ -111,7 +111,7 @@ const TransactionHistory = () => {
                             <SegmentedControlItem value="REFUNDED" label="Refund" />
                         </SegmentedControl>
                     </div>
-                </VStack>
+                </div>
             ) : (
                 <HStack justify="between" align="center" width="100%">
                     <HStack gap={2} align="center">
@@ -136,7 +136,7 @@ const TransactionHistory = () => {
 
             {sales.length > 0 ? (
                 isMobile ? (
-                    <VStack gap={2}>
+                    <VStack gap={3}>
                         {sales.map((s) => (
                             <Card key={s.id} padding={3} elevation="none">
                                 <VStack gap={2}>
