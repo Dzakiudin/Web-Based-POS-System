@@ -11,7 +11,6 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { NumberInput } from '@astryxdesign/core/NumberInput';
 import { Selector } from '@astryxdesign/core/Selector';
-import { FileInput } from '@astryxdesign/core/FileInput';
 import { Badge } from '@astryxdesign/core/Badge';
 import { EmptyState } from '@astryxdesign/core/EmptyState';
 import { Divider } from '@astryxdesign/core/Divider';

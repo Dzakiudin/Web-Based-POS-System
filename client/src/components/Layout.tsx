@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { AppShell } from '@astryxdesign/core/AppShell';
 import { SideNav } from '@astryxdesign/core/SideNav';
-import { TopNav, TopNavHeading } from '@astryxdesign/core/TopNav';
+import { TopNav } from '@astryxdesign/core/TopNav';
 import { Drawer } from '@astryxdesign/core/Drawer';
 import { BottomSheet } from '@astryxdesign/core/BottomSheet';
 import { DropdownMenu, DropdownMenuItem, DropdownMenuDivider } from '@astryxdesign/core/DropdownMenu';

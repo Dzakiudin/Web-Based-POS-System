@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Camera, Flashlight, SwitchCamera, Check, Barcode, AlertCircle } from 'lucide-react';
+import { Flashlight, SwitchCamera, Check, Barcode, AlertCircle } from 'lucide-react';
 import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import { Button } from '@astryxdesign/core/Button';
 import { TextInput } from '@astryxdesign/core/TextInput';

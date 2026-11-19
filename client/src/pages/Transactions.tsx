@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
     Search, ShoppingCart, Plus, Minus, Trash2, Tag, CheckCircle2,
     Printer, Package, Volume2, VolumeX, ArrowRight, Camera, Clock,
-    Copy, CreditCard, QrCode, ReceiptText, Sparkles, Check
+    Copy, QrCode, Sparkles, Check
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -95,7 +95,7 @@ export const Transactions = () => {
     const [cardBank, setCardBank] = useState('BCA');
     const [cardNumber, setCardNumber] = useState('');
     const [approvalCode, setApprovalCode] = useState('');
-    const [transferBank, setTransferBank] = useState('BCA');
+    const [transferBank] = useState('BCA');
     const [qrisTimer, setQrisTimer] = useState(900);
     const [qrisSimulated, setQrisSimulated] = useState(false);
     const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
