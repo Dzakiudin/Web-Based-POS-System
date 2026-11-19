@@ -258,14 +258,48 @@ const Layout = () => {
                 )
             }
             heading={
-                <TopNavHeading
-                    logo={<Store size={19} />}
-                    heading="POS System"
-                    subheading={pageTitle}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div
+                        style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 10,
+                            background: 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.12)',
+                            flexShrink: 0,
+                        }}
+                    >
+                        <Store size={18} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 14, fontWeight: 750, color: '#09090b', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                                POS System
+                            </span>
+                            <span
+                                style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: '50%',
+                                    backgroundColor: isOnline ? '#16a34a' : '#ef4444',
+                                    boxShadow: isOnline ? '0 0 6px rgba(22, 163, 74, 0.6)' : 'none',
+                                    display: 'inline-block',
+                                }}
+                                title={isOnline ? 'Sistem Terhubung (Online)' : 'Jaringan Terputus (Offline)'}
+                            />
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 550, color: '#71717a', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
+                            {pageTitle}
+                        </span>
+                    </div>
+                </div>
             }
             endContent={
-                <HStack gap={isMobile ? 1.5 : 2} align="center" paddingInlineEnd={2}>
+                <HStack gap={isMobile ? 2 : 2.5} align="center" paddingInlineEnd={2}>
                     {!isMobile && (
                         <Button
                             variant="secondary"
@@ -279,13 +313,13 @@ const Layout = () => {
                         />
                     )}
 
-                    {!isMobile ? (
+                    {!isMobile && (
                         <div
                             style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 6,
-                                padding: '4px 9px',
+                                padding: '4px 10px',
                                 borderRadius: 999,
                                 background: isOnline ? '#f0fdf4' : '#fef2f2',
                                 border: isOnline ? '1px solid #bbf7d0' : '1px solid #fecaca',
@@ -306,18 +340,6 @@ const Layout = () => {
                                 {isOnline ? 'Online' : 'Offline'}
                             </Text>
                         </div>
-                    ) : (
-                        <span
-                            style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                backgroundColor: isOnline ? '#16a34a' : '#ef4444',
-                                boxShadow: isOnline ? '0 0 6px rgba(22, 163, 74, 0.6)' : 'none',
-                                display: 'inline-block',
-                            }}
-                            title={isOnline ? 'Sistem Online' : 'Sistem Offline'}
-                        />
                     )}
 
                     {!isMobile && (
@@ -335,18 +357,53 @@ const Layout = () => {
                         />
                     )}
 
-                    <HStack align="center" gap={1}>
-                        <IconButton
-                            variant="ghost"
-                            size="sm"
-                            label="Notifikasi"
-                            icon={<Bell size={18} />}
+                    {/* Notification Bell Button */}
+                    <div style={{ position: 'relative' }}>
+                        <button
+                            type="button"
                             onClick={() => setShowNotifications(true)}
-                        />
+                            aria-label="Lihat notifikasi"
+                            style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: 10,
+                                border: '1px solid #e4e4e7',
+                                backgroundColor: '#ffffff',
+                                color: '#3f3f46',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 150ms ease',
+                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                            }}
+                        >
+                            <Bell size={16} />
+                        </button>
                         {notifications.length > 0 && (
-                            <Badge variant="warning" label={notifications.length} />
+                            <span
+                                style={{
+                                    position: 'absolute',
+                                    top: -3,
+                                    right: -3,
+                                    minWidth: 16,
+                                    height: 16,
+                                    padding: '0 4px',
+                                    borderRadius: 999,
+                                    backgroundColor: '#ef4444',
+                                    color: '#ffffff',
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: '2px solid #ffffff',
+                                }}
+                            >
+                                {notifications.length}
+                            </span>
                         )}
-                    </HStack>
+                    </div>
 
                     {!isMobile && (
                         <div style={{ width: 1, height: 22, backgroundColor: '#e4e4e7' }} />
@@ -363,11 +420,28 @@ const Layout = () => {
                                 alignItems: 'center',
                                 background: 'transparent',
                                 border: 'none',
-                                padding: 2,
+                                padding: 0,
                                 cursor: 'pointer',
                             }}
                         >
-                            <Avatar name={user?.name || 'Admin'} size="sm" />
+                            <div
+                                style={{
+                                    width: 34,
+                                    height: 34,
+                                    borderRadius: 10,
+                                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                    color: '#ffffff',
+                                    fontWeight: 700,
+                                    fontSize: 13,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                                    border: '1.5px solid #ffffff',
+                                }}
+                            >
+                                {(user?.name || 'A').charAt(0).toUpperCase()}
+                            </div>
                         </button>
                     ) : (
                         <DropdownMenu
