@@ -228,6 +228,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Combine all API routers
     let api_routes = Router::new()
+        .route("/health", get(|| async { axum::Json(serde_json::json!({ "status": "ok", "app": "POS System Pro Max", "version": "2.0.0" })) }))
         .nest("/auth", auth_routes)
         .nest("/products", product_routes)
         .nest("/categories", category_routes)
