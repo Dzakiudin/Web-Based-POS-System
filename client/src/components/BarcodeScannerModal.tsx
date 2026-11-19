@@ -447,6 +447,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                                 value={manualCode}
                                 onChange={(v) => setManualCode(v)}
                                 startIcon={<Barcode size={15} />}
+                                width="100%"
                             />
                         </div>
                         <Button type="submit" variant="primary" label="Input" isDisabled={!manualCode.trim()} />

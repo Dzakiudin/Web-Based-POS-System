@@ -401,9 +401,9 @@ const Products = () => {
                 <form onSubmit={handleSubmit}>
                     <VStack gap={4}>
                         {/* Barcode & Packaging Auto-Lookup Section */}
-                        <VStack gap={1.5}>
+                        <VStack gap={1.5} width="100%">
                             <Text size="sm" weight="semibold">Barcode Kemasan (Isi Data Otomatis)</Text>
-                            <HStack gap={2} align="center" width="100%">
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <TextInput
                                         label="Barcode Kemasan"
@@ -412,6 +412,13 @@ const Products = () => {
                                         value={formData.barcode}
                                         onChange={(val) => setFormData({ ...formData, barcode: val })}
                                         startIcon={<Barcode size={16} />}
+                                        width="100%"
+                                        hasClear
+                                        onEnter={() => {
+                                            if (formData.barcode.trim()) {
+                                                handleBarcodeAutoFill(formData.barcode.trim());
+                                            }
+                                        }}
                                     />
                                 </div>
                                 <Button
@@ -420,6 +427,7 @@ const Products = () => {
                                     size="md"
                                     icon={<Camera size={16} />}
                                     label="Scan Kemasan"
+                                    style={{ flexShrink: 0 }}
                                     onClick={() => {
                                         setIsModalOpen(false);
                                         setCameraScanOpen(true);
@@ -428,15 +436,17 @@ const Products = () => {
                                 {formData.barcode && (
                                     <Button
                                         type="button"
-                                        variant="ghost"
+                                        variant="primary"
                                         size="md"
-                                        icon={isLookingUp ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} color="#2563eb" />}
+                                        icon={isLookingUp ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
                                         tooltip="Cari otomatis data produk dari kemasan"
-                                        label="Cari Info"
+                                        label={isLookingUp ? 'Mencari...' : 'Cari Info'}
+                                        style={{ flexShrink: 0 }}
                                         onClick={() => handleBarcodeAutoFill(formData.barcode)}
+                                        isDisabled={isLookingUp}
                                     />
                                 )}
-                            </HStack>
+                            </div>
                             <span style={{ fontSize: 11, color: '#71717a' }}>
                                 Scan barcode kemasan produk (Aqua, Indomie, Ultra Milk, dll) untuk mengisi nama, kategori, & harga secara otomatis.
                             </span>
