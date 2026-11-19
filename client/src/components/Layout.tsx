@@ -301,7 +301,7 @@ const Layout = () => {
                 </div>
             }
             endContent={
-                <HStack gap={isMobile ? 2.5 : 2.5} align="center" paddingInlineEnd={isMobile ? 0 : 2}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 12, paddingRight: isMobile ? 0 : 8 }}>
                     {!isMobile && (
                         <Button
                             variant="ghost"
@@ -452,7 +452,7 @@ const Layout = () => {
                             />
                         </DropdownMenu>
                     )}
-                </HStack>
+                </div>
             }
         />
     );
