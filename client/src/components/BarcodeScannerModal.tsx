@@ -232,7 +232,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 }
             }}
             width={isMobile ? 'calc(100vw - 28px)' : 500}
-            padding={isMobile ? 3 : 4}
+            padding={isMobile ? 4 : 5}
             purpose="form"
         >
             <VStack gap={3} width="100%">
@@ -399,15 +399,15 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 </div>
 
                 {/* Footer Controls & Manual Input */}
-                <VStack gap={2.5} width="100%">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', marginTop: 2 }}>
                     {allowContinuous && (
                         <div
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                padding: '8px 12px',
-                                borderRadius: 8,
+                                padding: '10px 14px',
+                                borderRadius: 10,
                                 backgroundColor: '#f4f4f5',
                                 width: '100%',
                             }}
@@ -424,7 +424,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                                     style={{
                                         fontSize: 12,
                                         fontWeight: 650,
-                                        padding: '4px 10px',
+                                        padding: '5px 12px',
                                         borderRadius: 6,
                                         border: 'none',
                                         backgroundColor: continuous ? '#18181b' : '#e4e4e7',
@@ -443,7 +443,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                             <TextInput
                                 label="Input Barcode Manual"
                                 isLabelHidden
-                                placeholder="Ketik barcode jika kamera buram..."
+                                placeholder="Ketik barcode manual..."
                                 value={manualCode}
                                 onChange={(v) => setManualCode(v)}
                                 startIcon={<Barcode size={15} />}
@@ -461,7 +461,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                         }}
                         width="100%"
                     />
-                </VStack>
+                </div>
             </VStack>
         </Dialog>
     );
