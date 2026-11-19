@@ -5,18 +5,79 @@ mod models;
 mod state;
 
 use axum::{
+    http::{header, StatusCode, Uri},
+    response::IntoResponse,
     routing::{delete, get, post, put},
-    Json, Router,
+    Router,
 };
-use serde_json::json;
+use rust_embed::RustEmbed;
 use sqlx::postgres::PgPoolOptions;
 use std::{net::SocketAddr, sync::Arc};
 use tower_http::{
     cors::{Any, CorsLayer},
-    services::{ServeDir, ServeFile},
+    services::ServeDir,
     trace::TraceLayer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+#[derive(RustEmbed)]
+#[folder = "../client/dist"]
+struct FrontendAssets;
+
+async fn static_spa_handler(uri: Uri) -> impl IntoResponse {
+    let mut path = uri.path().trim_start_matches('/').to_string();
+    if path.is_empty() {
+        path = "index.html".to_string();
+    }
+
+    // Try disk first if CLIENT_DIST_DIR, ../client/dist, or ./dist exists
+    let disk_candidates = [
+        std::env::var("CLIENT_DIST_DIR").unwrap_or_default(),
+        "../client/dist".to_string(),
+        "./dist".to_string(),
+    ];
+
+    for dir in &disk_candidates {
+        if !dir.is_empty() {
+            let file_path = std::path::Path::new(dir).join(&path);
+            if file_path.is_file() {
+                if let Ok(data) = std::fs::read(&file_path) {
+                    let mime = mime_guess::from_path(&path).first_or_octet_stream();
+                    return ([(header::CONTENT_TYPE, mime.as_ref())], data).into_response();
+                }
+            }
+        }
+    }
+
+    // Fallback to embedded in-binary assets
+    match FrontendAssets::get(&path) {
+        Some(content) => {
+            let mime = mime_guess::from_path(&path).first_or_octet_stream();
+            ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()
+        }
+        None => {
+            // Check index.html on disk
+            for dir in &disk_candidates {
+                if !dir.is_empty() {
+                    let index_path = std::path::Path::new(dir).join("index.html");
+                    if index_path.is_file() {
+                        if let Ok(data) = std::fs::read(&index_path) {
+                            return ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], data).into_response();
+                        }
+                    }
+                }
+            }
+
+            // SPA fallback: return embedded index.html
+            match FrontendAssets::get("index.html") {
+                Some(content) => {
+                    ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], content.data).into_response()
+                }
+                None => (StatusCode::NOT_FOUND, "Frontend index.html not found").into_response(),
+            }
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -180,23 +241,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/audit-logs", audit_routes)
         .nest("/users", user_routes);
 
-    let client_dist_dir = std::env::var("CLIENT_DIST_DIR")
-        .unwrap_or_else(|_| "../client/dist".to_string());
-
-    let spa_service = ServeDir::new(&client_dist_dir)
-        .fallback(ServeFile::new(format!("{}/index.html", client_dist_dir)));
-
-    // Root app
+    // Root app with embedded assets & disk fallback
     let app = Router::new()
         .nest("/api", api_routes)
         .nest_service("/uploads", ServeDir::new(&uploads_dir))
-        .fallback_service(spa_service)
+        .fallback(static_spa_handler)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(shared_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    tracing::info!("🚀 POS Pro Max Server (Rust) running on http://localhost:{}", port);
+    let url = format!("http://localhost:{}", port);
+    tracing::info!("🚀 POS Pro Max Server (Rust) running on {}", url);
+    println!("\n=======================================================");
+    println!("  ⚡ POS System Pro Max v2.0.0 (Native Release)");
+    println!("  Aplikasi kasir & ritel siap digunakan.");
+    println!("  Akses sistem di browser: {}", url);
+    println!("=======================================================\n");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

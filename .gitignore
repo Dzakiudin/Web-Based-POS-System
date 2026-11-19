@@ -6,6 +6,8 @@ build/
 target/
 *.exe
 *.pdb
+*.zip
+release-build/
 .DS_Store
 .vscode/
 *.log
