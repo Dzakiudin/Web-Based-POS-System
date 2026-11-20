@@ -118,6 +118,40 @@ const CashManagement = () => {
         }
     };
 
+    const getDifferenceBadge = (diff: string | null) => {
+        if (diff == null) {
+            return {
+                label: '-',
+                bg: '#f1f5f9',
+                color: '#64748b',
+                border: '#e2e8f0',
+            };
+        }
+        const val = Number(diff);
+        if (val > 0) {
+            return {
+                label: `+Rp ${val.toLocaleString('id-ID')}`,
+                bg: '#ecfdf5',
+                color: '#059669',
+                border: '#a7f3d0',
+            };
+        }
+        if (val < 0) {
+            return {
+                label: `-Rp ${Math.abs(val).toLocaleString('id-ID')}`,
+                bg: '#fff1f2',
+                color: '#e11d48',
+                border: '#fecdd3',
+            };
+        }
+        return {
+            label: 'Pas (Rp 0)',
+            bg: '#f8fafc',
+            color: '#64748b',
+            border: '#e2e8f0',
+        };
+    };
+
     return (
         <VStack gap={5} width="100%">
             {/* Active Session Card */}
@@ -138,48 +172,209 @@ const CashManagement = () => {
                                 </VStack>
                             </HStack>
 
-                            <HStack gap={2} wrap="wrap">
-                                <Button
-                                    variant="secondary"
-                                    label="Kas Masuk / Keluar"
-                                    icon={<ArrowDownLeft size={16} />}
-                                    onClick={() => setShowMovement(true)}
-                                />
-                                <Button
-                                    variant="destructive"
-                                    label="Tutup Shift"
-                                    icon={<Lock size={16} />}
-                                    onClick={() => setShowClose(true)}
-                                />
-                            </HStack>
+                            {isMobile ? (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, width: '100%', paddingTop: 2 }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowMovement(true)}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 6,
+                                            padding: '9px 12px',
+                                            borderRadius: 9,
+                                            backgroundColor: '#ffffff',
+                                            border: '1px solid #e4e4e7',
+                                            color: '#18181b',
+                                            fontSize: 12.5,
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                                            transition: 'all 120ms ease',
+                                        }}
+                                    >
+                                        <ArrowDownLeft size={15} color="#059669" />
+                                        <span>Kas Masuk / Keluar</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowClose(true)}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 6,
+                                            padding: '9px 12px',
+                                            borderRadius: 9,
+                                            backgroundColor: '#fff1f2',
+                                            border: '1px solid #fecdd3',
+                                            color: '#be123c',
+                                            fontSize: 12.5,
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                                            transition: 'all 120ms ease',
+                                        }}
+                                    >
+                                        <Lock size={14} color="#e11d48" />
+                                        <span>Tutup Shift</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <HStack gap={2}>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        label="Kas Masuk / Keluar"
+                                        icon={<ArrowDownLeft size={15} />}
+                                        onClick={() => setShowMovement(true)}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowClose(true)}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            padding: '7px 15px',
+                                            borderRadius: 8,
+                                            backgroundColor: '#fff1f2',
+                                            border: '1px solid #fecdd3',
+                                            color: '#be123c',
+                                            fontSize: 13,
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            transition: 'all 120ms ease',
+                                        }}
+                                    >
+                                        <Lock size={14} color="#e11d48" />
+                                        <span>Tutup Shift</span>
+                                    </button>
+                                </HStack>
+                            )}
                         </HStack>
 
                         <Divider />
 
-                        <Grid columns={{ minWidth: 180, max: 3 }} gap={3}>
-                            <Card padding={3} variant="muted" elevation="none">
-                                <VStack gap={0.5}>
-                                    <Text size="xsm" color="secondary">Saldo Awal</Text>
-                                    <Heading level={4} weight="bold">
-                                        Rp {Number(activeSession.openingBalance || 0).toLocaleString('id-ID')}
-                                    </Heading>
-                                </VStack>
-                            </Card>
-                            <Card padding={3} variant="muted" elevation="none">
-                                <VStack gap={0.5}>
-                                    <Text size="xsm" color="secondary">Estimasi Kas</Text>
-                                    <Heading level={4} weight="bold">
-                                        Rp {Number(activeSession.expectedBalance ?? activeSession.openingBalance ?? 0).toLocaleString('id-ID')}
-                                    </Heading>
-                                </VStack>
-                            </Card>
-                            <Card padding={3} variant="muted" elevation="none">
-                                <VStack gap={0.5}>
-                                    <Text size="xsm" color="secondary">Pergerakan Kas</Text>
-                                    <Heading level={4} weight="bold">{activeSession.movements?.length || 0} catatan</Heading>
-                                </VStack>
-                            </Card>
-                        </Grid>
+                        {isMobile ? (
+                            <VStack gap={2}>
+                                {/* Kartu Utama: Estimasi Kas */}
+                                <div style={{
+                                    padding: '14px 16px',
+                                    backgroundColor: '#f8fafc',
+                                    border: '1.5px solid #e2e8f0',
+                                    borderRadius: 12,
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                                }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                        <span style={{ fontSize: 11.5, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                            Estimasi Kas Saat Ini
+                                        </span>
+                                        <span style={{
+                                            fontSize: 22,
+                                            fontWeight: 800,
+                                            fontFamily: 'Inter, sans-serif',
+                                            fontVariantNumeric: 'tabular-nums',
+                                            letterSpacing: '-0.02em',
+                                            color: '#0f172a',
+                                        }}>
+                                            Rp {Number(activeSession.expectedBalance ?? activeSession.openingBalance ?? 0).toLocaleString('id-ID')}
+                                        </span>
+                                    </div>
+                                    <div style={{
+                                        width: 38,
+                                        height: 38,
+                                        borderRadius: 10,
+                                        backgroundColor: '#ecfdf5',
+                                        color: '#059669',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                    }}>
+                                        <Wallet size={19} />
+                                    </div>
+                                </div>
+
+                                {/* Grid 2 Kolom: Saldo Awal & Pergerakan Kas */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                                    <div style={{
+                                        padding: '10px 12px',
+                                        backgroundColor: '#f8fafc',
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: 10,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 2,
+                                    }}>
+                                        <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b' }}>Saldo Awal</span>
+                                        <span style={{
+                                            fontSize: 14,
+                                            fontWeight: 700,
+                                            fontFamily: 'Inter, sans-serif',
+                                            fontVariantNumeric: 'tabular-nums',
+                                            color: '#334155',
+                                        }}>
+                                            Rp {Number(activeSession.openingBalance || 0).toLocaleString('id-ID')}
+                                        </span>
+                                    </div>
+
+                                    <div style={{
+                                        padding: '10px 12px',
+                                        backgroundColor: '#f8fafc',
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: 10,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 2,
+                                    }}>
+                                        <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b' }}>Pergerakan Kas</span>
+                                        <span style={{
+                                            fontSize: 14,
+                                            fontWeight: 700,
+                                            fontFamily: 'Inter, sans-serif',
+                                            fontVariantNumeric: 'tabular-nums',
+                                            color: '#334155',
+                                        }}>
+                                            {activeSession.movements?.length || 0} catatan
+                                        </span>
+                                    </div>
+                                </div>
+                            </VStack>
+                        ) : (
+                            <Grid columns={{ minWidth: 180, max: 3 }} gap={3}>
+                                <Card padding={3} variant="muted" elevation="none">
+                                    <VStack gap={0.5}>
+                                        <Text size="xsm" color="secondary">Saldo Awal</Text>
+                                        <Heading level={4} weight="bold">
+                                            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                                                Rp {Number(activeSession.openingBalance || 0).toLocaleString('id-ID')}
+                                            </span>
+                                        </Heading>
+                                    </VStack>
+                                </Card>
+                                <Card padding={3} variant="muted" elevation="none">
+                                    <VStack gap={0.5}>
+                                        <Text size="xsm" color="secondary">Estimasi Kas</Text>
+                                        <Heading level={4} weight="bold">
+                                            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                                                Rp {Number(activeSession.expectedBalance ?? activeSession.openingBalance ?? 0).toLocaleString('id-ID')}
+                                            </span>
+                                        </Heading>
+                                    </VStack>
+                                </Card>
+                                <Card padding={3} variant="muted" elevation="none">
+                                    <VStack gap={0.5}>
+                                        <Text size="xsm" color="secondary">Pergerakan Kas</Text>
+                                        <Heading level={4} weight="bold">{activeSession.movements?.length || 0} catatan</Heading>
+                                    </VStack>
+                                </Card>
+                            </Grid>
+                        )}
 
                         {activeSession.movements && activeSession.movements.length > 0 && (
                             <VStack gap={2}>
@@ -227,44 +422,72 @@ const CashManagement = () => {
                 {sessions.length > 0 ? (
                     isMobile ? (
                         <VStack gap={2}>
-                            {sessions.map((s) => (
-                                <Card key={s.id} padding={3} elevation="none">
-                                    <VStack gap={2}>
-                                        <HStack justify="between" align="center">
-                                            <HStack gap={1.5} align="center">
-                                                <Wallet size={16} />
-                                                <Text size="sm" weight="bold">Sesi #{s.id}</Text>
+                            {sessions.map((s) => {
+                                const diffInfo = getDifferenceBadge(s.difference);
+                                return (
+                                    <Card key={s.id} padding={3} elevation="none">
+                                        <VStack gap={2}>
+                                            <HStack justify="between" align="center">
+                                                <HStack gap={1.5} align="center">
+                                                    <Wallet size={16} />
+                                                    <Text size="sm" weight="bold">Sesi #{s.id}</Text>
+                                                </HStack>
+                                                <Badge variant={s.status === 'OPEN' ? 'success' : 'neutral'} label={s.status} />
                                             </HStack>
-                                            <Badge variant={s.status === 'OPEN' ? 'success' : 'neutral'} label={s.status} />
-                                        </HStack>
-                                        <HStack justify="between" align="center">
-                                            <Text size="xsm" color="secondary">
-                                                Kasir: {s.user?.name || '-'}
-                                            </Text>
-                                            <Text size="xsm" color="secondary">
-                                                {new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
-                                            </Text>
-                                        </HStack>
-                                        <Divider />
-                                        <HStack justify="between" align="center">
-                                            <VStack gap={0}>
-                                                <Text size="2xs" color="secondary">Saldo Awal</Text>
-                                                <Text size="sm" weight="bold" hasTabularNumbers>Rp {Number(s.openingBalance || 0).toLocaleString('id-ID')}</Text>
-                                            </VStack>
-                                            <VStack gap={0} align="center">
-                                                <Text size="2xs" color="secondary">Saldo Akhir</Text>
-                                                <Text size="sm" weight="bold" hasTabularNumbers>{s.closingBalance != null ? `Rp ${Number(s.closingBalance).toLocaleString('id-ID')}` : '-'}</Text>
-                                            </VStack>
-                                            <VStack gap={0} align="end">
-                                                <Text size="2xs" color="secondary">Selisih</Text>
-                                                <Text size="sm" weight="bold" hasTabularNumbers style={{ color: Number(s.difference || 0) < 0 ? '#dc2626' : '#16a34a' }}>
-                                                    {s.difference != null ? `Rp ${Number(s.difference).toLocaleString('id-ID')}` : '-'}
+                                            <HStack justify="between" align="center">
+                                                <Text size="xsm" color="secondary">
+                                                    Kasir: {s.user?.name || '-'}
                                                 </Text>
-                                            </VStack>
-                                        </HStack>
-                                    </VStack>
-                                </Card>
-                            ))}
+                                                <Text size="xsm" color="secondary">
+                                                    {new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
+                                                </Text>
+                                            </HStack>
+                                            <div style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: '1fr 1fr 1.15fr',
+                                                gap: 6,
+                                                padding: '8px 10px',
+                                                backgroundColor: '#f8fafc',
+                                                border: '1px solid #e2e8f0',
+                                                borderRadius: 8,
+                                                alignItems: 'center',
+                                            }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                                    <span style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Saldo Awal</span>
+                                                    <span style={{ fontSize: 12.5, fontWeight: 700, fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', color: '#1e293b' }}>
+                                                        Rp {Number(s.openingBalance || 0).toLocaleString('id-ID')}
+                                                    </span>
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, textAlign: 'center' }}>
+                                                    <span style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Saldo Akhir</span>
+                                                    <span style={{ fontSize: 12.5, fontWeight: 700, fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', color: '#1e293b' }}>
+                                                        {s.closingBalance != null ? `Rp ${Number(s.closingBalance).toLocaleString('id-ID')}` : '-'}
+                                                    </span>
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end' }}>
+                                                    <span style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Selisih</span>
+                                                    <span style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        padding: '2px 7px',
+                                                        borderRadius: 6,
+                                                        fontSize: 11,
+                                                        fontWeight: 750,
+                                                        fontFamily: 'Inter, sans-serif',
+                                                        fontVariantNumeric: 'tabular-nums',
+                                                        backgroundColor: diffInfo.bg,
+                                                        color: diffInfo.color,
+                                                        border: `1px solid ${diffInfo.border}`,
+                                                        whiteSpace: 'nowrap',
+                                                    }}>
+                                                        {diffInfo.label}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </VStack>
+                                    </Card>
+                                );
+                            })}
                         </VStack>
                     ) : (
                         <Card padding={0} elevation="none">
@@ -282,31 +505,40 @@ const CashManagement = () => {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {sessions.map((s) => (
-                                            <TableRow key={s.id}>
-                                                <TableCell style={{ width: '8%', textAlign: 'center' }}><Text size="sm" weight="medium">#{s.id}</Text></TableCell>
-                                                <TableCell style={{ width: '18%' }}><Text size="sm">{s.user?.name || '-'}</Text></TableCell>
-                                                <TableCell style={{ width: '18%' }}><Text size="xsm" color="secondary">{new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</Text></TableCell>
-                                                <TableCell style={{ width: '16%', textAlign: 'right' }}><Text size="sm" hasTabularNumbers>Rp {Number(s.openingBalance || 0).toLocaleString('id-ID')}</Text></TableCell>
-                                                <TableCell style={{ width: '16%', textAlign: 'right' }}><Text size="sm" hasTabularNumbers>{s.closingBalance != null ? `Rp ${Number(s.closingBalance).toLocaleString('id-ID')}` : '-'}</Text></TableCell>
-                                                <TableCell style={{ width: '14%', textAlign: 'right' }}>
-                                                    <span style={{
-                                                        fontFamily: 'Inter, sans-serif',
-                                                        fontVariantNumeric: 'tabular-nums',
-                                                        fontWeight: 700,
-                                                        fontSize: 13,
-                                                        color: Number(s.difference || 0) < 0 ? '#dc2626' : (Number(s.difference || 0) > 0 ? '#16a34a' : '#64748b')
-                                                    }}>
-                                                        {s.difference != null ? `Rp ${Number(s.difference).toLocaleString('id-ID')}` : '-'}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell style={{ width: '10%', textAlign: 'center' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                                        <Badge variant={s.status === 'OPEN' ? 'success' : 'neutral'} label={s.status} />
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                        {sessions.map((s) => {
+                                            const diffInfo = getDifferenceBadge(s.difference);
+                                            return (
+                                                <TableRow key={s.id}>
+                                                    <TableCell style={{ width: '8%', textAlign: 'center' }}><Text size="sm" weight="medium">#{s.id}</Text></TableCell>
+                                                    <TableCell style={{ width: '18%' }}><Text size="sm">{s.user?.name || '-'}</Text></TableCell>
+                                                    <TableCell style={{ width: '18%' }}><Text size="xsm" color="secondary">{new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</Text></TableCell>
+                                                    <TableCell style={{ width: '16%', textAlign: 'right' }}><Text size="sm" hasTabularNumbers>Rp {Number(s.openingBalance || 0).toLocaleString('id-ID')}</Text></TableCell>
+                                                    <TableCell style={{ width: '16%', textAlign: 'right' }}><Text size="sm" hasTabularNumbers>{s.closingBalance != null ? `Rp ${Number(s.closingBalance).toLocaleString('id-ID')}` : '-'}</Text></TableCell>
+                                                    <TableCell style={{ width: '14%', textAlign: 'right' }}>
+                                                        <span style={{
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            padding: '2px 8px',
+                                                            borderRadius: 6,
+                                                            fontSize: 12,
+                                                            fontWeight: 700,
+                                                            fontFamily: 'Inter, sans-serif',
+                                                            fontVariantNumeric: 'tabular-nums',
+                                                            backgroundColor: diffInfo.bg,
+                                                            color: diffInfo.color,
+                                                            border: `1px solid ${diffInfo.border}`,
+                                                        }}>
+                                                            {diffInfo.label}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell style={{ width: '10%', textAlign: 'center' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                            <Badge variant={s.status === 'OPEN' ? 'success' : 'neutral'} label={s.status} />
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
                                     </TableBody>
                                 </Table>
                             </ScrollableArea>
