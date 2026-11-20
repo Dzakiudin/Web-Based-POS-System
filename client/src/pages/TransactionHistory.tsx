@@ -418,13 +418,13 @@ const TransactionHistory = () => {
                                 </div>
 
                                 <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-                                    <Table density="compact" dividers="rows">
+                                    <Table density="compact" dividers="rows" style={{ width: '100%', tableLayout: 'fixed' }}>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHeaderCell>Produk</TableHeaderCell>
-                                                <TableHeaderCell>Harga Satuan</TableHeaderCell>
-                                                <TableHeaderCell>Qty</TableHeaderCell>
-                                                <TableHeaderCell>Subtotal</TableHeaderCell>
+                                                <TableHeaderCell style={{ width: '44%' }}>Produk</TableHeaderCell>
+                                                <TableHeaderCell style={{ width: '24%', textAlign: 'right' }}>Harga Satuan</TableHeaderCell>
+                                                <TableHeaderCell style={{ width: '12%', textAlign: 'center' }}>Qty</TableHeaderCell>
+                                                <TableHeaderCell style={{ width: '20%', textAlign: 'right' }}>Subtotal</TableHeaderCell>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -436,7 +436,7 @@ const TransactionHistory = () => {
 
                                                 return (
                                                     <TableRow key={d.id}>
-                                                        <TableCell>
+                                                        <TableCell style={{ width: '44%', wordBreak: 'break-word' }}>
                                                             <div>
                                                                 <Text size="sm" weight="medium">{d.product?.name || `Produk #${d.productId}`}</Text>
                                                                 {d.variant?.name && (
@@ -444,12 +444,12 @@ const TransactionHistory = () => {
                                                                 )}
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell>
+                                                        <TableCell style={{ width: '24%', textAlign: 'right' }}>
                                                             <span style={{ fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', fontSize: 13, color: '#64748b' }}>
                                                                 Rp {unitPrice.toLocaleString('id-ID')}
                                                             </span>
                                                         </TableCell>
-                                                        <TableCell>
+                                                        <TableCell style={{ width: '12%', textAlign: 'center' }}>
                                                             <span style={{
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -464,7 +464,7 @@ const TransactionHistory = () => {
                                                                 {qty}
                                                             </span>
                                                         </TableCell>
-                                                        <TableCell>
+                                                        <TableCell style={{ width: '20%', textAlign: 'right' }}>
                                                             <div>
                                                                 <span style={{ fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
                                                                     Rp {itemSubtotal.toLocaleString('id-ID')}
@@ -576,7 +576,7 @@ const TransactionHistory = () => {
                             <Divider />
 
                             {/* Tombol Aksi */}
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingBottom: 6 }}>
                                 <button
                                     type="button"
                                     onClick={() => printThermalReceipt(selectedSale)}

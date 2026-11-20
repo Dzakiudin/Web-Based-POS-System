@@ -23,7 +23,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, subtitle, childre
             padding={4}
             purpose="form"
         >
-            <VStack gap={4}>
+            <VStack gap={3} style={{ maxHeight: 'calc(90dvh - 36px)', display: 'flex', flexDirection: 'column' }}>
                 <DialogHeader
                     title={title}
                     subtitle={subtitle}
@@ -32,9 +32,22 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, subtitle, childre
                     }}
                     hasDivider
                 />
-                <VStack gap={3}>
-                    {children}
-                </VStack>
+                <div
+                    className="pos-modal-scrollable-body"
+                    style={{
+                        maxHeight: 'calc(85dvh - 90px)',
+                        overflowY: 'auto',
+                        overflowX: 'hidden',
+                        paddingRight: 4,
+                        paddingBottom: 10,
+                        WebkitOverflowScrolling: 'touch',
+                        overscrollBehavior: 'contain',
+                    }}
+                >
+                    <VStack gap={3}>
+                        {children}
+                    </VStack>
+                </div>
             </VStack>
         </Dialog>
     );

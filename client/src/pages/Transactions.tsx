@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
     Search, ShoppingCart, Plus, Minus, Trash2, Tag, CheckCircle2,
     Printer, Package, Volume2, VolumeX, ArrowRight, Camera, Clock,
-    Copy, QrCode, Sparkles, Check, X, Delete
+    Copy, QrCode, Sparkles, Check, X, Delete, Banknote, CreditCard, ArrowRightLeft
 } from 'lucide-react';
 import { Layout, LayoutContent, LayoutPanel } from '@astryxdesign/core/Layout';
 import { VStack } from '@astryxdesign/core/VStack';
@@ -15,7 +15,6 @@ import { Button } from '@astryxdesign/core/Button';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { Selector } from '@astryxdesign/core/Selector';
-import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Divider } from '@astryxdesign/core/Divider';
 import { BottomSheet } from '@astryxdesign/core/BottomSheet';
@@ -1155,20 +1154,31 @@ export const Transactions = () => {
 
                     <VStack gap={1.5}>
                         <Text size="sm" weight="medium">Metode Pembayaran</Text>
-                        <SegmentedControl
-                            label="Metode Pembayaran"
-                            value={paymentMethod}
-                            onChange={(v) => {
-                                setPaymentMethod(v as any);
-                                setQrisSimulated(false);
-                            }}
-                            layout="fill"
-                        >
-                            <SegmentedControlItem value="CASH" label="Tunai" />
-                            <SegmentedControlItem value="QRIS" label="QRIS" />
-                            <SegmentedControlItem value="CARD" label="Kartu / EDC" />
-                            <SegmentedControlItem value="TRANSFER" label="Transfer" />
-                        </SegmentedControl>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                            {[
+                                { id: 'CASH', label: 'Tunai', icon: Banknote },
+                                { id: 'QRIS', label: 'QRIS', icon: QrCode },
+                                { id: 'CARD', label: 'Kartu', icon: CreditCard },
+                                { id: 'TRANSFER', label: 'Transfer', icon: ArrowRightLeft },
+                            ].map((m) => {
+                                const Icon = m.icon;
+                                const isSel = paymentMethod === m.id;
+                                return (
+                                    <button
+                                        key={m.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setPaymentMethod(m.id as any);
+                                            setQrisSimulated(false);
+                                        }}
+                                        className={`pos-pay-tab-btn ${isSel ? 'pos-pay-tab-btn-active' : ''}`}
+                                    >
+                                        <Icon size={14} />
+                                        <span>{m.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </VStack>
 
                     {/* 1. TUNAI / CASH */}
@@ -1604,7 +1614,7 @@ export const Transactions = () => {
                         </VStack>
                     )}
 
-                    <HStack justify="end" gap={2}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 10, paddingBottom: 4 }}>
                         <Button variant="secondary" label="Batal" onClick={() => setShowCheckout(false)} />
                         <Button
                             variant="primary"
@@ -1612,7 +1622,7 @@ export const Transactions = () => {
                             isLoading={isProcessing}
                             onClick={handleCompletePayment}
                         />
-                    </HStack>
+                    </div>
                 </VStack>
             </Modal>
 

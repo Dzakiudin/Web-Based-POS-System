@@ -768,4 +768,91 @@ tbody tr:hover [class*="TableCell"] {
   color: #92400e;
 }
 
+/* ==========================================================================
+   Payment Method Tab Selector (Clean, responsive & non-truncated)
+   ========================================================================== */
+.pos-pay-tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 4px;
+  border-radius: 9px;
+  border: 1px solid #e4e4e7;
+  background-color: #f4f4f5;
+  color: #52525b;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+  user-select: none;
+}
+.pos-pay-tab-btn:hover {
+  background-color: #e4e4e7;
+  color: #18181b;
+}
+.pos-pay-tab-btn:active {
+  transform: scale(0.97);
+}
+.pos-pay-tab-btn-active {
+  background-color: #18181b !important;
+  color: #ffffff !important;
+  border-color: #18181b !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ==========================================================================
+   Universal Modal & Dialog Viewport Protection & Clean Scrolling
+   ========================================================================== */
+dialog,
+.astryx-dialog,
+[class*="Dialog"] {
+  max-height: 90dvh !important;
+  max-width: 95vw !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.pos-modal-scrollable-body {
+  max-height: calc(85dvh - 80px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  padding-right: 4px;
+  padding-bottom: 12px;
+}
+
+.pos-modal-scrollable-body::-webkit-scrollbar {
+  width: 5px;
+}
+.pos-modal-scrollable-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.pos-modal-scrollable-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.16);
+  border-radius: 9999px;
+}
+
+@media (max-width: 768px) {
+  dialog,
+  .astryx-dialog,
+  [class*="Dialog"] {
+    max-height: 88dvh !important;
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    margin: auto !important;
+  }
+  .pos-modal-scrollable-body {
+    max-height: calc(85dvh - 70px) !important;
+    padding-bottom: 24px !important;
+  }
+  .pos-numpad-btn {
+    padding: 8px 0;
+    font-size: 15px;
+  }
+}
+
 
