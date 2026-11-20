@@ -308,21 +308,17 @@ const Layout = () => {
                     <button
                         type="button"
                         onClick={() => smoothNavigate('/cash-management')}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
-                            hasActiveShift
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
-                                : 'bg-amber-50 text-amber-700 border-amber-200/80 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
-                        }`}
+                        className={`pos-shift-badge ${hasActiveShift ? 'pos-shift-badge-active' : 'pos-shift-badge-inactive'}`}
                         title={hasActiveShift ? 'Shift Kasir Aktif - Klik untuk kelola kas' : 'Shift Kasir Tutup - Klik untuk buka shift'}
                     >
-                        <span className="relative flex h-2 w-2">
+                        <span className="pos-shift-dot-container">
                             {hasActiveShift ? (
                                 <>
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                                    <span className="pos-shift-dot-pulse" />
+                                    <span className="pos-shift-dot pos-shift-dot-green" />
                                 </>
                             ) : (
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                                <span className="pos-shift-dot pos-shift-dot-amber" />
                             )}
                         </span>
                         <span>{hasActiveShift ? 'Shift Aktif' : 'Shift Tutup'}</span>
@@ -550,14 +546,14 @@ const Layout = () => {
                         }}
                     >
                         <HStack gap={2} align="center">
-                            <span className="relative flex h-2.5 w-2.5">
+                            <span className="pos-shift-dot-container">
                                 {hasActiveShift ? (
                                     <>
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                                        <span className="pos-shift-dot-pulse" />
+                                        <span className="pos-shift-dot pos-shift-dot-green" />
                                     </>
                                 ) : (
-                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                                    <span className="pos-shift-dot pos-shift-dot-amber" />
                                 )}
                             </span>
                             <VStack gap={0}>

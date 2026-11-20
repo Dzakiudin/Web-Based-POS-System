@@ -1114,40 +1114,40 @@ export const Transactions = () => {
             <Modal isOpen={showCheckout} onClose={() => setShowCheckout(false)} title="Pembayaran" width={520}>
                 <VStack gap={4}>
                     {/* Rincian Tagihan & Potongan Harga / Diskon */}
-                    <div className="p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/80 dark:border-zinc-800 space-y-2">
-                        <div className="flex justify-between items-center text-xs text-zinc-500">
+                    <div className="pos-checkout-breakdown">
+                        <div className="pos-checkout-row">
                             <span>Subtotal Belanja ({totalItems} item)</span>
-                            <span className="font-mono tabular-nums font-medium text-zinc-700 dark:text-zinc-300">
+                            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: '#334155' }}>
                                 Rp {subtotal.toLocaleString('id-ID')}
                             </span>
                         </div>
 
                         {itemDiscountTotal > 0 && (
-                            <div className="flex justify-between items-center text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                            <div className="pos-checkout-row" style={{ color: '#059669', fontWeight: 600 }}>
                                 <span>Diskon Produk</span>
-                                <span className="font-mono tabular-nums">
+                                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums' }}>
                                     - Rp {itemDiscountTotal.toLocaleString('id-ID')}
                                 </span>
                             </div>
                         )}
 
                         {promoAmount > 0 && (
-                            <div className="flex justify-between items-center text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                                <span className="flex items-center gap-1">
+                            <div className="pos-checkout-row" style={{ color: '#059669', fontWeight: 600 }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                     <Tag size={12} />
                                     <span>Voucher Promo {promoDiscount?.code ? `(${promoDiscount.code})` : ''}</span>
                                 </span>
-                                <span className="font-mono tabular-nums">
+                                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums' }}>
                                     - Rp {promoAmount.toLocaleString('id-ID')}
                                 </span>
                             </div>
                         )}
 
-                        <div className="border-t border-dashed border-zinc-300 dark:border-zinc-700 my-1" />
+                        <div className="pos-checkout-divider" />
 
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Total Tagihan</span>
-                            <span className="text-xl font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Total Tagihan</span>
+                            <span style={{ fontSize: 18, fontWeight: 750, fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums', color: '#059669' }}>
                                 Rp {grandTotal.toLocaleString('id-ID')}
                             </span>
                         </div>
@@ -1175,30 +1175,30 @@ export const Transactions = () => {
                     {paymentMethod === 'CASH' && (
                         <VStack gap={3}>
                             {/* Display Input Uang Diterima berformat Currency */}
-                            <div className="space-y-1.5">
-                                <div className="flex justify-between items-center text-xs text-zinc-500">
-                                    <span className="font-medium text-zinc-700 dark:text-zinc-300">Uang Diterima</span>
-                                    <span className="text-[11px] text-zinc-400">Ketik nominal atau tekan tombol kalkulator</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: '#64748b' }}>
+                                    <span style={{ fontWeight: 600, color: '#334155' }}>Uang Diterima</span>
+                                    <span style={{ fontSize: 11, color: '#94a3b8' }}>Ketik nominal atau tekan tombol kalkulator</span>
                                 </div>
                                 
-                                <div className="relative flex items-center bg-white dark:bg-zinc-950 border-2 border-zinc-300 dark:border-zinc-700 focus-within:border-zinc-900 dark:focus-within:border-zinc-100 rounded-xl px-3.5 py-2.5 transition-all shadow-xs">
-                                    <span className="text-base font-bold text-zinc-400 select-none mr-2">Rp</span>
+                                <div className="pos-numpad-display-box">
+                                    <span style={{ fontSize: 16, fontWeight: 700, color: '#94a3b8', userSelect: 'none', marginRight: 8 }}>Rp</span>
                                     <input
                                         type="text"
                                         inputMode="numeric"
-                                        className="w-full text-xl font-bold font-mono tracking-tight text-zinc-900 dark:text-white bg-transparent outline-none tabular-nums"
+                                        className="pos-numpad-input"
                                         placeholder="0"
                                         value={cashPaid === 0 ? '' : cashPaid.toLocaleString('id-ID')}
                                         onChange={(e) => {
-                                            const raw = e.target.value.replace(/\D/g, '');
-                                            setCashPaid(raw ? Math.min(999999999999, Number(raw)) : 0);
+                                             const raw = e.target.value.replace(/\D/g, '');
+                                             setCashPaid(raw ? Math.min(999999999999, Number(raw)) : 0);
                                         }}
                                     />
                                     {cashPaid > 0 && (
                                         <button
                                             type="button"
                                             onClick={() => setCashPaid(0)}
-                                            className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 cursor-pointer"
+                                            style={{ color: '#94a3b8', background: 'none', border: 'none', padding: 4, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                                             title="Reset ke 0"
                                         >
                                             <X size={18} />
@@ -1208,15 +1208,11 @@ export const Transactions = () => {
                             </div>
 
                             {/* Tombol Pecahan Cepat (Quick Cash Chips) */}
-                            <div className="flex gap-1.5 flex-wrap">
+                            <div className="pos-cash-chips-row">
                                 <button
                                     type="button"
                                     onClick={() => setCashPaid(grandTotal)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
-                                        cashPaid === grandTotal
-                                            ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900'
-                                            : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
-                                    }`}
+                                    className={`pos-cash-chip ${cashPaid === grandTotal ? 'pos-cash-chip-active' : ''}`}
                                 >
                                     Uang Pas (Rp {grandTotal.toLocaleString('id-ID')})
                                 </button>
@@ -1228,11 +1224,7 @@ export const Transactions = () => {
                                             key={amt}
                                             type="button"
                                             onClick={() => setCashPaid(amt)}
-                                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border font-mono tabular-nums cursor-pointer transition-all ${
-                                                cashPaid === amt
-                                                    ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900'
-                                                    : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
-                                            }`}
+                                            className={`pos-cash-chip ${cashPaid === amt ? 'pos-cash-chip-active' : ''}`}
                                         >
                                             Rp {amt.toLocaleString('id-ID')}
                                         </button>
@@ -1240,33 +1232,33 @@ export const Transactions = () => {
                             </div>
 
                             {/* Kalkulator Numpad Virtual */}
-                            <div className="grid grid-cols-4 gap-1.5 pt-1">
+                            <div className="pos-numpad-grid">
                                 {/* Baris 1 */}
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('1')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     1
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('2')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     2
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('3')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     3
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('CLEAR')}
-                                    className="py-2.5 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 rounded-lg font-semibold text-xs cursor-pointer transition-colors"
+                                    className="pos-numpad-btn pos-numpad-btn-danger"
                                 >
                                     C (Reset)
                                 </button>
@@ -1275,28 +1267,28 @@ export const Transactions = () => {
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('4')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     4
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('5')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     5
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('6')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     6
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('BACKSPACE')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg flex items-center justify-center cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                     title="Hapus Digit Terakhir"
                                 >
                                     <Delete size={18} />
@@ -1306,28 +1298,28 @@ export const Transactions = () => {
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('7')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     7
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('8')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     8
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('9')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     9
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setCashPaid((prev) => prev + 50000)}
-                                    className="py-2.5 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 rounded-lg font-semibold text-xs font-mono cursor-pointer transition-colors"
+                                    className="pos-numpad-btn pos-numpad-btn-accent"
                                     title="Tambah 50.000"
                                 >
                                     +50rb
@@ -1337,28 +1329,28 @@ export const Transactions = () => {
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('0')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     0
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('00')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     00
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleNumpadInput('000')}
-                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                    className="pos-numpad-btn"
                                 >
                                     000
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setCashPaid((prev) => prev + 100000)}
-                                    className="py-2.5 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 rounded-lg font-semibold text-xs font-mono cursor-pointer transition-colors"
+                                    className="pos-numpad-btn pos-numpad-btn-accent"
                                     title="Tambah 100.000"
                                 >
                                     +100rb
@@ -1366,22 +1358,24 @@ export const Transactions = () => {
                             </div>
 
                             {/* Status Kembalian / Kekurangan Realtime */}
-                            <div className={`p-3 rounded-xl border flex items-center justify-between ${
-                                cashPaid >= grandTotal
-                                    ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60'
-                                    : 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60'
+                            <div className={`pos-change-banner ${
+                                cashPaid >= grandTotal ? 'pos-change-banner-success' : 'pos-change-banner-warning'
                             }`}>
                                 <div>
-                                    <div className={`text-xs font-semibold ${cashPaid >= grandTotal ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300'}`}>
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: cashPaid >= grandTotal ? '#065f46' : '#92400e' }}>
                                         {cashPaid >= grandTotal ? 'Kembalian Pelanggan' : 'Uang Masih Kurang'}
                                     </div>
-                                    <div className="text-[11px] text-zinc-500">
+                                    <div style={{ fontSize: 11, color: cashPaid >= grandTotal ? '#047857' : '#b45309' }}>
                                         {cashPaid >= grandTotal ? 'Uang kembalian yang harus diserahkan' : 'Nominal pembayaran belum mencukupi'}
                                     </div>
                                 </div>
-                                <div className={`text-lg font-bold font-mono tabular-nums ${
-                                    cashPaid >= grandTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                                }`}>
+                                <div style={{
+                                    fontSize: 18,
+                                    fontWeight: 750,
+                                    fontFamily: 'JetBrains Mono, monospace',
+                                    fontVariantNumeric: 'tabular-nums',
+                                    color: cashPaid >= grandTotal ? '#059669' : '#e11d48'
+                                }}>
                                     Rp {Math.abs(cashPaid - grandTotal).toLocaleString('id-ID')}
                                 </div>
                             </div>
