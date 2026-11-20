@@ -411,77 +411,146 @@ const TransactionHistory = () => {
 
                             {/* Daftar Barang Belanja */}
                             <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, marginTop: 4 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                         Daftar Barang Belanja ({selectedSale.details?.length || 0} item)
                                     </span>
                                 </div>
 
-                                <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-                                    <Table density="compact" dividers="rows" style={{ width: '100%', tableLayout: 'fixed' }}>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHeaderCell style={{ width: '44%' }}>Produk</TableHeaderCell>
-                                                <TableHeaderCell style={{ width: '24%', textAlign: 'right' }}>Harga Satuan</TableHeaderCell>
-                                                <TableHeaderCell style={{ width: '12%', textAlign: 'center' }}>Qty</TableHeaderCell>
-                                                <TableHeaderCell style={{ width: '20%', textAlign: 'right' }}>Subtotal</TableHeaderCell>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {(selectedSale.details || []).map((d: any) => {
-                                                const qty = Number(d.quantity || 1);
-                                                const unitPrice = Number(d.unitPrice || (d.subtotal ? Number(d.subtotal) / qty : 0));
-                                                const itemSubtotal = Number(d.subtotal || unitPrice * qty);
-                                                const itemDisc = Number(d.discountAmount || 0);
+                                {isMobile ? (
+                                    /* Mobile Receipt Items List (100% Responsive, Clean & Non-Truncated) */
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        {(selectedSale.details || []).map((d: any, idx: number) => {
+                                            const qty = Number(d.quantity || 1);
+                                            const unitPrice = Number(d.unitPrice || (d.subtotal ? Number(d.subtotal) / qty : 0));
+                                            const itemSubtotal = Number(d.subtotal || unitPrice * qty);
+                                            const itemDisc = Number(d.discountAmount || 0);
 
-                                                return (
-                                                    <TableRow key={d.id}>
-                                                        <TableCell style={{ width: '44%', wordBreak: 'break-word' }}>
-                                                            <div>
-                                                                <Text size="sm" weight="medium">{d.product?.name || `Produk #${d.productId}`}</Text>
-                                                                {d.variant?.name && (
-                                                                    <Text size="xsm" color="secondary">{d.variant.name}</Text>
-                                                                )}
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell style={{ width: '24%', textAlign: 'right' }}>
-                                                            <span style={{ fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', fontSize: 13, color: '#64748b' }}>
-                                                                Rp {unitPrice.toLocaleString('id-ID')}
-                                                            </span>
-                                                        </TableCell>
-                                                        <TableCell style={{ width: '12%', textAlign: 'center' }}>
+                                            return (
+                                                <div
+                                                    key={d.id || idx}
+                                                    style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'flex-start',
+                                                        padding: '10px 12px',
+                                                        backgroundColor: '#f8fafc',
+                                                        border: '1px solid #e2e8f0',
+                                                        borderRadius: 8,
+                                                        gap: 10,
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0 }}>
+                                                        <span style={{ fontSize: 13.5, fontWeight: 600, color: '#0f172a', wordBreak: 'break-word', lineHeight: 1.3 }}>
+                                                            {d.product?.name || `Produk #${d.productId}`}
+                                                        </span>
+                                                        {d.variant?.name && (
+                                                            <span style={{ fontSize: 11, color: '#64748b' }}>{d.variant.name}</span>
+                                                        )}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
                                                             <span style={{
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
                                                                 justifyContent: 'center',
-                                                                padding: '1px 8px',
-                                                                backgroundColor: '#f1f5f9',
-                                                                borderRadius: 6,
+                                                                padding: '1px 6px',
+                                                                backgroundColor: '#e2e8f0',
+                                                                borderRadius: 4,
+                                                                fontSize: 11,
                                                                 fontWeight: 700,
-                                                                fontSize: 12,
-                                                                color: '#334155'
+                                                                color: '#334155',
                                                             }}>
-                                                                {qty}
+                                                                {qty}x
                                                             </span>
-                                                        </TableCell>
-                                                        <TableCell style={{ width: '20%', textAlign: 'right' }}>
-                                                            <div>
-                                                                <span style={{ fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
-                                                                    Rp {itemSubtotal.toLocaleString('id-ID')}
+                                                            <span style={{ fontSize: 12, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                                                                @ Rp {unitPrice.toLocaleString('id-ID')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
+                                                        <span style={{ fontSize: 13.5, fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
+                                                            Rp {itemSubtotal.toLocaleString('id-ID')}
+                                                        </span>
+                                                        {itemDisc > 0 && (
+                                                            <span style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', marginTop: 2 }}>
+                                                                -Rp {itemDisc.toLocaleString('id-ID')}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    /* Desktop / Tablet Receipt Items Table (Pristine & Non-Clipped) */
+                                    <div style={{
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: 10,
+                                        overflow: 'hidden',
+                                        backgroundColor: '#ffffff',
+                                    }}>
+                                        <table className="pos-receipt-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                                            <thead>
+                                                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                                    <th style={{ width: '44%', padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 650, color: '#475569', letterSpacing: '0.02em' }}>Produk</th>
+                                                    <th style={{ width: '22%', padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 650, color: '#475569', letterSpacing: '0.02em' }}>Harga Satuan</th>
+                                                    <th style={{ width: '12%', padding: '10px 10px', textAlign: 'center', fontSize: 12, fontWeight: 650, color: '#475569', letterSpacing: '0.02em' }}>Qty</th>
+                                                    <th style={{ width: '22%', padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 650, color: '#475569', letterSpacing: '0.02em' }}>Subtotal</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {(selectedSale.details || []).map((d: any, idx: number) => {
+                                                    const qty = Number(d.quantity || 1);
+                                                    const unitPrice = Number(d.unitPrice || (d.subtotal ? Number(d.subtotal) / qty : 0));
+                                                    const itemSubtotal = Number(d.subtotal || unitPrice * qty);
+                                                    const itemDisc = Number(d.discountAmount || 0);
+                                                    const isLast = idx === (selectedSale.details || []).length - 1;
+
+                                                    return (
+                                                        <tr key={d.id || idx} style={{ borderBottom: isLast ? 'none' : '1px solid #f1f5f9' }}>
+                                                            <td style={{ padding: '10px 14px', verticalAlign: 'middle', wordBreak: 'break-word' }}>
+                                                                <div style={{ fontWeight: 600, fontSize: 13, color: '#0f172a' }}>
+                                                                    {d.product?.name || `Produk #${d.productId}`}
+                                                                </div>
+                                                                {d.variant?.name && (
+                                                                    <div style={{ fontSize: 11, color: '#64748b' }}>{d.variant.name}</div>
+                                                                )}
+                                                            </td>
+                                                            <td style={{ padding: '10px 14px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontSize: 13, color: '#64748b' }}>
+                                                                Rp {unitPrice.toLocaleString('id-ID')}
+                                                            </td>
+                                                            <td style={{ padding: '10px 10px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                                                <span style={{
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    padding: '2px 8px',
+                                                                    backgroundColor: '#f1f5f9',
+                                                                    borderRadius: 6,
+                                                                    fontWeight: 700,
+                                                                    fontSize: 12,
+                                                                    color: '#334155',
+                                                                }}>
+                                                                    {qty}
                                                                 </span>
+                                                            </td>
+                                                            <td style={{ padding: '10px 14px', textAlign: 'right', verticalAlign: 'middle' }}>
+                                                                <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
+                                                                    Rp {itemSubtotal.toLocaleString('id-ID')}
+                                                                </div>
                                                                 {itemDisc > 0 && (
                                                                     <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>
                                                                         -Rp {itemDisc.toLocaleString('id-ID')}
                                                                     </div>
                                                                 )}
-                                                            </div>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                );
-                                            })}
-                                        </TableBody>
-                                    </Table>
-                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Ringkasan Finansial Struk (Receipt Breakdown Box) */}

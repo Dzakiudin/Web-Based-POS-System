@@ -287,19 +287,19 @@ button:active:not(:disabled) {
   }
 
   /* Tables keep their readable width and scroll smoothly horizontally */
-  table,
-  .astryx-table,
-  [class*="Table"] table {
+  table:not(.pos-receipt-table):not(.pos-modal-table),
+  .astryx-table:not(.pos-receipt-table):not(.pos-modal-table),
+  [class*="Table"] table:not(.pos-receipt-table):not(.pos-modal-table) {
     min-width: 660px !important;
     table-layout: auto !important;
   }
 
-  th,
-  td,
-  .astryx-table-header-cell,
-  .astryx-table-cell,
-  [class*="TableHeaderCell"],
-  [class*="TableCell"] {
+  table:not(.pos-receipt-table):not(.pos-modal-table) th,
+  table:not(.pos-receipt-table):not(.pos-modal-table) td,
+  .astryx-table-header-cell:not(.pos-receipt-cell),
+  .astryx-table-cell:not(.pos-receipt-cell),
+  [class*="TableHeaderCell"]:not(.pos-receipt-cell),
+  [class*="TableCell"]:not(.pos-receipt-cell) {
     white-space: nowrap !important;
     word-break: normal !important;
     overflow: visible !important;
@@ -852,6 +852,49 @@ tbody tr:hover [class*="TableCell"] {
     font-size: 15px;
   }
 }
+
+/* ==========================================================================
+   Receipt Detail Table & Items List (Desktop & Mobile)
+   ========================================================================== */
+.pos-receipt-table {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  margin: 0 !important;
+}
+
+.pos-receipt-table th {
+  padding: 10px 14px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #475569 !important;
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  white-space: normal !important;
+  vertical-align: middle !important;
+  line-height: 1.25 !important;
+  box-sizing: border-box !important;
+}
+
+.pos-receipt-table td {
+  padding: 10px 14px !important;
+  font-size: 13px !important;
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  vertical-align: middle !important;
+  line-height: 1.35 !important;
+  box-sizing: border-box !important;
+}
+
+.pos-receipt-table tr:last-child td {
+  border-bottom: none !important;
+}
+
 
 
 
