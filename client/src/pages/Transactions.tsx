@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
     Search, ShoppingCart, Plus, Minus, Trash2, Tag, CheckCircle2,
     Printer, Package, Volume2, VolumeX, ArrowRight, Camera, Clock,
-    Copy, QrCode, Sparkles, Check
+    Copy, QrCode, Sparkles, Check, X
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -316,6 +316,14 @@ export const Transactions = () => {
         }
     };
 
+    const cancelPromo = () => {
+        sound.playWarning();
+        setPromoDiscount(null);
+        setPromoCode('');
+        setPromoError('');
+        toast.info('Penggunaan voucher/promo dibatalkan');
+    };
+
     const subtotal = cart.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
     const itemDiscountTotal = cart.reduce((sum, i) => sum + i.discount * i.quantity, 0);
     const promoAmount = promoDiscount
@@ -566,21 +574,100 @@ export const Transactions = () => {
 
             <Divider />
 
-            {/* Promo */}
-            <HStack gap={2} align="end">
-                <TextInput
-                    label="Kode promo"
-                    isLabelHidden
-                    placeholder="Kode promo..."
-                    value={promoCode}
-                    onChange={(v) => setPromoCode(v.toUpperCase())}
-                    size="sm"
-                    startIcon={<Tag size={14} />}
-                />
-                <Button variant="secondary" size="sm" label="Pakai" onClick={validatePromo} />
-            </HStack>
-            {promoError && <Text size="xsm" color="secondary">{promoError}</Text>}
-            {promoDiscount && <Badge variant="success" label={`Promo: ${promoDiscount.name}`} />}
+            {/* Promo / Voucher */}
+            {promoDiscount ? (
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        backgroundColor: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                        <div
+                            style={{
+                                width: 26,
+                                height: 26,
+                                borderRadius: '50%',
+                                backgroundColor: '#dcfce7',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                            }}
+                        >
+                            <Tag size={14} color="#16a34a" />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#166534', lineHeight: 1.2 }}>
+                                {promoDiscount.code}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#15803d', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {promoDiscount.name} ({promoDiscount.type === 'PERCENTAGE' ? `${promoDiscount.value}%` : `Rp ${Number(promoDiscount.value).toLocaleString('id-ID')}`})
+                            </div>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={cancelPromo}
+                        title="Batalkan penggunaan voucher/promo"
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: '#fee2e2',
+                            color: '#b91c1c',
+                            border: '1px solid #fecaca',
+                            borderRadius: '6px',
+                            padding: '4px 8px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            marginLeft: '8px',
+                            flexShrink: 0,
+                            transition: 'all 0.15s ease',
+                        }}
+                    >
+                        <X size={13} />
+                        <span>Batalkan</span>
+                    </button>
+                </div>
+            ) : (
+                <>
+                    <HStack gap={2} align="end">
+                        <TextInput
+                            label="Kode promo"
+                            isLabelHidden
+                            placeholder="Kode promo / voucher..."
+                            value={promoCode}
+                            onChange={(v) => {
+                                setPromoCode(v.toUpperCase());
+                                if (promoError) setPromoError('');
+                            }}
+                            size="sm"
+                            startIcon={<Tag size={14} />}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    validatePromo();
+                                }
+                            }}
+                        />
+                        <Button variant="secondary" size="sm" label="Pakai" onClick={validatePromo} />
+                    </HStack>
+                    {promoError && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#dc2626', fontSize: '11px', marginTop: '2px' }}>
+                            <X size={12} />
+                            <span>{promoError}</span>
+                        </div>
+                    )}
+                </>
+            )}
 
             {/* Totals */}
             <VStack gap={1}>
