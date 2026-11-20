@@ -102,7 +102,13 @@ export const Transactions = () => {
     const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
 
     const [promoCode, setPromoCode] = useState('');
-    const [promoDiscount, setPromoDiscount] = useState<{ type: string; value: number; name: string } | null>(null);
+    const [promoDiscount, setPromoDiscount] = useState<{
+        type: string;
+        value: number;
+        name: string;
+        code?: string;
+        voucherId?: number;
+    } | null>(null);
     const [promoError, setPromoError] = useState('');
     const [successSale, setSuccessSale] = useState<any>(null);
     const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
@@ -294,10 +300,16 @@ export const Transactions = () => {
         setPromoError('');
         try {
             const currentSubtotal = cart.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
-            const r = await api.post('/discounts/validate', { code: promoCode, subtotal: currentSubtotal });
+            const r = await api.post('/discounts/validate', { code: promoCode.trim(), subtotal: currentSubtotal });
             const discountData = r.data.discount || r.data;
-            setPromoDiscount({ type: discountData.type, value: Number(discountData.value), name: discountData.name });
-            toast.success(`Promo "${discountData.name}" diterapkan`);
+            setPromoDiscount({
+                type: discountData.type,
+                value: Number(discountData.value),
+                name: discountData.name,
+                code: discountData.code || promoCode.trim(),
+                voucherId: discountData.voucherId,
+            });
+            toast.success(`Promo "${discountData.name}" berhasil diterapkan!`);
         } catch (e: any) {
             setPromoError(e.response?.data?.message || 'Kode promo tidak valid');
             setPromoDiscount(null);
@@ -349,6 +361,8 @@ export const Transactions = () => {
                 discountAmount: totalDiscount,
                 finalPrice: grandTotal,
                 customerId: selectedCustomerId ? Number(selectedCustomerId) : null,
+                voucherCode: promoDiscount?.code || null,
+                voucherId: promoDiscount?.voucherId || null,
                 items: cart.map((i) => {
                     const unitPrice = Number(i.price);
                     const itemDiscount = Number(i.discount || 0);

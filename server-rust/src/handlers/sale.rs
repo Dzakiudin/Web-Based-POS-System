@@ -308,7 +308,35 @@ pub async fn create_sale(
         .await?;
     }
 
-    // 5. Audit Log
+    // 5. Update Voucher & Discount if used
+    let voucher_id = raw_val.get("voucherId").and_then(|v| v.as_i64()).map(|x| x as i32);
+    let voucher_code = raw_val.get("voucherCode").and_then(|v| v.as_str());
+
+    if let Some(vid) = voucher_id {
+        let _ = sqlx::query(
+            r#"
+            UPDATE vouchers
+            SET "isUsed" = true, "usedAt" = NOW()
+            WHERE id = $1
+            "#
+        )
+        .bind(vid)
+        .execute(&mut *tx)
+        .await;
+    } else if let Some(vcode) = voucher_code {
+        let _ = sqlx::query(
+            r#"
+            UPDATE vouchers
+            SET "isUsed" = true, "usedAt" = NOW()
+            WHERE UPPER(code) = UPPER($1)
+            "#
+        )
+        .bind(vcode)
+        .execute(&mut *tx)
+        .await;
+    }
+
+    // 6. Audit Log
     sqlx::query(
         r#"
         INSERT INTO audit_logs ("userId", action, entity, "entityId", details)
