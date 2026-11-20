@@ -204,10 +204,10 @@ pub async fn create_sale(
     let sale_row = sqlx::query(
         r#"
         INSERT INTO sales (
-            "receiptNumber", "totalPrice", "discountAmount", "finalPrice",
-            status, notes, "customerId", "userId", "cashSessionId", "updatedAt"
+            "receiptNumber", date, "totalPrice", "discountAmount", "finalPrice",
+            status, notes, "customerId", "userId", "cashSessionId", "createdAt", "updatedAt"
         )
-        VALUES ($1, $2, $3, $4, 'COMPLETED', $5, $6, $7, $8, NOW())
+        VALUES ($1, NOW(), $2, $3, $4, 'COMPLETED', $5, $6, $7, $8, NOW(), NOW())
         RETURNING id, "receiptNumber", "totalPrice", "discountAmount", "finalPrice", status, "createdAt"
         "#
     )
@@ -389,7 +389,7 @@ pub async fn get_sales(
         LEFT JOIN payments p ON s.id = p."saleId"
         WHERE ($1::text IS NULL OR s.status = $1::"SaleStatus")
         GROUP BY s.id, c.id, u.id
-        ORDER BY s.date DESC
+        ORDER BY s.id DESC
         LIMIT $2 OFFSET $3
         "#,
     )

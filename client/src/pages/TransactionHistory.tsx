@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Eye, Ban, RotateCcw, ReceiptText } from 'lucide-react';
+import { Eye, Ban, RotateCcw, ReceiptText, Search, RefreshCw, Printer } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { printThermalReceipt } from '../lib/thermalPrinter';
+import { downloadOrShareFile } from '../lib/fileHelper';
 import { VStack } from '@astryxdesign/core/VStack';
 import { HStack } from '@astryxdesign/core/HStack';
 import { Card } from '@astryxdesign/core/Card';
@@ -46,6 +50,8 @@ const TransactionHistory = () => {
     const isMobile = useMediaQuery('(max-width: 768px)');
     const [sales, setSales] = useState<Sale[]>([]);
     const [statusFilter, setStatusFilter] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const [selectedSale, setSelectedSale] = useState<any>(null);
     const [actionModal, setActionModal] = useState<{ id: number; type: 'void' | 'refund' } | null>(null);
     const [reason, setReason] = useState('');
@@ -53,16 +59,29 @@ const TransactionHistory = () => {
     useEffect(() => { fetchSales(); }, [statusFilter]);
 
     const fetchSales = async () => {
+        setIsLoading(true);
         try {
-            const params: any = {};
+            const params: any = { limit: 100 };
             if (statusFilter) params.status = statusFilter;
             const r = await api.get('/sales', { params });
             const raw = r.data;
             setSales(Array.isArray(raw) ? raw : (raw.sales || []));
         } catch (e) {
             console.error(e);
+        } finally {
+            setIsLoading(false);
         }
     };
+
+    const filteredSales = sales.filter((s) => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+            (s.receiptNumber && s.receiptNumber.toLowerCase().includes(q)) ||
+            (s.customer?.name && s.customer.name.toLowerCase().includes(q)) ||
+            (s.user?.name && s.user.name.toLowerCase().includes(q))
+        );
+    });
 
     const viewDetail = async (id: number) => {
         try {
@@ -71,6 +90,41 @@ const TransactionHistory = () => {
         } catch (e) {
             console.error(e);
         }
+    };
+
+    const downloadReceiptPDF = async (sale: any) => {
+        if (!sale) return;
+        const doc = new jsPDF({ unit: 'mm', format: [80, 150] });
+        doc.setFontSize(12);
+        doc.text('POS SYSTEM STORE', 40, 10, { align: 'center' });
+        doc.setFontSize(8);
+        doc.text(`Struk: ${sale.receiptNumber || '-'}`, 5, 18);
+        doc.text(`Tanggal: ${new Date(sale.date).toLocaleString('id-ID')}`, 5, 23);
+        doc.text(`Kasir: ${sale.user?.name || 'Kasir'}`, 5, 28);
+
+        autoTable(doc, {
+            startY: 33,
+            margin: { left: 5, right: 5 },
+            head: [['Item', 'Qty', 'Total']],
+            body: (sale.details || []).map((d: any) => [
+                d.product?.name || `Produk #${d.productId}`,
+                String(d.quantity),
+                `Rp ${Number(d.subtotal || 0).toLocaleString('id-ID')}`,
+            ]),
+            styles: { fontSize: 7, cellPadding: 1.5 },
+        });
+
+        const finalY = (doc as any).lastAutoTable?.finalY || 65;
+        doc.setFontSize(9);
+        doc.text(`Total: Rp ${Number(sale.finalPrice || 0).toLocaleString('id-ID')}`, 5, finalY + 8);
+        const method = sale.payments?.[0]?.method || 'TUNAI';
+        const paid = sale.payments?.[0]?.amount || sale.finalPrice;
+        const change = sale.payments?.[0]?.change || 0;
+        doc.text(`Bayar (${method}): Rp ${Number(paid).toLocaleString('id-ID')}`, 5, finalY + 13);
+        doc.text(`Kembali: Rp ${Number(change).toLocaleString('id-ID')}`, 5, finalY + 18);
+
+        const blob = doc.output('blob');
+        await downloadOrShareFile(blob, `struk-${sale.receiptNumber || 'pos'}.pdf`, 'application/pdf');
     };
 
     const handleVoidOrRefund = async () => {
@@ -89,13 +143,30 @@ const TransactionHistory = () => {
     return (
         <VStack gap={4} width="100%">
             {isMobile ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', paddingTop: 6, paddingBottom: 2 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', paddingTop: 6, paddingBottom: 2 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Text size="sm" color="secondary" weight="medium">Total riwayat</Text>
-                            <Badge variant="neutral" label={`${sales.length} transaksi`} />
+                            <Badge variant="neutral" label={`${filteredSales.length} transaksi`} />
                         </div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={<RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />}
+                            label="Segarkan"
+                            onClick={fetchSales}
+                            isDisabled={isLoading}
+                        />
                     </div>
+                    <TextInput
+                        label="Cari transaksi"
+                        isLabelHidden
+                        placeholder="Cari No. Struk atau Pelanggan..."
+                        value={searchQuery}
+                        onChange={(v) => setSearchQuery(v)}
+                        startIcon={<Search size={14} />}
+                        size="sm"
+                    />
                     <div style={{ width: '100%', minWidth: 0 }}>
                         <SegmentedControl
                             label="Filter status transaksi"
@@ -113,31 +184,52 @@ const TransactionHistory = () => {
                     </div>
                 </div>
             ) : (
-                <HStack justify="between" align="center" width="100%">
-                    <HStack gap={2} align="center">
-                        <Text size="sm" color="secondary">Total riwayat</Text>
-                        <Badge variant="neutral" label={`${sales.length} transaksi`} />
+                <VStack gap={3} width="100%">
+                    <HStack justify="between" align="center" width="100%">
+                        <HStack gap={2} align="center">
+                            <Text size="sm" color="secondary">Total riwayat</Text>
+                            <Badge variant="neutral" label={`${filteredSales.length} transaksi`} />
+                        </HStack>
+                        <HStack gap={2} align="center">
+                            <div style={{ width: 260 }}>
+                                <TextInput
+                                    label="Cari transaksi"
+                                    isLabelHidden
+                                    placeholder="Cari No. Struk / Pelanggan..."
+                                    value={searchQuery}
+                                    onChange={(v) => setSearchQuery(v)}
+                                    startIcon={<Search size={14} />}
+                                    size="sm"
+                                />
+                            </div>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                icon={<RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />}
+                                label="Segarkan"
+                                onClick={fetchSales}
+                                isDisabled={isLoading}
+                            />
+                            <SegmentedControl
+                                label="Filter status transaksi"
+                                value={statusFilter}
+                                onChange={setStatusFilter}
+                                size="sm"
+                            >
+                                <SegmentedControlItem value="" label="Semua" />
+                                <SegmentedControlItem value="COMPLETED" label="Selesai" />
+                                <SegmentedControlItem value="VOIDED" label="Void" />
+                                <SegmentedControlItem value="REFUNDED" label="Refund" />
+                            </SegmentedControl>
+                        </HStack>
                     </HStack>
-                    <div>
-                        <SegmentedControl
-                            label="Filter status transaksi"
-                            value={statusFilter}
-                            onChange={setStatusFilter}
-                            size="sm"
-                        >
-                            <SegmentedControlItem value="" label="Semua" />
-                            <SegmentedControlItem value="COMPLETED" label="Selesai" />
-                            <SegmentedControlItem value="VOIDED" label="Void" />
-                            <SegmentedControlItem value="REFUNDED" label="Refund" />
-                        </SegmentedControl>
-                    </div>
-                </HStack>
+                </VStack>
             )}
 
-            {sales.length > 0 ? (
+            {filteredSales.length > 0 ? (
                 isMobile ? (
                     <VStack gap={3}>
-                        {sales.map((s) => (
+                        {filteredSales.map((s) => (
                             <Card key={s.id} padding={3} elevation="none">
                                 <VStack gap={2}>
                                     <HStack justify="between" align="center">
@@ -210,7 +302,7 @@ const TransactionHistory = () => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {sales.map((s) => (
+                                    {filteredSales.map((s) => (
                                         <TableRow key={s.id}>
                                             <TableCell><Text size="sm" weight="semibold">{s.receiptNumber}</Text></TableCell>
                                             <TableCell>
@@ -292,6 +384,23 @@ const TransactionHistory = () => {
                         <HStack justify="between">
                             <Text size="base" weight="bold">Total Bayar</Text>
                             <Text size="base" weight="bold" hasTabularNumbers>Rp {Number(selectedSale.finalPrice || 0).toLocaleString('id-ID')}</Text>
+                        </HStack>
+                        <Divider />
+                        <HStack justify="end" gap={2} wrap="wrap">
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                icon={<Printer size={14} />}
+                                label="Cetak Struk"
+                                onClick={() => printThermalReceipt(selectedSale)}
+                            />
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                icon={<Printer size={14} />}
+                                label="Download PDF"
+                                onClick={() => downloadReceiptPDF(selectedSale)}
+                            />
                         </HStack>
                     </VStack>
                 )}

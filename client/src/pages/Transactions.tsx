@@ -32,6 +32,7 @@ import { useToast } from '../components/Toast';
 import useHardwareScanner from '../hooks/useHardwareScanner';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { downloadOrShareFile } from '../lib/fileHelper';
+import { printThermalReceipt } from '../lib/thermalPrinter';
 
 interface Category { id: number; name: string; color: string; }
 interface Product {
@@ -311,7 +312,9 @@ export const Transactions = () => {
             });
             toast.success(`Promo "${discountData.name}" berhasil diterapkan!`);
         } catch (e: any) {
-            setPromoError(e.response?.data?.message || 'Kode promo tidak valid');
+            const msg = e.response?.data?.message || 'Kode promo tidak valid';
+            setPromoError(msg);
+            toast.error(msg);
             setPromoDiscount(null);
         }
     };
@@ -1492,7 +1495,7 @@ export const Transactions = () => {
                                 variant="secondary"
                                 label="Cetak Struk Thermal"
                                 icon={<Printer size={16} />}
-                                onClick={() => window.print()}
+                                onClick={() => printThermalReceipt(successSale)}
                             />
                             <Button
                                 variant="secondary"

@@ -86,7 +86,7 @@ pub async fn get_dashboard_stats(
         LEFT JOIN customers c ON s."customerId" = c.id
         LEFT JOIN users u ON s."userId" = u.id
         WHERE s.status = 'COMPLETED'
-        ORDER BY s.date DESC
+        ORDER BY s.id DESC
         LIMIT 5
         "#
     )
