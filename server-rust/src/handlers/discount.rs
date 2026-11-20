@@ -44,7 +44,15 @@ pub async fn create_discount(
     auth.require_permission(&["discount.manage"])?;
 
     let min_purchase = payload.min_purchase.unwrap_or(Decimal::ZERO);
-    let start_date = payload.start_date.unwrap_or_else(|| chrono::Local::now().naive_local());
+    let start_date = payload
+        .start_date
+        .as_deref()
+        .and_then(crate::models::parse_flexible_datetime)
+        .unwrap_or_else(|| chrono::Local::now().naive_local());
+    let end_date = payload
+        .end_date
+        .as_deref()
+        .and_then(crate::models::parse_flexible_datetime);
 
     let discount = sqlx::query_as::<_, Discount>(
         r#"
@@ -59,7 +67,7 @@ pub async fn create_discount(
     .bind(min_purchase)
     .bind(payload.code)
     .bind(start_date)
-    .bind(payload.end_date)
+    .bind(end_date)
     .bind(payload.max_uses)
     .fetch_one(&state.db)
     .await?;
@@ -76,6 +84,10 @@ pub async fn update_discount(
     auth.require_permission(&["discount.manage"])?;
 
     let min_purchase = payload.min_purchase.unwrap_or(Decimal::ZERO);
+    let end_date = payload
+        .end_date
+        .as_deref()
+        .and_then(crate::models::parse_flexible_datetime);
 
     let discount = sqlx::query_as::<_, Discount>(
         r#"
@@ -91,7 +103,7 @@ pub async fn update_discount(
     .bind(payload.value)
     .bind(min_purchase)
     .bind(payload.code)
-    .bind(payload.end_date)
+    .bind(end_date)
     .bind(payload.max_uses)
     .bind(id)
     .fetch_optional(&state.db)

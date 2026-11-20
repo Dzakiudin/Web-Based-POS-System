@@ -41,7 +41,16 @@ pub async fn create_voucher(
 ) -> Result<Json<Voucher>, AppError> {
     auth.require_permission(&["discount.manage"])?;
 
-    let code = payload.code.unwrap_or_else(generate_voucher_code);
+    let code = match payload.code {
+        Some(ref c) if !c.trim().is_empty() => c.trim().to_uppercase(),
+        _ => generate_voucher_code(),
+    };
+
+    let expires_at = payload
+        .expires_at
+        .as_deref()
+        .and_then(crate::models::parse_flexible_datetime)
+        .unwrap_or_else(|| chrono::Local::now().naive_local() + chrono::Duration::days(30));
 
     let voucher = sqlx::query_as::<_, Voucher>(
         r#"
@@ -53,7 +62,7 @@ pub async fn create_voucher(
     .bind(code)
     .bind(payload.customer_id)
     .bind(payload.discount_id)
-    .bind(payload.expires_at)
+    .bind(expires_at)
     .fetch_one(&state.db)
     .await?;
 

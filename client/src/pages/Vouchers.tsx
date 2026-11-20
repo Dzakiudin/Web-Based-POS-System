@@ -71,7 +71,7 @@ const Vouchers = () => {
         e.preventDefault();
         try {
             await api.post('/vouchers', {
-                code: form.code,
+                code: form.code ? form.code.trim() : null,
                 customerId: form.customerId ? Number(form.customerId) : null,
                 discountId: form.discountId ? Number(form.discountId) : null,
                 expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : new Date(Date.now() + 30 * 86400000).toISOString(),
@@ -190,7 +190,7 @@ const Vouchers = () => {
             <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Buat Voucher Baru">
                 <form onSubmit={handleCreate}>
                     <VStack gap={4}>
-                        <TextInput label="Kode Voucher" placeholder="Contoh: PROMO2026" value={form.code} onChange={(v) => setForm({ ...form, code: v.toUpperCase() })} isRequired />
+                        <TextInput label="Kode Voucher" placeholder="Contoh: PROMO2026 (kosongkan untuk auto-generate)" value={form.code} onChange={(v) => setForm({ ...form, code: v.toUpperCase() })} />
                         <Selector
                             label="Aturan Diskon"
                             options={[{ value: '', label: 'Pilih Diskon' }, ...discounts.map((d) => ({ value: String(d.id), label: d.name }))]}

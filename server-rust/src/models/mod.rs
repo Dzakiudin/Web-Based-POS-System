@@ -403,6 +403,32 @@ pub struct Discount {
     pub updated_at: NaiveDateTime,
 }
 
+pub fn parse_flexible_datetime(s: &str) -> Option<NaiveDateTime> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    // 1. Try RFC3339 / ISO8601 with timezone (e.g. 2026-11-20T06:39:01.000Z or +07:00)
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+        return Some(dt.naive_local());
+    }
+    // 2. Try standard ISO without timezone (e.g. 2026-11-20T06:39:01.000 or 2026-11-20T06:39:01)
+    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f") {
+        return Some(ndt);
+    }
+    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
+        return Some(ndt);
+    }
+    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
+        return Some(ndt);
+    }
+    // 3. Try date only (e.g. 2026-11-20) -> 23:59:59
+    if let Ok(nd) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        return nd.and_hms_opt(23, 59, 59);
+    }
+    None
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateDiscountRequest {
     pub name: String,
@@ -413,9 +439,9 @@ pub struct CreateDiscountRequest {
     pub min_purchase: Option<Decimal>,
     pub code: Option<String>,
     #[serde(rename = "startDate")]
-    pub start_date: Option<NaiveDateTime>,
+    pub start_date: Option<String>,
     #[serde(rename = "endDate")]
-    pub end_date: Option<NaiveDateTime>,
+    pub end_date: Option<String>,
     #[serde(rename = "maxUses")]
     pub max_uses: Option<i32>,
 }
@@ -452,7 +478,7 @@ pub struct CreateVoucherRequest {
     #[serde(rename = "discountId")]
     pub discount_id: Option<i32>,
     #[serde(rename = "expiresAt")]
-    pub expires_at: NaiveDateTime,
+    pub expires_at: Option<String>,
 }
 
 // --- Cash Sessions ---
