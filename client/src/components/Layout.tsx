@@ -22,6 +22,8 @@ import {
     BarChart3,
     ShieldCheck,
     Sparkles,
+    Grid2X2,
+    X,
 } from 'lucide-react';
 import { AppShell } from '@astryxdesign/core/AppShell';
 import { SideNav } from '@astryxdesign/core/SideNav';
@@ -105,6 +107,18 @@ const Layout = () => {
     const [hasActiveShift, setHasActiveShift] = useState<boolean>(false);
     const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
     const [showMobileMenu, setShowMobileMenu] = useState<boolean>(false);
+
+    // Auto-close mobile bottom sheet menu on route change
+    useEffect(() => {
+        setShowMobileMenu(false);
+    }, [location.pathname]);
+
+    // Ensure mobile menu is strictly closed when screen is resized to desktop
+    useEffect(() => {
+        if (!isMobile) {
+            setShowMobileMenu(false);
+        }
+    }, [isMobile]);
 
     const smoothNavigate = (to: string) => {
         if (location.pathname === to) return;
@@ -499,20 +513,72 @@ const Layout = () => {
             {/* Mobile Bottom Navigation Bar */}
             {isMobile && (
                 <BottomNavBar
-                    onOpenMenu={() => setShowMobileMenu(true)}
+                    isMenuOpen={showMobileMenu}
+                    onToggleMenu={() => setShowMobileMenu((prev) => !prev)}
                 />
             )}
 
-            {/* Native Mobile Menu & Operations BottomSheet */}
-            <BottomSheet
-                isOpen={showMobileMenu}
-                onOpenChange={setShowMobileMenu}
-                label="Menu & Fitur Lengkap"
-                height="tall"
-                padding={4}
-            >
-                <VStack gap={4} paddingBlockEnd={6}>
-                    {/* User Profile Card */}
+            {/* Native Mobile Menu & Operations BottomSheet - Mobile Only */}
+            {isMobile && (
+                <BottomSheet
+                    isOpen={showMobileMenu}
+                    onOpenChange={setShowMobileMenu}
+                    label="Menu & Fitur Lengkap"
+                    height="tall"
+                    padding={4}
+                >
+                    <VStack gap={4} paddingBlockEnd={6}>
+                        {/* Mobile Sheet Header with Close Button */}
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                paddingBottom: 8,
+                                borderBottom: '1px solid #f4f4f5',
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div
+                                    style={{
+                                        width: 28,
+                                        height: 28,
+                                        borderRadius: 8,
+                                        backgroundColor: '#f4f4f5',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: '#18181b',
+                                    }}
+                                >
+                                    <Grid2X2 size={16} />
+                                </div>
+                                <span style={{ fontSize: 15, fontWeight: 700, color: '#18181b' }}>
+                                    Menu & Navigasi
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowMobileMenu(false)}
+                                aria-label="Tutup menu"
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '50%',
+                                    border: '1px solid #e4e4e7',
+                                    backgroundColor: '#ffffff',
+                                    color: '#71717a',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* User Profile Card */}
                     <Card padding={3} variant="muted" elevation="none">
                         <HStack justify="between" align="center">
                             <HStack gap={3} align="center">
@@ -719,6 +785,7 @@ const Layout = () => {
                     </VStack>
                 </VStack>
             </BottomSheet>
+            )}
 
             {/* Change Password Modal */}
             <Modal

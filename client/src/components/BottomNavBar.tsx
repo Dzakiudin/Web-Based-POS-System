@@ -9,11 +9,12 @@ import {
 } from 'lucide-react';
 
 interface BottomNavBarProps {
-    onOpenMenu: () => void;
+    isMenuOpen?: boolean;
+    onToggleMenu: () => void;
     cartCount?: number;
 }
 
-export const BottomNavBar: React.FC<BottomNavBarProps> = ({ onOpenMenu, cartCount = 0 }) => {
+export const BottomNavBar: React.FC<BottomNavBarProps> = ({ isMenuOpen = false, onToggleMenu, cartCount = 0 }) => {
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -54,15 +55,14 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ onOpenMenu, cartCoun
 
     const isCurrentActive = (tab: typeof tabs[0]) => {
         if (tab.action === 'menu') {
-            const primaryPaths = ['/transactions', '/dashboard', '/transaction-history', '/inventory'];
-            return !primaryPaths.includes(location.pathname);
+            return isMenuOpen;
         }
         return location.pathname === tab.path;
     };
 
     const handleTabClick = (tab: typeof tabs[0]) => {
         if (tab.action === 'menu') {
-            onOpenMenu();
+            onToggleMenu();
         } else if (tab.path) {
             if (location.pathname === tab.path) return;
             navigate(tab.path);
