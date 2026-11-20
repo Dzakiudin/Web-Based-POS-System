@@ -4,8 +4,6 @@ import {
     Printer, Package, Volume2, VolumeX, ArrowRight, Camera, Clock,
     Copy, QrCode, Sparkles, Check, X
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { Layout, LayoutContent, LayoutPanel } from '@astryxdesign/core/Layout';
 import { VStack } from '@astryxdesign/core/VStack';
 import { HStack } from '@astryxdesign/core/HStack';
@@ -31,7 +29,6 @@ import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
 import useHardwareScanner from '../hooks/useHardwareScanner';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
-import { downloadOrShareFile } from '../lib/fileHelper';
 import { printThermalReceipt } from '../lib/thermalPrinter';
 
 interface Category { id: number; name: string; color: string; }
@@ -416,37 +413,6 @@ export const Transactions = () => {
         } finally {
             setIsProcessing(false);
         }
-    };
-
-    const printReceiptPDF = async () => {
-        if (!successSale) return;
-        const doc = new jsPDF({ unit: 'mm', format: [80, 150] });
-        doc.setFontSize(12);
-        doc.text('POS SYSTEM', 40, 10, { align: 'center' });
-        doc.setFontSize(8);
-        doc.text(`Struk: ${successSale.receiptNumber || '-'}`, 5, 18);
-        doc.text(`Tanggal: ${new Date().toLocaleString('id-ID')}`, 5, 23);
-
-        autoTable(doc, {
-            startY: 28,
-            margin: { left: 5, right: 5 },
-            head: [['Item', 'Qty', 'Total']],
-            body: (successSale.items || []).map((i: CartItem) => [
-                i.name,
-                String(i.quantity),
-                `Rp ${(Number(i.price) * i.quantity).toLocaleString('id-ID')}`,
-            ]),
-            styles: { fontSize: 7, cellPadding: 1.5 },
-        });
-
-        const finalY = (doc as any).lastAutoTable?.finalY || 60;
-        doc.setFontSize(9);
-        doc.text(`Total: Rp ${Number(successSale.finalPrice || 0).toLocaleString('id-ID')}`, 5, finalY + 8);
-        doc.text(`Bayar (${successSale.method}): Rp ${Number(successSale.paid || 0).toLocaleString('id-ID')}`, 5, finalY + 13);
-        doc.text(`Kembali: Rp ${Number(successSale.change || 0).toLocaleString('id-ID')}`, 5, finalY + 18);
-        
-        const blob = doc.output('blob');
-        await downloadOrShareFile(blob, `struk-${successSale.receiptNumber || 'pos'}.pdf`, 'application/pdf');
     };
 
     const filteredProducts = products.filter((p) => {
@@ -1496,12 +1462,6 @@ export const Transactions = () => {
                                 label="Cetak Struk Thermal"
                                 icon={<Printer size={16} />}
                                 onClick={() => printThermalReceipt(successSale)}
-                            />
-                            <Button
-                                variant="secondary"
-                                label="Download PDF"
-                                icon={<Printer size={16} />}
-                                onClick={printReceiptPDF}
                             />
                             <Button
                                 variant="primary"
