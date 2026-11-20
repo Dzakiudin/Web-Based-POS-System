@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
     Search, ShoppingCart, Plus, Minus, Trash2, Tag, CheckCircle2,
-    Printer, Package, Volume2, VolumeX, ArrowRight, Camera, Clock,
+    Printer, Package, ArrowRight, Camera, Clock,
     Copy, QrCode, Sparkles, Check, X, Delete, Banknote, CreditCard, ArrowRightLeft
 } from 'lucide-react';
 import { Layout, LayoutContent, LayoutPanel } from '@astryxdesign/core/Layout';
@@ -107,7 +107,6 @@ export const Transactions = () => {
     } | null>(null);
     const [promoError, setPromoError] = useState('');
     const [successSale, setSuccessSale] = useState<any>(null);
-    const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
     useEffect(() => {
         fetchProducts();
@@ -285,12 +284,6 @@ export const Transactions = () => {
         setTimeout(() => setCopiedAccount(null), 2000);
     };
 
-    const toggleSound = () => {
-        const next = sound.toggle();
-        setSoundEnabled(next);
-        if (next) sound.playBeep();
-    };
-
     const validatePromo = async () => {
         if (!promoCode.trim()) return;
         setPromoError('');
@@ -451,21 +444,13 @@ export const Transactions = () => {
 
     const cartContent = (
         <VStack gap={3} height="100%">
-            <HStack justify="between" align="center">
-                <HStack gap={2} align="center">
+            <HStack justify="between" align="center" style={{ width: '100%', minWidth: 0, gap: 8 }}>
+                <HStack gap={1.5} align="center" style={{ flexShrink: 0 }}>
                     <ShoppingCart size={18} />
                     <Heading level={4} weight="semibold">Keranjang</Heading>
                     <Badge variant="neutral" label={totalItems} />
-                    <IconButton
-                        variant="ghost"
-                        size="sm"
-                        label={soundEnabled ? 'Matikan Suara Kasir' : 'Nyalakan Suara Kasir'}
-                        tooltip={soundEnabled ? 'Suara Aktif' : 'Suara Mati'}
-                        icon={soundEnabled ? <Volume2 size={15} color="#16a34a" /> : <VolumeX size={15} color="#a1a1aa" />}
-                        onClick={toggleSound}
-                    />
                 </HStack>
-                <HStack gap={1.5} align="center">
+                <HStack gap={1.5} align="center" style={{ flexShrink: 0 }}>
                     {heldOrders.length > 0 && (
                         <button
                             type="button"
@@ -473,8 +458,8 @@ export const Transactions = () => {
                             style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: 5,
-                                padding: '4px 10px',
+                                gap: 4,
+                                padding: '4px 8px',
                                 borderRadius: 8,
                                 border: '1px solid #fde047',
                                 backgroundColor: '#fefce8',
@@ -482,6 +467,8 @@ export const Transactions = () => {
                                 fontSize: 12,
                                 fontWeight: 700,
                                 cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0,
                             }}
                             title="Buka daftar antrean pesanan yang ditahan"
                         >
@@ -494,7 +481,7 @@ export const Transactions = () => {
                             <Button
                                 variant="secondary"
                                 size="sm"
-                                label="Tahan Pesanan"
+                                label="Tahan"
                                 icon={<Clock size={13} />}
                                 tooltip="Tahan transaksi pelanggan ini sementara agar bisa melayani pelanggan berikutnya"
                                 onClick={holdCurrentOrder}
