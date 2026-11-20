@@ -1,7 +1,9 @@
 package com.dzakiudin.pos;
 
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.net.Uri;
+import android.os.Build;
 import androidx.core.content.FileProvider;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -12,6 +14,22 @@ import java.io.File;
 
 @CapacitorPlugin(name = "AppInstaller")
 public class AppInstallerPlugin extends Plugin {
+
+    @PluginMethod
+    public void getAppInfo(PluginCall call) {
+        try {
+            PackageInfo pInfo = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+            String versionName = pInfo.versionName;
+            long versionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ? pInfo.getLongVersionCode() : pInfo.versionCode;
+
+            JSObject ret = new JSObject();
+            ret.put("versionName", versionName != null ? versionName : "2.0.0");
+            ret.put("versionCode", versionCode);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Failed to get app package info: " + e.getMessage());
+        }
+    }
 
     @PluginMethod
     public void installApk(PluginCall call) {

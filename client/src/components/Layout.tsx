@@ -22,6 +22,7 @@ import {
     UserCog,
     BarChart3,
     ShieldCheck,
+    Sparkles,
 } from 'lucide-react';
 import { AppShell } from '@astryxdesign/core/AppShell';
 import { SideNav } from '@astryxdesign/core/SideNav';
@@ -46,7 +47,7 @@ import { NavMenuContent } from './Sidebar';
 import BottomNavBar from './BottomNavBar';
 import Modal from './Modal';
 import { useToast } from './Toast';
-import { AppUpdateModal } from './AppUpdateModal';
+import { AppUpdateModal, triggerAppUpdateCheck } from './AppUpdateModal';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/axios';
 
@@ -434,6 +435,12 @@ const Layout = () => {
                             )}
                         >
                             <DropdownMenuItem
+                                label="Pembaruan & Info Versi"
+                                description="Cek rilis & fitur terbaru"
+                                icon={<Sparkles size={15} color="#059669" />}
+                                onClick={() => triggerAppUpdateCheck()}
+                            />
+                            <DropdownMenuItem
                                 label="Ganti Password"
                                 description="Ubah kata sandi akun Anda"
                                 icon={<KeyRound size={15} />}
@@ -668,6 +675,16 @@ const Layout = () => {
 
                     {/* Account Settings Actions */}
                     <VStack gap={2}>
+                        <Button
+                            variant="secondary"
+                            label="Pembaruan & Info Versi"
+                            icon={<Sparkles size={16} color="#059669" />}
+                            width="100%"
+                            onClick={() => {
+                                setShowMobileMenu(false);
+                                triggerAppUpdateCheck();
+                            }}
+                        />
                         <Button
                             variant="secondary"
                             label="Ganti Password"
