@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Wallet, ArrowDownLeft, ArrowUpRight, Lock, Unlock } from 'lucide-react';
 import { VStack } from '@astryxdesign/core/VStack';
 import { HStack } from '@astryxdesign/core/HStack';
-import { Grid } from '@astryxdesign/core/Grid';
 import { Card } from '@astryxdesign/core/Card';
 import { Heading } from '@astryxdesign/core/Heading';
 import { Text } from '@astryxdesign/core/Text';
@@ -22,15 +21,18 @@ import { useToast } from '../components/Toast';
 
 interface CashSession {
     id: number;
-    openingBalance: string;
-    closingBalance: string | null;
-    expectedBalance: string | null;
-    difference: string | null;
+    openingBalance: string | number;
+    closingBalance: string | number | null;
+    expectedBalance: string | number | null;
+    difference: string | number | null;
     status: string;
     openedAt: string;
     closedAt: string | null;
+    cashSales?: string | number;
+    cashIn?: string | number;
+    cashOut?: string | number;
     user?: { name: string } | null;
-    movements?: { id: number; type: string; amount: string; reason: string; createdAt: string }[];
+    movements?: { id: number; type: string; amount: string | number; reason: string; createdAt: string }[];
 }
 
 const CashManagement = () => {
@@ -57,7 +59,7 @@ const CashManagement = () => {
                 setActiveSession(null);
                 return;
             }
-            const active = r.data.id ? r.data : (r.data.session?.id ? { ...r.data.session, movements: r.data.movements } : null);
+            const active = r.data.id ? r.data : (r.data.session?.id ? { ...r.data.session, ...r.data, movements: r.data.movements } : null);
             setActiveSession(active);
         } catch {
             setActiveSession(null);
@@ -118,7 +120,7 @@ const CashManagement = () => {
         }
     };
 
-    const getDifferenceBadge = (diff: string | null) => {
+    const getDifferenceBadge = (diff: string | number | null | undefined) => {
         if (diff == null) {
             return {
                 label: '-',
@@ -151,6 +153,22 @@ const CashManagement = () => {
             border: '#e2e8f0',
         };
     };
+
+    const openingBal = Number(activeSession?.openingBalance || 0);
+    const cashSales = Number(activeSession?.cashSales || 0);
+    const cashIn = activeSession?.cashIn != null
+        ? Number(activeSession.cashIn)
+        : (activeSession?.movements || [])
+            .filter(m => m.type === 'CASH_IN')
+            .reduce((sum, m) => sum + Number(m.amount || 0), 0);
+    const cashOut = activeSession?.cashOut != null
+        ? Number(activeSession.cashOut)
+        : (activeSession?.movements || [])
+            .filter(m => m.type === 'CASH_OUT')
+            .reduce((sum, m) => sum + Number(m.amount || 0), 0);
+    const liveEstimatedCash = activeSession?.expectedBalance != null
+        ? Number(activeSession.expectedBalance)
+        : (openingBal + cashSales + cashIn - cashOut);
 
     return (
         <VStack gap={5} width="100%">
@@ -272,7 +290,7 @@ const CashManagement = () => {
                                 }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                         <span style={{ fontSize: 11.5, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                            Estimasi Kas Saat Ini
+                                            Estimasi Kas Saat Ini (Laci)
                                         </span>
                                         <span style={{
                                             fontSize: 22,
@@ -280,9 +298,12 @@ const CashManagement = () => {
                                             fontFamily: 'Inter, sans-serif',
                                             fontVariantNumeric: 'tabular-nums',
                                             letterSpacing: '-0.02em',
-                                            color: '#0f172a',
+                                            color: liveEstimatedCash < 0 ? '#e11d48' : '#0f172a',
                                         }}>
-                                            Rp {Number(activeSession.expectedBalance ?? activeSession.openingBalance ?? 0).toLocaleString('id-ID')}
+                                            Rp {liveEstimatedCash.toLocaleString('id-ID')}
+                                        </span>
+                                        <span style={{ fontSize: 10.5, color: '#94a3b8' }}>
+                                            Modal + Penjualan Tunai + Kas Masuk - Kas Keluar
                                         </span>
                                     </div>
                                     <div style={{
@@ -300,7 +321,7 @@ const CashManagement = () => {
                                     </div>
                                 </div>
 
-                                {/* Grid 2 Kolom: Saldo Awal & Pergerakan Kas */}
+                                {/* Grid 2 Kolom: Rincian Arus Kas */}
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                                     <div style={{
                                         padding: '10px 12px',
@@ -311,7 +332,7 @@ const CashManagement = () => {
                                         flexDirection: 'column',
                                         gap: 2,
                                     }}>
-                                        <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b' }}>Saldo Awal</span>
+                                        <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b' }}>Saldo Awal (Modal)</span>
                                         <span style={{
                                             fontSize: 14,
                                             fontWeight: 700,
@@ -319,7 +340,7 @@ const CashManagement = () => {
                                             fontVariantNumeric: 'tabular-nums',
                                             color: '#334155',
                                         }}>
-                                            Rp {Number(activeSession.openingBalance || 0).toLocaleString('id-ID')}
+                                            Rp {openingBal.toLocaleString('id-ID')}
                                         </span>
                                     </div>
 
@@ -332,48 +353,163 @@ const CashManagement = () => {
                                         flexDirection: 'column',
                                         gap: 2,
                                     }}>
-                                        <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b' }}>Pergerakan Kas</span>
+                                        <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b' }}>Penjualan Tunai (+)</span>
                                         <span style={{
                                             fontSize: 14,
                                             fontWeight: 700,
                                             fontFamily: 'Inter, sans-serif',
                                             fontVariantNumeric: 'tabular-nums',
-                                            color: '#334155',
+                                            color: '#059669',
                                         }}>
-                                            {activeSession.movements?.length || 0} catatan
+                                            +Rp {cashSales.toLocaleString('id-ID')}
+                                        </span>
+                                    </div>
+
+                                    <div style={{
+                                        padding: '10px 12px',
+                                        backgroundColor: '#ecfdf5',
+                                        border: '1px solid #a7f3d0',
+                                        borderRadius: 10,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 2,
+                                    }}>
+                                        <span style={{ fontSize: 11, fontWeight: 600, color: '#047857' }}>Kas Masuk (+)</span>
+                                        <span style={{
+                                            fontSize: 14,
+                                            fontWeight: 700,
+                                            fontFamily: 'Inter, sans-serif',
+                                            fontVariantNumeric: 'tabular-nums',
+                                            color: '#059669',
+                                        }}>
+                                            +Rp {cashIn.toLocaleString('id-ID')}
+                                        </span>
+                                    </div>
+
+                                    <div style={{
+                                        padding: '10px 12px',
+                                        backgroundColor: '#fff1f2',
+                                        border: '1px solid #fecdd3',
+                                        borderRadius: 10,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 2,
+                                    }}>
+                                        <span style={{ fontSize: 11, fontWeight: 600, color: '#be123c' }}>Kas Keluar (-)</span>
+                                        <span style={{
+                                            fontSize: 14,
+                                            fontWeight: 700,
+                                            fontFamily: 'Inter, sans-serif',
+                                            fontVariantNumeric: 'tabular-nums',
+                                            color: '#e11d48',
+                                        }}>
+                                            -Rp {cashOut.toLocaleString('id-ID')}
                                         </span>
                                     </div>
                                 </div>
                             </VStack>
                         ) : (
-                            <Grid columns={{ minWidth: 180, max: 3 }} gap={3}>
-                                <Card padding={3} variant="muted" elevation="none">
-                                    <VStack gap={0.5}>
-                                        <Text size="xsm" color="secondary">Saldo Awal</Text>
-                                        <Heading level={4} weight="bold">
-                                            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-                                                Rp {Number(activeSession.openingBalance || 0).toLocaleString('id-ID')}
-                                            </span>
-                                        </Heading>
-                                    </VStack>
-                                </Card>
-                                <Card padding={3} variant="muted" elevation="none">
-                                    <VStack gap={0.5}>
-                                        <Text size="xsm" color="secondary">Estimasi Kas</Text>
-                                        <Heading level={4} weight="bold">
-                                            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-                                                Rp {Number(activeSession.expectedBalance ?? activeSession.openingBalance ?? 0).toLocaleString('id-ID')}
-                                            </span>
-                                        </Heading>
-                                    </VStack>
-                                </Card>
-                                <Card padding={3} variant="muted" elevation="none">
-                                    <VStack gap={0.5}>
-                                        <Text size="xsm" color="secondary">Pergerakan Kas</Text>
-                                        <Heading level={4} weight="bold">{activeSession.movements?.length || 0} catatan</Heading>
-                                    </VStack>
-                                </Card>
-                            </Grid>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1fr', gap: 12 }}>
+                                {/* Estimasi Kas Utama */}
+                                <div style={{
+                                    padding: '14px 16px',
+                                    backgroundColor: '#f8fafc',
+                                    border: '1.5px solid #e2e8f0',
+                                    borderRadius: 12,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center',
+                                    gap: 3,
+                                }}>
+                                    <span style={{ fontSize: 11.5, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                        Estimasi Kas Laci
+                                    </span>
+                                    <span style={{
+                                        fontSize: 22,
+                                        fontWeight: 800,
+                                        fontFamily: 'Inter, sans-serif',
+                                        fontVariantNumeric: 'tabular-nums',
+                                        color: liveEstimatedCash < 0 ? '#e11d48' : '#0f172a',
+                                    }}>
+                                        Rp {liveEstimatedCash.toLocaleString('id-ID')}
+                                    </span>
+                                    <span style={{ fontSize: 10.5, color: '#94a3b8' }}>
+                                        Total fisik yang harus ada di laci
+                                    </span>
+                                </div>
+
+                                {/* Saldo Awal */}
+                                <div style={{
+                                    padding: '14px 16px',
+                                    backgroundColor: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: 12,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center',
+                                    gap: 3,
+                                }}>
+                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b' }}>Saldo Awal (Modal)</span>
+                                    <span style={{ fontSize: 17, fontWeight: 700, fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', color: '#334155' }}>
+                                        Rp {openingBal.toLocaleString('id-ID')}
+                                    </span>
+                                    <span style={{ fontSize: 10.5, color: '#94a3b8' }}>Uang modal buka shift</span>
+                                </div>
+
+                                {/* Penjualan Tunai */}
+                                <div style={{
+                                    padding: '14px 16px',
+                                    backgroundColor: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: 12,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center',
+                                    gap: 3,
+                                }}>
+                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b' }}>Penjualan Tunai (+)</span>
+                                    <span style={{ fontSize: 17, fontWeight: 700, fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', color: '#059669' }}>
+                                        +Rp {cashSales.toLocaleString('id-ID')}
+                                    </span>
+                                    <span style={{ fontSize: 10.5, color: '#94a3b8' }}>Transaksi cash kasir</span>
+                                </div>
+
+                                {/* Kas Masuk */}
+                                <div style={{
+                                    padding: '14px 16px',
+                                    backgroundColor: '#ecfdf5',
+                                    border: '1px solid #a7f3d0',
+                                    borderRadius: 12,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center',
+                                    gap: 3,
+                                }}>
+                                    <span style={{ fontSize: 11, fontWeight: 600, color: '#047857' }}>Kas Masuk (+)</span>
+                                    <span style={{ fontSize: 17, fontWeight: 700, fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', color: '#059669' }}>
+                                        +Rp {cashIn.toLocaleString('id-ID')}
+                                    </span>
+                                    <span style={{ fontSize: 10.5, color: '#059669' }}>Suntikan dana shift</span>
+                                </div>
+
+                                {/* Kas Keluar */}
+                                <div style={{
+                                    padding: '14px 16px',
+                                    backgroundColor: '#fff1f2',
+                                    border: '1px solid #fecdd3',
+                                    borderRadius: 12,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center',
+                                    gap: 3,
+                                }}>
+                                    <span style={{ fontSize: 11, fontWeight: 600, color: '#be123c' }}>Kas Keluar (-)</span>
+                                    <span style={{ fontSize: 17, fontWeight: 700, fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', color: '#e11d48' }}>
+                                        -Rp {cashOut.toLocaleString('id-ID')}
+                                    </span>
+                                    <span style={{ fontSize: 10.5, color: '#be123c' }}>Belanja & operasional laci</span>
+                                </div>
+                            </div>
                         )}
 
                         {activeSession.movements && activeSession.movements.length > 0 && (
@@ -626,21 +762,43 @@ const CashManagement = () => {
             </Modal>
 
             {/* Modal Tutup Shift Kas (Rekonsiliasi) */}
-            <Modal isOpen={showClose} onClose={() => setShowClose(false)} title="Tutup Shift Kas & Rekonsiliasi" width={460}>
+            <Modal isOpen={showClose} onClose={() => setShowClose(false)} title="Tutup Shift Kas & Rekonsiliasi" width={480}>
                 <VStack gap={4}>
                     <div style={{
-                        padding: '12px 14px',
-                        borderRadius: 10,
+                        padding: '14px 16px',
+                        borderRadius: 12,
                         backgroundColor: '#f8fafc',
-                        border: '1px solid #e2e8f0',
+                        border: '1.5px solid #e2e8f0',
                         display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
+                        flexDirection: 'column',
+                        gap: 10,
                     }}>
-                        <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Estimasi Kas Sistem:</span>
-                        <span style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', fontFamily: 'Inter, monospace', fontVariantNumeric: 'tabular-nums' }}>
-                            Rp {Number(activeSession?.expectedBalance ?? activeSession?.openingBalance ?? 0).toLocaleString('id-ID')}
-                        </span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>Estimasi Kas Sistem:</span>
+                            <span style={{
+                                fontSize: 20,
+                                fontWeight: 800,
+                                color: liveEstimatedCash < 0 ? '#e11d48' : '#0f172a',
+                                fontFamily: 'Inter, monospace',
+                                fontVariantNumeric: 'tabular-nums',
+                            }}>
+                                Rp {liveEstimatedCash.toLocaleString('id-ID')}
+                            </span>
+                        </div>
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(2, 1fr)',
+                            gap: 8,
+                            paddingTop: 8,
+                            borderTop: '1px dashed #cbd5e1',
+                            fontSize: 12,
+                            color: '#64748b',
+                        }}>
+                            <div>Saldo Awal: <strong style={{ color: '#334155' }}>Rp {openingBal.toLocaleString('id-ID')}</strong></div>
+                            <div>Penjualan Tunai: <strong style={{ color: '#059669' }}>+Rp {cashSales.toLocaleString('id-ID')}</strong></div>
+                            <div>Kas Masuk: <strong style={{ color: '#059669' }}>+Rp {cashIn.toLocaleString('id-ID')}</strong></div>
+                            <div>Kas Keluar: <strong style={{ color: '#e11d48' }}>-Rp {cashOut.toLocaleString('id-ID')}</strong></div>
+                        </div>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -183,11 +183,12 @@ pub async fn create_sale(
     let notes = raw_val.get("notes").and_then(|v| v.as_str()).map(|s| s.to_string());
     let receipt_number = generate_receipt_number();
 
-    // Check for open cash session
+    // Check for open cash session (prefer user's own session, fallback to any active open session)
     let cash_session = sqlx::query!(
         r#"
         SELECT id FROM cash_sessions
-        WHERE "userId" = $1 AND status = 'OPEN'
+        WHERE status = 'OPEN'
+        ORDER BY CASE WHEN "userId" = $1 THEN 0 ELSE 1 END, "openedAt" DESC
         LIMIT 1
         "#,
         auth.id
