@@ -10,7 +10,6 @@ import { Button } from '@astryxdesign/core/Button';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Divider } from '@astryxdesign/core/Divider';
-import { NumberInput } from '@astryxdesign/core/NumberInput';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl';
 import { Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell } from '@astryxdesign/core/Table';
@@ -54,7 +53,12 @@ const CashManagement = () => {
     const fetchActive = async () => {
         try {
             const r = await api.get('/cash-sessions/active');
-            setActiveSession(r.data && r.data.id ? r.data : null);
+            if (!r.data) {
+                setActiveSession(null);
+                return;
+            }
+            const active = r.data.id ? r.data : (r.data.session?.id ? { ...r.data.session, movements: r.data.movements } : null);
+            setActiveSession(active);
         } catch {
             setActiveSession(null);
         }
@@ -265,29 +269,41 @@ const CashManagement = () => {
                     ) : (
                         <Card padding={0} elevation="none">
                             <ScrollableArea label="Tabel data">
-                                <Table density="balanced" dividers="rows" hasHover>
+                                <Table density="balanced" dividers="rows" hasHover style={{ width: '100%', tableLayout: 'fixed' }}>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHeaderCell>ID</TableHeaderCell>
-                                            <TableHeaderCell>Kasir</TableHeaderCell>
-                                            <TableHeaderCell>Dibuka</TableHeaderCell>
-                                            <TableHeaderCell>Saldo Awal</TableHeaderCell>
-                                            <TableHeaderCell>Saldo Akhir</TableHeaderCell>
-                                            <TableHeaderCell>Selisih</TableHeaderCell>
-                                            <TableHeaderCell>Status</TableHeaderCell>
+                                            <TableHeaderCell style={{ width: '8%', textAlign: 'center' }}>ID</TableHeaderCell>
+                                            <TableHeaderCell style={{ width: '18%' }}>Kasir</TableHeaderCell>
+                                            <TableHeaderCell style={{ width: '18%' }}>Dibuka</TableHeaderCell>
+                                            <TableHeaderCell style={{ width: '16%', textAlign: 'right' }}>Saldo Awal</TableHeaderCell>
+                                            <TableHeaderCell style={{ width: '16%', textAlign: 'right' }}>Saldo Akhir</TableHeaderCell>
+                                            <TableHeaderCell style={{ width: '14%', textAlign: 'right' }}>Selisih</TableHeaderCell>
+                                            <TableHeaderCell style={{ width: '10%', textAlign: 'center' }}>Status</TableHeaderCell>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {sessions.map((s) => (
                                             <TableRow key={s.id}>
-                                                <TableCell><Text size="sm" weight="medium">#{s.id}</Text></TableCell>
-                                                <TableCell><Text size="sm">{s.user?.name || '-'}</Text></TableCell>
-                                                <TableCell><Text size="xsm" color="secondary">{new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</Text></TableCell>
-                                                <TableCell><Text size="sm" hasTabularNumbers>Rp {Number(s.openingBalance || 0).toLocaleString('id-ID')}</Text></TableCell>
-                                                <TableCell><Text size="sm" hasTabularNumbers>{s.closingBalance != null ? `Rp ${Number(s.closingBalance).toLocaleString('id-ID')}` : '-'}</Text></TableCell>
-                                                <TableCell><Text size="sm" hasTabularNumbers>{s.difference != null ? `Rp ${Number(s.difference).toLocaleString('id-ID')}` : '-'}</Text></TableCell>
-                                                <TableCell>
-                                                    <Badge variant={s.status === 'OPEN' ? 'success' : 'neutral'} label={s.status} />
+                                                <TableCell style={{ width: '8%', textAlign: 'center' }}><Text size="sm" weight="medium">#{s.id}</Text></TableCell>
+                                                <TableCell style={{ width: '18%' }}><Text size="sm">{s.user?.name || '-'}</Text></TableCell>
+                                                <TableCell style={{ width: '18%' }}><Text size="xsm" color="secondary">{new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</Text></TableCell>
+                                                <TableCell style={{ width: '16%', textAlign: 'right' }}><Text size="sm" hasTabularNumbers>Rp {Number(s.openingBalance || 0).toLocaleString('id-ID')}</Text></TableCell>
+                                                <TableCell style={{ width: '16%', textAlign: 'right' }}><Text size="sm" hasTabularNumbers>{s.closingBalance != null ? `Rp ${Number(s.closingBalance).toLocaleString('id-ID')}` : '-'}</Text></TableCell>
+                                                <TableCell style={{ width: '14%', textAlign: 'right' }}>
+                                                    <span style={{
+                                                        fontFamily: 'Inter, sans-serif',
+                                                        fontVariantNumeric: 'tabular-nums',
+                                                        fontWeight: 700,
+                                                        fontSize: 13,
+                                                        color: Number(s.difference || 0) < 0 ? '#dc2626' : (Number(s.difference || 0) > 0 ? '#16a34a' : '#64748b')
+                                                    }}>
+                                                        {s.difference != null ? `Rp ${Number(s.difference).toLocaleString('id-ID')}` : '-'}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell style={{ width: '10%', textAlign: 'center' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                        <Badge variant={s.status === 'OPEN' ? 'success' : 'neutral'} label={s.status} />
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -303,9 +319,73 @@ const CashManagement = () => {
                 )}
             </VStack>
 
-            <Modal isOpen={showOpen} onClose={() => setShowOpen(false)} title="Buka Shift Kas" width={420}>
+            {/* Modal Buka Shift (Modal Awal Toko) */}
+            <Modal isOpen={showOpen} onClose={() => setShowOpen(false)} title="Buka Shift Kas (Modal Awal Toko)" width={460}>
                 <VStack gap={4}>
-                    <NumberInput label="Saldo Awal Laci (Rp)" value={openingBalance} onChange={(v) => setOpeningBalance(v || 0)} min={0} hasAutoFocus />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Modal Awal Kas / Laci (Rp)</span>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            backgroundColor: '#ffffff',
+                            border: '2px solid #e5e7eb',
+                            borderRadius: 10,
+                            padding: '8px 12px',
+                        }}>
+                            <span style={{ fontSize: 15, fontWeight: 700, color: '#9ca3af', marginRight: 8 }}>Rp</span>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                autoFocus
+                                style={{
+                                    width: '100%',
+                                    border: 'none',
+                                    outline: 'none',
+                                    fontSize: 16,
+                                    fontWeight: 700,
+                                    fontFamily: 'Inter, monospace',
+                                    fontVariantNumeric: 'tabular-nums',
+                                    color: '#111827',
+                                    backgroundColor: 'transparent',
+                                }}
+                                placeholder="0"
+                                value={openingBalance === 0 ? '' : openingBalance.toLocaleString('id-ID')}
+                                onChange={(e) => {
+                                    const raw = e.target.value.replace(/\D/g, '');
+                                    setOpeningBalance(raw ? Math.min(999999999999, Number(raw)) : 0);
+                                }}
+                            />
+                        </div>
+                        <span style={{ fontSize: 11, color: '#6b7280' }}>
+                            Uang modal awal perusahaan untuk kembalian & operasional laci (terpisah dari uang pribadi).
+                        </span>
+                    </div>
+
+                    {/* Quick Preset Chips */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {[500000, 1000000, 5000000, 10000000, 20000000, 50000000].map((amt) => (
+                            <button
+                                key={amt}
+                                type="button"
+                                onClick={() => setOpeningBalance(amt)}
+                                style={{
+                                    padding: '5px 10px',
+                                    borderRadius: 8,
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    fontFamily: 'Inter, monospace',
+                                    cursor: 'pointer',
+                                    border: openingBalance === amt ? '1px solid #18181b' : '1px solid #e5e7eb',
+                                    backgroundColor: openingBalance === amt ? '#18181b' : '#f9fafb',
+                                    color: openingBalance === amt ? '#ffffff' : '#374151',
+                                    transition: 'all 120ms ease',
+                                }}
+                            >
+                                Rp {amt.toLocaleString('id-ID')}
+                            </button>
+                        ))}
+                    </div>
+
                     <HStack justify="end" gap={2}>
                         <Button variant="secondary" label="Batal" onClick={() => setShowOpen(false)} />
                         <Button variant="primary" label="Buka Shift" onClick={handleOpen} />
@@ -313,17 +393,72 @@ const CashManagement = () => {
                 </VStack>
             </Modal>
 
-            <Modal isOpen={showClose} onClose={() => setShowClose(false)} title="Tutup Shift Kas" width={420}>
+            {/* Modal Tutup Shift Kas (Rekonsiliasi) */}
+            <Modal isOpen={showClose} onClose={() => setShowClose(false)} title="Tutup Shift Kas & Rekonsiliasi" width={460}>
                 <VStack gap={4}>
-                    <NumberInput label="Saldo Aktual di Laci (Rp)" value={closingBalance} onChange={(v) => setClosingBalance(v || 0)} min={0} hasAutoFocus />
+                    <div style={{
+                        padding: '12px 14px',
+                        borderRadius: 10,
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                    }}>
+                        <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Estimasi Kas Sistem:</span>
+                        <span style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', fontFamily: 'Inter, monospace', fontVariantNumeric: 'tabular-nums' }}>
+                            Rp {Number(activeSession?.expectedBalance ?? activeSession?.openingBalance ?? 0).toLocaleString('id-ID')}
+                        </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Saldo Fisik Aktual di Laci (Rp)</span>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            backgroundColor: '#ffffff',
+                            border: '2px solid #e5e7eb',
+                            borderRadius: 10,
+                            padding: '8px 12px',
+                        }}>
+                            <span style={{ fontSize: 15, fontWeight: 700, color: '#9ca3af', marginRight: 8 }}>Rp</span>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                autoFocus
+                                style={{
+                                    width: '100%',
+                                    border: 'none',
+                                    outline: 'none',
+                                    fontSize: 16,
+                                    fontWeight: 700,
+                                    fontFamily: 'Inter, monospace',
+                                    fontVariantNumeric: 'tabular-nums',
+                                    color: '#111827',
+                                    backgroundColor: 'transparent',
+                                }}
+                                placeholder="0"
+                                value={closingBalance === 0 ? '' : closingBalance.toLocaleString('id-ID')}
+                                onChange={(e) => {
+                                    const raw = e.target.value.replace(/\D/g, '');
+                                    setClosingBalance(raw ? Math.min(999999999999, Number(raw)) : 0);
+                                }}
+                            />
+                        </div>
+                        <span style={{ fontSize: 11, color: '#6b7280' }}>
+                            Hitung seluruh uang fisik di laci saat ini. Sistem akan otomatis menghitung selisih (jika ada).
+                        </span>
+                    </div>
+
                     <HStack justify="end" gap={2}>
                         <Button variant="secondary" label="Batal" onClick={() => setShowClose(false)} />
-                        <Button variant="destructive" label="Tutup Shift" onClick={handleClose} />
+                        <Button variant="destructive" label="Tutup Shift Sekarang" onClick={handleClose} />
                     </HStack>
                 </VStack>
             </Modal>
 
-            <Modal isOpen={showMovement} onClose={() => setShowMovement(false)} title="Catat Arus Kas" width={440}>
+            {/* Modal Catat Arus Kas (Uang Masuk / Keluar) */}
+            <Modal isOpen={showMovement} onClose={() => setShowMovement(false)} title="Catat Arus Kas Operasional" width={480}>
                 <VStack gap={4}>
                     <SegmentedControl
                         label="Jenis arus kas"
@@ -331,14 +466,100 @@ const CashManagement = () => {
                         onChange={(v) => setMovementForm({ ...movementForm, type: v })}
                         layout="fill"
                     >
-                        <SegmentedControlItem value="CASH_IN" label="Kas Masuk" />
-                        <SegmentedControlItem value="CASH_OUT" label="Kas Keluar" />
+                        <SegmentedControlItem value="CASH_IN" label="Kas Masuk (Tambah Modal)" />
+                        <SegmentedControlItem value="CASH_OUT" label="Kas Keluar (Belanja / Biaya)" />
                     </SegmentedControl>
-                    <NumberInput label="Nominal (Rp)" value={movementForm.amount} onChange={(v) => setMovementForm({ ...movementForm, amount: v || 0 })} min={1} />
-                    <TextInput label="Keterangan" placeholder="Contoh: Beli es batu / Tambah kembalian" value={movementForm.reason} onChange={(v) => setMovementForm({ ...movementForm, reason: v })} />
+
+                    <div style={{
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        backgroundColor: movementForm.type === 'CASH_OUT' ? '#fff7ed' : '#ecfdf5',
+                        border: movementForm.type === 'CASH_OUT' ? '1px solid #fed7aa' : '1px solid #a7f3d0',
+                        fontSize: 12,
+                        color: movementForm.type === 'CASH_OUT' ? '#c2410c' : '#047857',
+                        fontWeight: 500,
+                    }}>
+                        {movementForm.type === 'CASH_OUT'
+                            ? '📉 Kas Keluar: Pengeluaran untuk belanja bahan baku, operasional, atau kulakan akan mengurangi estimasi kas laci.'
+                            : '📈 Kas Masuk: Suntikan dana tambahan modal atau penerimaan kas tunai akan menambah estimasi kas laci.'}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Nominal Uang (Rp)</span>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            backgroundColor: '#ffffff',
+                            border: '2px solid #e5e7eb',
+                            borderRadius: 10,
+                            padding: '8px 12px',
+                        }}>
+                            <span style={{ fontSize: 15, fontWeight: 700, color: '#9ca3af', marginRight: 8 }}>Rp</span>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                style={{
+                                    width: '100%',
+                                    border: 'none',
+                                    outline: 'none',
+                                    fontSize: 16,
+                                    fontWeight: 700,
+                                    fontFamily: 'Inter, monospace',
+                                    fontVariantNumeric: 'tabular-nums',
+                                    color: '#111827',
+                                    backgroundColor: 'transparent',
+                                }}
+                                placeholder="0"
+                                value={movementForm.amount === 0 ? '' : movementForm.amount.toLocaleString('id-ID')}
+                                onChange={(e) => {
+                                    const raw = e.target.value.replace(/\D/g, '');
+                                    setMovementForm({ ...movementForm, amount: raw ? Math.min(999999999999, Number(raw)) : 0 });
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Quick Preset Chips */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {[100000, 500000, 1000000, 5000000, 10000000, 20000000].map((amt) => (
+                            <button
+                                key={amt}
+                                type="button"
+                                onClick={() => setMovementForm({ ...movementForm, amount: amt })}
+                                style={{
+                                    padding: '5px 10px',
+                                    borderRadius: 8,
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    fontFamily: 'Inter, monospace',
+                                    cursor: 'pointer',
+                                    border: movementForm.amount === amt ? '1px solid #18181b' : '1px solid #e5e7eb',
+                                    backgroundColor: movementForm.amount === amt ? '#18181b' : '#f9fafb',
+                                    color: movementForm.amount === amt ? '#ffffff' : '#374151',
+                                    transition: 'all 120ms ease',
+                                }}
+                            >
+                                Rp {amt.toLocaleString('id-ID')}
+                            </button>
+                        ))}
+                    </div>
+
+                    <TextInput
+                        label="Keterangan Pengeluaran / Pemasukan"
+                        placeholder="Contoh: Belanja bahan baku 20jt / Beli es batu / Bensin operasional"
+                        value={movementForm.reason}
+                        onChange={(v) => setMovementForm({ ...movementForm, reason: v })}
+                        isRequired
+                    />
+
                     <HStack justify="end" gap={2}>
                         <Button variant="secondary" label="Batal" onClick={() => setShowMovement(false)} />
-                        <Button variant="primary" label="Simpan" isDisabled={!movementForm.amount || !movementForm.reason} onClick={handleMovement} />
+                        <Button
+                            variant="primary"
+                            label="Simpan Arus Kas"
+                            isDisabled={!movementForm.amount || !movementForm.reason.trim()}
+                            onClick={handleMovement}
+                        />
                     </HStack>
                 </VStack>
             </Modal>

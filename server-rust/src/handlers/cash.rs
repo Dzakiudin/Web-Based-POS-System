@@ -62,10 +62,12 @@ pub async fn get_active_session(
             .fetch_all(&state.db)
             .await?;
 
-            Ok(Json(json!({
-                "session": s,
-                "movements": movements
-            })))
+            let mut session_val = serde_json::to_value(&s).unwrap_or(json!({}));
+            if let Some(obj) = session_val.as_object_mut() {
+                obj.insert("movements".to_string(), json!(movements));
+                obj.insert("session".to_string(), json!(s));
+            }
+            Ok(Json(session_val))
         }
         None => Ok(Json(json!(null))),
     }

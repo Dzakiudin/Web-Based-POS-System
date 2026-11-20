@@ -176,7 +176,8 @@ const Layout = () => {
                     );
                 }
 
-                if (shiftRes.status === 'fulfilled' && shiftRes.value.data?.id) {
+                const activeShift = shiftRes.status === 'fulfilled' ? (shiftRes.value.data?.id ? shiftRes.value.data : shiftRes.value.data?.session) : null;
+                if (activeShift && activeShift.id) {
                     setHasActiveShift(true);
                 } else {
                     setHasActiveShift(false);
