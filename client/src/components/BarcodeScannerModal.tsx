@@ -222,6 +222,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         setManualCode('');
     };
 
+    if (!isOpen) return null;
+
     return (
         <Dialog
             isOpen={isOpen}
@@ -234,6 +236,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             width={isMobile ? 'calc(100vw - 28px)' : 500}
             padding={isMobile ? 4 : 5}
             purpose="form"
+            className="pos-modal-dialog"
         >
             <VStack gap={3} width="100%">
                 <DialogHeader

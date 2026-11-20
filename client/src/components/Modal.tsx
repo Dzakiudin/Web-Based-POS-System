@@ -24,6 +24,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, subtitle, childre
             width={width}
             padding={4}
             purpose="form"
+            className="pos-modal-dialog"
         >
             <VStack gap={3} style={{ maxHeight: 'calc(90dvh - 36px)', display: 'flex', flexDirection: 'column' }}>
                 <DialogHeader

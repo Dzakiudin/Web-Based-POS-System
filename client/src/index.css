@@ -803,13 +803,10 @@ tbody tr:hover [class*="TableCell"] {
 
 /* ==========================================================================
    Universal Modal & Dialog Viewport Protection & Clean Scrolling
+   (Target only our application modals with .pos-modal-dialog,
+   never target generic 'dialog' tag which breaks Astryx BottomSheet)
    ========================================================================== */
-dialog:not([open]) {
-  display: none !important;
-}
-
-dialog[open],
-.astryx-dialog[open] {
+.pos-modal-dialog[open] {
   max-height: 90dvh !important;
   max-width: 95vw !important;
   box-sizing: border-box !important;
@@ -840,8 +837,7 @@ dialog[open],
 }
 
 @media (max-width: 768px) {
-  dialog[open],
-  .astryx-dialog[open] {
+  .pos-modal-dialog[open] {
     max-height: 88dvh !important;
     width: calc(100vw - 20px) !important;
     max-width: calc(100vw - 20px) !important;
@@ -855,59 +851,6 @@ dialog[open],
     padding: 8px 0;
     font-size: 15px;
   }
-}
-
-/* Native Mobile Menu Drawer (Zero-glitch, Pure React Modal) */
-@keyframes posDrawerBackdrop {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes posDrawerSlideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-.pos-drawer-backdrop {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  z-index: 99;
-  animation: posDrawerBackdrop 180ms ease forwards;
-}
-
-.pos-drawer-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-height: 88vh;
-  background-color: #ffffff;
-  border-top-left-radius: 20px;
-  border-top-right-radius: 20px;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.16);
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: posDrawerSlideUp 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.pos-drawer-body {
-  padding: 0 16px 28px 16px;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  max-height: calc(88vh - 40px);
 }
 
 

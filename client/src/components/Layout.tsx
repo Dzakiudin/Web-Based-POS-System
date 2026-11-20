@@ -516,8 +516,8 @@ const Layout = () => {
                 />
             )}
 
-            {/* Native Mobile Menu & Operations BottomSheet - Mobile Only & Rendered Only When Open */}
-            {isMobile && showMobileMenu && (
+            {/* Native Mobile Menu & Operations BottomSheet - Mobile Only */}
+            {isMobile && (
                 <BottomSheet
                     isOpen={showMobileMenu}
                     onOpenChange={setShowMobileMenu}
