@@ -251,47 +251,59 @@ const TransactionHistory = () => {
                 ) : (
                     <Card padding={0} elevation="none">
                         <ScrollableArea label="Tabel data">
-                            <Table density="balanced" dividers="rows" hasHover>
+                            <Table density="balanced" dividers="rows" hasHover style={{ width: '100%', tableLayout: 'fixed' }}>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHeaderCell>No. Struk</TableHeaderCell>
-                                        <TableHeaderCell>Tanggal</TableHeaderCell>
-                                        <TableHeaderCell>Kasir</TableHeaderCell>
-                                        <TableHeaderCell>Pelanggan</TableHeaderCell>
-                                        <TableHeaderCell>Total</TableHeaderCell>
-                                        <TableHeaderCell>Status</TableHeaderCell>
-                                        <TableHeaderCell>Aksi</TableHeaderCell>
+                                        <TableHeaderCell style={{ width: '22%', minWidth: 170 }}>No. Struk</TableHeaderCell>
+                                        <TableHeaderCell style={{ width: '16%', minWidth: 140 }}>Tanggal</TableHeaderCell>
+                                        <TableHeaderCell style={{ width: '15%', minWidth: 130 }}>Kasir</TableHeaderCell>
+                                        <TableHeaderCell style={{ width: '15%', minWidth: 130 }}>Pelanggan</TableHeaderCell>
+                                        <TableHeaderCell style={{ width: '14%', minWidth: 120, textAlign: 'right' }}>Total</TableHeaderCell>
+                                        <TableHeaderCell style={{ width: '10%', minWidth: 110, textAlign: 'center' }}>Status</TableHeaderCell>
+                                        <TableHeaderCell style={{ width: '8%', minWidth: 90, textAlign: 'center' }}>Aksi</TableHeaderCell>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredSales.map((s) => (
                                         <TableRow key={s.id}>
-                                            <TableCell><Text size="sm" weight="semibold">{s.receiptNumber}</Text></TableCell>
-                                            <TableCell>
+                                            <TableCell style={{ width: '22%', minWidth: 170 }}>
+                                                <Text size="sm" weight="semibold">{s.receiptNumber}</Text>
+                                            </TableCell>
+                                            <TableCell style={{ width: '16%', minWidth: 140 }}>
                                                 <Text size="xsm" color="secondary" hasTabularNumbers>
                                                     {new Date(s.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
                                                 </Text>
                                             </TableCell>
-                                            <TableCell><Text size="sm">{s.user?.name || '-'}</Text></TableCell>
-                                            <TableCell><Text size="sm" color="secondary">{s.customer?.name || 'Umum'}</Text></TableCell>
-                                            <TableCell><Text size="sm" weight="bold" hasTabularNumbers>Rp {Number(s.finalPrice || 0).toLocaleString('id-ID')}</Text></TableCell>
-                                            <TableCell>
-                                                <Badge variant={STATUS_VARIANT[s.status] || 'neutral'} label={s.status} />
+                                            <TableCell style={{ width: '15%', minWidth: 130 }}>
+                                                <Text size="sm">{s.user?.name || '-'}</Text>
                                             </TableCell>
-                                            <TableCell>
-                                                <HStack gap={1}>
-                                                    <IconButton variant="ghost" size="sm" label="Lihat detail" icon={<Eye size={15} />} onClick={() => viewDetail(s.id)} />
-                                                    {s.status === 'COMPLETED' && (
-                                                        <>
-                                                            <HasPermission permission="void.transaction">
-                                                                <IconButton variant="ghost" size="sm" label="Void" icon={<Ban size={15} />} onClick={() => setActionModal({ id: s.id, type: 'void' })} />
-                                                            </HasPermission>
-                                                            <HasPermission permission="refund.process">
-                                                                <IconButton variant="ghost" size="sm" label="Refund" icon={<RotateCcw size={15} />} onClick={() => setActionModal({ id: s.id, type: 'refund' })} />
-                                                            </HasPermission>
-                                                        </>
-                                                    )}
-                                                </HStack>
+                                            <TableCell style={{ width: '15%', minWidth: 130 }}>
+                                                <Text size="sm" color="secondary">{s.customer?.name || 'Umum'}</Text>
+                                            </TableCell>
+                                            <TableCell style={{ width: '14%', minWidth: 120, textAlign: 'right' }}>
+                                                <Text size="sm" weight="bold" hasTabularNumbers>Rp {Number(s.finalPrice || 0).toLocaleString('id-ID')}</Text>
+                                            </TableCell>
+                                            <TableCell style={{ width: '10%', minWidth: 110, textAlign: 'center' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                    <Badge variant={STATUS_VARIANT[s.status] || 'neutral'} label={s.status} />
+                                                </div>
+                                            </TableCell>
+                                            <TableCell style={{ width: '8%', minWidth: 90, textAlign: 'center' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                    <HStack gap={1} justify="center">
+                                                        <IconButton variant="ghost" size="sm" label="Lihat detail" icon={<Eye size={15} />} onClick={() => viewDetail(s.id)} />
+                                                        {s.status === 'COMPLETED' && (
+                                                            <>
+                                                                <HasPermission permission="void.transaction">
+                                                                    <IconButton variant="ghost" size="sm" label="Void" icon={<Ban size={15} />} onClick={() => setActionModal({ id: s.id, type: 'void' })} />
+                                                                </HasPermission>
+                                                                <HasPermission permission="refund.process">
+                                                                    <IconButton variant="ghost" size="sm" label="Refund" icon={<RotateCcw size={15} />} onClick={() => setActionModal({ id: s.id, type: 'refund' })} />
+                                                                </HasPermission>
+                                                            </>
+                                                        )}
+                                                    </HStack>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}
