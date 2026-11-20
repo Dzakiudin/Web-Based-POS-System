@@ -97,21 +97,19 @@ const Inventory = () => {
     return (
         <VStack gap={4} width="100%">
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: 10, width: '100%' }}>
-                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
-                    <TabList value={tab} onChange={(v) => setTab(v as 'lowstock' | 'movements')}>
-                        <Tab
-                            value="lowstock"
-                            label="Stok Rendah"
-                            icon={<AlertTriangle size={15} />}
-                            endContent={<Badge variant={lowStock.length > 0 ? 'warning' : 'neutral'} label={lowStock.length} />}
-                        />
-                        <Tab
-                            value="movements"
-                            label="Riwayat Pergerakan"
-                            icon={<RefreshCw size={15} />}
-                        />
-                    </TabList>
-                </div>
+                <TabList value={tab} onChange={(v) => setTab(v as 'lowstock' | 'movements')}>
+                    <Tab
+                        value="lowstock"
+                        label="Stok Rendah"
+                        icon={<AlertTriangle size={15} />}
+                        endContent={<Badge variant={lowStock.length > 0 ? 'warning' : 'neutral'} label={lowStock.length} />}
+                    />
+                    <Tab
+                        value="movements"
+                        label="Riwayat Pergerakan"
+                        icon={<RefreshCw size={15} />}
+                    />
+                </TabList>
 
                 <HasPermission permission={['stock.in_out', 'stock.opname']}>
                     <Button
