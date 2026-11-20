@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
     Search, ShoppingCart, Plus, Minus, Trash2, Tag, CheckCircle2,
     Printer, Package, Volume2, VolumeX, ArrowRight, Camera, Clock,
-    Copy, QrCode, Sparkles, Check, X
+    Copy, QrCode, Sparkles, Check, X, Delete
 } from 'lucide-react';
 import { Layout, LayoutContent, LayoutPanel } from '@astryxdesign/core/Layout';
 import { VStack } from '@astryxdesign/core/VStack';
@@ -14,7 +14,6 @@ import { Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { TextInput } from '@astryxdesign/core/TextInput';
-import { NumberInput } from '@astryxdesign/core/NumberInput';
 import { Selector } from '@astryxdesign/core/Selector';
 import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl';
 import { Badge } from '@astryxdesign/core/Badge';
@@ -345,6 +344,33 @@ export const Transactions = () => {
         setQrisSimulated(false);
         setMobileCartOpen(false);
         setShowCheckout(true);
+    };
+
+    const handleNumpadInput = (val: string) => {
+        if (val === 'CLEAR') {
+            setCashPaid(0);
+            return;
+        }
+        if (val === 'BACKSPACE') {
+            setCashPaid((prev) => Math.floor(prev / 10));
+            return;
+        }
+        if (val === '0') {
+            setCashPaid((prev) => (prev === 0 ? 0 : Math.min(999999999999, prev * 10)));
+            return;
+        }
+        if (val === '00') {
+            setCashPaid((prev) => (prev === 0 ? 0 : Math.min(999999999999, prev * 100)));
+            return;
+        }
+        if (val === '000') {
+            setCashPaid((prev) => (prev === 0 ? 0 : Math.min(999999999999, prev * 1000)));
+            return;
+        }
+        setCashPaid((prev) => {
+            const next = Number(`${prev === 0 ? '' : prev}${val}`);
+            return Math.min(999999999999, next);
+        });
     };
 
     const handleCompletePayment = async () => {
@@ -1085,14 +1111,47 @@ export const Transactions = () => {
             </BottomSheet>
 
             {/* Checkout Modal */}
-            <Modal isOpen={showCheckout} onClose={() => setShowCheckout(false)} title="Pembayaran" width={500}>
+            <Modal isOpen={showCheckout} onClose={() => setShowCheckout(false)} title="Pembayaran" width={520}>
                 <VStack gap={4}>
-                    <Card padding={3} variant="muted" elevation="none">
-                        <HStack justify="between" align="center">
-                            <Text size="sm" color="secondary">Total Tagihan</Text>
-                            <Heading level={3} weight="bold">Rp {grandTotal.toLocaleString('id-ID')}</Heading>
-                        </HStack>
-                    </Card>
+                    {/* Rincian Tagihan & Potongan Harga / Diskon */}
+                    <div className="p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/80 dark:border-zinc-800 space-y-2">
+                        <div className="flex justify-between items-center text-xs text-zinc-500">
+                            <span>Subtotal Belanja ({totalItems} item)</span>
+                            <span className="font-mono tabular-nums font-medium text-zinc-700 dark:text-zinc-300">
+                                Rp {subtotal.toLocaleString('id-ID')}
+                            </span>
+                        </div>
+
+                        {itemDiscountTotal > 0 && (
+                            <div className="flex justify-between items-center text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                                <span>Diskon Produk</span>
+                                <span className="font-mono tabular-nums">
+                                    - Rp {itemDiscountTotal.toLocaleString('id-ID')}
+                                </span>
+                            </div>
+                        )}
+
+                        {promoAmount > 0 && (
+                            <div className="flex justify-between items-center text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                                <span className="flex items-center gap-1">
+                                    <Tag size={12} />
+                                    <span>Voucher Promo {promoDiscount?.code ? `(${promoDiscount.code})` : ''}</span>
+                                </span>
+                                <span className="font-mono tabular-nums">
+                                    - Rp {promoAmount.toLocaleString('id-ID')}
+                                </span>
+                            </div>
+                        )}
+
+                        <div className="border-t border-dashed border-zinc-300 dark:border-zinc-700 my-1" />
+
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Total Tagihan</span>
+                            <span className="text-xl font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+                                Rp {grandTotal.toLocaleString('id-ID')}
+                            </span>
+                        </div>
+                    </div>
 
                     <VStack gap={1.5}>
                         <Text size="sm" weight="medium">Metode Pembayaran</Text>
@@ -1115,30 +1174,217 @@ export const Transactions = () => {
                     {/* 1. TUNAI / CASH */}
                     {paymentMethod === 'CASH' && (
                         <VStack gap={3}>
-                            <NumberInput
-                                label="Uang Diterima (Rp)"
-                                value={cashPaid}
-                                onChange={(v) => setCashPaid(v || 0)}
-                                min={0}
-                                hasAutoFocus
-                            />
-                            <HStack gap={1.5} wrap="wrap">
-                                {[grandTotal, 20000, 50000, 100000, 200000].filter((v, i) => i === 0 || v >= grandTotal).map((amt, idx) => (
-                                    <Button
-                                        key={idx}
-                                        size="sm"
-                                        variant="secondary"
-                                        label={idx === 0 ? 'Uang Pas' : `Rp ${amt.toLocaleString('id-ID')}`}
-                                        onClick={() => setCashPaid(amt)}
+                            {/* Display Input Uang Diterima berformat Currency */}
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between items-center text-xs text-zinc-500">
+                                    <span className="font-medium text-zinc-700 dark:text-zinc-300">Uang Diterima</span>
+                                    <span className="text-[11px] text-zinc-400">Ketik nominal atau tekan tombol kalkulator</span>
+                                </div>
+                                
+                                <div className="relative flex items-center bg-white dark:bg-zinc-950 border-2 border-zinc-300 dark:border-zinc-700 focus-within:border-zinc-900 dark:focus-within:border-zinc-100 rounded-xl px-3.5 py-2.5 transition-all shadow-xs">
+                                    <span className="text-base font-bold text-zinc-400 select-none mr-2">Rp</span>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        className="w-full text-xl font-bold font-mono tracking-tight text-zinc-900 dark:text-white bg-transparent outline-none tabular-nums"
+                                        placeholder="0"
+                                        value={cashPaid === 0 ? '' : cashPaid.toLocaleString('id-ID')}
+                                        onChange={(e) => {
+                                            const raw = e.target.value.replace(/\D/g, '');
+                                            setCashPaid(raw ? Math.min(999999999999, Number(raw)) : 0);
+                                        }}
                                     />
-                                ))}
-                            </HStack>
-                            <HStack justify="between">
-                                <Text size="sm" color="secondary">Kembalian</Text>
-                                <Text size="base" weight="bold" hasTabularNumbers style={{ color: change > 0 ? '#16a34a' : 'inherit' }}>
-                                    Rp {change.toLocaleString('id-ID')}
-                                </Text>
-                            </HStack>
+                                    {cashPaid > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setCashPaid(0)}
+                                            className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 cursor-pointer"
+                                            title="Reset ke 0"
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Tombol Pecahan Cepat (Quick Cash Chips) */}
+                            <div className="flex gap-1.5 flex-wrap">
+                                <button
+                                    type="button"
+                                    onClick={() => setCashPaid(grandTotal)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
+                                        cashPaid === grandTotal
+                                            ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900'
+                                            : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+                                    }`}
+                                >
+                                    Uang Pas (Rp {grandTotal.toLocaleString('id-ID')})
+                                </button>
+                                {[20000, 50000, 100000, 200000]
+                                    .filter((v) => v >= grandTotal || grandTotal - v <= 10000)
+                                    .slice(0, 4)
+                                    .map((amt) => (
+                                        <button
+                                            key={amt}
+                                            type="button"
+                                            onClick={() => setCashPaid(amt)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border font-mono tabular-nums cursor-pointer transition-all ${
+                                                cashPaid === amt
+                                                    ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900'
+                                                    : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+                                            }`}
+                                        >
+                                            Rp {amt.toLocaleString('id-ID')}
+                                        </button>
+                                    ))}
+                            </div>
+
+                            {/* Kalkulator Numpad Virtual */}
+                            <div className="grid grid-cols-4 gap-1.5 pt-1">
+                                {/* Baris 1 */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('1')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    1
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('2')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    2
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('3')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    3
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('CLEAR')}
+                                    className="py-2.5 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 rounded-lg font-semibold text-xs cursor-pointer transition-colors"
+                                >
+                                    C (Reset)
+                                </button>
+
+                                {/* Baris 2 */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('4')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    4
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('5')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    5
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('6')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    6
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('BACKSPACE')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg flex items-center justify-center cursor-pointer transition-colors"
+                                    title="Hapus Digit Terakhir"
+                                >
+                                    <Delete size={18} />
+                                </button>
+
+                                {/* Baris 3 */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('7')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    7
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('8')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    8
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('9')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    9
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setCashPaid((prev) => prev + 50000)}
+                                    className="py-2.5 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 rounded-lg font-semibold text-xs font-mono cursor-pointer transition-colors"
+                                    title="Tambah 50.000"
+                                >
+                                    +50rb
+                                </button>
+
+                                {/* Baris 4 */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('0')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    0
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('00')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    00
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleNumpadInput('000')}
+                                    className="py-2.5 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono font-bold text-base cursor-pointer transition-colors"
+                                >
+                                    000
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setCashPaid((prev) => prev + 100000)}
+                                    className="py-2.5 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 rounded-lg font-semibold text-xs font-mono cursor-pointer transition-colors"
+                                    title="Tambah 100.000"
+                                >
+                                    +100rb
+                                </button>
+                            </div>
+
+                            {/* Status Kembalian / Kekurangan Realtime */}
+                            <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                                cashPaid >= grandTotal
+                                    ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60'
+                                    : 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60'
+                            }`}>
+                                <div>
+                                    <div className={`text-xs font-semibold ${cashPaid >= grandTotal ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300'}`}>
+                                        {cashPaid >= grandTotal ? 'Kembalian Pelanggan' : 'Uang Masih Kurang'}
+                                    </div>
+                                    <div className="text-[11px] text-zinc-500">
+                                        {cashPaid >= grandTotal ? 'Uang kembalian yang harus diserahkan' : 'Nominal pembayaran belum mencukupi'}
+                                    </div>
+                                </div>
+                                <div className={`text-lg font-bold font-mono tabular-nums ${
+                                    cashPaid >= grandTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                                }`}>
+                                    Rp {Math.abs(cashPaid - grandTotal).toLocaleString('id-ID')}
+                                </div>
+                            </div>
                         </VStack>
                     )}
 
