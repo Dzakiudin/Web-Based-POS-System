@@ -94,16 +94,25 @@ const TransactionHistory = () => {
 
     const downloadReceiptPDF = async (sale: any) => {
         if (!sale) return;
-        const doc = new jsPDF({ unit: 'mm', format: [80, 150] });
+        const detailsCount = (sale.details || []).length;
+        const pageHeight = Math.max(160, 120 + detailsCount * 12);
+        const doc = new jsPDF({ unit: 'mm', format: [80, pageHeight] });
         doc.setFontSize(12);
         doc.text('POS SYSTEM STORE', 40, 10, { align: 'center' });
-        doc.setFontSize(8);
-        doc.text(`Struk: ${sale.receiptNumber || '-'}`, 5, 18);
-        doc.text(`Tanggal: ${new Date(sale.date).toLocaleString('id-ID')}`, 5, 23);
-        doc.text(`Kasir: ${sale.user?.name || 'Kasir'}`, 5, 28);
+        doc.setFontSize(7.5);
+        doc.text('Jl. Jendral Sudirman Kav. 52, Jakarta', 40, 14, { align: 'center' });
+        doc.text('Telp: (021) 5299-1000', 40, 17, { align: 'center' });
+        doc.line(5, 19, 75, 19);
+
+        doc.setFontSize(7.5);
+        doc.text(`No. Struk : ${sale.receiptNumber || '-'}`, 5, 23);
+        doc.text(`Waktu     : ${new Date(sale.date).toLocaleString('id-ID')}`, 5, 27);
+        doc.text(`Kasir     : ${sale.user?.name || 'Kasir Utama'}`, 5, 31);
+        doc.text(`Pelanggan : ${sale.customer?.name || 'Pelanggan Umum'}`, 5, 35);
+        doc.line(5, 37, 75, 37);
 
         autoTable(doc, {
-            startY: 33,
+            startY: 39,
             margin: { left: 5, right: 5 },
             head: [['Item', 'Qty', 'Total']],
             body: (sale.details || []).map((d: any) => [
@@ -114,14 +123,48 @@ const TransactionHistory = () => {
             styles: { fontSize: 7, cellPadding: 1.5 },
         });
 
-        const finalY = (doc as any).lastAutoTable?.finalY || 65;
+        let finalY = (doc as any).lastAutoTable?.finalY || 70;
+        finalY += 4;
+        doc.line(5, finalY, 75, finalY);
+        finalY += 4;
+
+        doc.setFontSize(7.5);
+        doc.text('Subtotal:', 5, finalY);
+        doc.text(`Rp ${Number(sale.totalPrice || sale.finalPrice || 0).toLocaleString('id-ID')}`, 75, finalY, { align: 'right' });
+
+        if (Number(sale.discountAmount || 0) > 0) {
+            finalY += 4;
+            doc.text('Diskon:', 5, finalY);
+            doc.text(`-Rp ${Number(sale.discountAmount).toLocaleString('id-ID')}`, 75, finalY, { align: 'right' });
+        }
+
+        finalY += 5;
         doc.setFontSize(9);
-        doc.text(`Total: Rp ${Number(sale.finalPrice || 0).toLocaleString('id-ID')}`, 5, finalY + 8);
+        doc.text('TOTAL:', 5, finalY);
+        doc.text(`Rp ${Number(sale.finalPrice || 0).toLocaleString('id-ID')}`, 75, finalY, { align: 'right' });
+
+        finalY += 4;
+        doc.line(5, finalY, 75, finalY);
+        finalY += 4;
+
         const method = sale.payments?.[0]?.method || 'TUNAI';
-        const paid = sale.payments?.[0]?.amount || sale.finalPrice;
+        const paid = sale.payments?.[0]?.amount || sale.finalPrice || 0;
         const change = sale.payments?.[0]?.change || 0;
-        doc.text(`Bayar (${method}): Rp ${Number(paid).toLocaleString('id-ID')}`, 5, finalY + 13);
-        doc.text(`Kembali: Rp ${Number(change).toLocaleString('id-ID')}`, 5, finalY + 18);
+
+        doc.setFontSize(7.5);
+        doc.text(`Metode : ${method}`, 5, finalY);
+        finalY += 4;
+        doc.text('Bayar  :', 5, finalY);
+        doc.text(`Rp ${Number(paid).toLocaleString('id-ID')}`, 75, finalY, { align: 'right' });
+        finalY += 4;
+        doc.text('Kembali:', 5, finalY);
+        doc.text(`Rp ${Number(change).toLocaleString('id-ID')}`, 75, finalY, { align: 'right' });
+
+        finalY += 6;
+        doc.line(5, finalY, 75, finalY);
+        finalY += 5;
+        doc.setFontSize(6.5);
+        doc.text('Terima kasih atas kunjungan Anda!', 40, finalY, { align: 'center' });
 
         const blob = doc.output('blob');
         await downloadOrShareFile(blob, `struk-${sale.receiptNumber || 'pos'}.pdf`, 'application/pdf');
@@ -348,62 +391,200 @@ const TransactionHistory = () => {
             <Modal
                 isOpen={!!selectedSale}
                 onClose={() => setSelectedSale(null)}
-                title={selectedSale ? `Struk ${selectedSale.receiptNumber}` : 'Detail Transaksi'}
-                width={560}
+                title={selectedSale ? `Rincian Struk ${selectedSale.receiptNumber}` : 'Detail Transaksi'}
+                width={580}
             >
-                {selectedSale && (
-                    <VStack gap={3}>
-                        <HStack justify="between">
-                            <Text size="sm" color="secondary">Tanggal</Text>
-                            <Text size="sm">{new Date(selectedSale.date).toLocaleString('id-ID')}</Text>
-                        </HStack>
-                        <HStack justify="between">
-                            <Text size="sm" color="secondary">Status</Text>
-                            <Badge variant={STATUS_VARIANT[selectedSale.status] || 'neutral'} label={selectedSale.status} />
-                        </HStack>
-                        <Divider />
-                        <Table density="compact" dividers="rows">
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHeaderCell>Item</TableHeaderCell>
-                                    <TableHeaderCell>Qty</TableHeaderCell>
-                                    <TableHeaderCell>Subtotal</TableHeaderCell>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {(selectedSale.details || []).map((d: any) => (
-                                    <TableRow key={d.id}>
-                                        <TableCell><Text size="sm">{d.product?.name || `Produk #${d.productId}`}</Text></TableCell>
-                                        <TableCell><Text size="sm" hasTabularNumbers>{d.quantity}</Text></TableCell>
-                                        <TableCell><Text size="sm" hasTabularNumbers>Rp {Number(d.subtotal || 0).toLocaleString('id-ID')}</Text></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                        <Divider />
-                        <HStack justify="between">
-                            <Text size="base" weight="bold">Total Bayar</Text>
-                            <Text size="base" weight="bold" hasTabularNumbers>Rp {Number(selectedSale.finalPrice || 0).toLocaleString('id-ID')}</Text>
-                        </HStack>
-                        <Divider />
-                        <HStack justify="end" gap={2} wrap="wrap">
-                            <Button
-                                size="sm"
-                                variant="secondary"
-                                icon={<Printer size={14} />}
-                                label="Cetak Struk"
-                                onClick={() => printThermalReceipt(selectedSale)}
-                            />
-                            <Button
-                                size="sm"
-                                variant="secondary"
-                                icon={<Printer size={14} />}
-                                label="Download PDF"
-                                onClick={() => downloadReceiptPDF(selectedSale)}
-                            />
-                        </HStack>
-                    </VStack>
-                )}
+                {selectedSale && (() => {
+                    const primaryPayment = selectedSale.payments?.[0];
+                    const paymentMethod = primaryPayment?.method || 'CASH';
+                    const paidAmount = Number(primaryPayment?.amount || selectedSale.finalPrice || 0);
+                    const changeAmount = Number(primaryPayment?.change || 0);
+                    const discountAmt = Number(selectedSale.discountAmount || 0);
+                    const grossTotal = Number(selectedSale.totalPrice || selectedSale.finalPrice || 0);
+                    const finalTotal = Number(selectedSale.finalPrice || 0);
+
+                    return (
+                        <VStack gap={4}>
+                            {/* Metadata Ringkasan */}
+                            <div className="grid grid-cols-2 gap-3 p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border border-zinc-200/80 dark:border-zinc-800 text-xs">
+                                <div className="space-y-1">
+                                    <div className="text-zinc-500">Waktu Transaksi</div>
+                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                                        {new Date(selectedSale.date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-zinc-500">Status Transaksi</div>
+                                    <div>
+                                        <Badge variant={STATUS_VARIANT[selectedSale.status] || 'neutral'} label={selectedSale.status} />
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-zinc-500">Kasir</div>
+                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                                        {selectedSale.user?.name || 'Kasir Utama'}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-zinc-500">Pelanggan</div>
+                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                                        {selectedSale.customer?.name || 'Pelanggan Umum'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Alert catatan atau alasan refund/void jika ada */}
+                            {selectedSale.refundReason && (
+                                <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg text-xs text-amber-800 dark:text-amber-200">
+                                    <span className="font-bold">Alasan Void / Refund:</span> {selectedSale.refundReason}
+                                </div>
+                            )}
+                            {selectedSale.notes && (
+                                <div className="p-2.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-lg text-xs text-blue-800 dark:text-blue-200">
+                                    <span className="font-bold">Catatan:</span> {selectedSale.notes}
+                                </div>
+                            )}
+
+                            {/* Daftar Barang Belanja */}
+                            <div>
+                                <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">
+                                    Daftar Barang Belanja ({selectedSale.details?.length || 0} item)
+                                </div>
+                                <Table density="compact" dividers="rows">
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHeaderCell>Produk</TableHeaderCell>
+                                            <TableHeaderCell>Harga Satuan</TableHeaderCell>
+                                            <TableHeaderCell>Qty</TableHeaderCell>
+                                            <TableHeaderCell>Subtotal</TableHeaderCell>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {(selectedSale.details || []).map((d: any) => {
+                                            const qty = Number(d.quantity || 1);
+                                            const unitPrice = Number(d.unitPrice || (d.subtotal ? Number(d.subtotal) / qty : 0));
+                                            const itemSubtotal = Number(d.subtotal || unitPrice * qty);
+                                            const itemDisc = Number(d.discountAmount || 0);
+
+                                            return (
+                                                <TableRow key={d.id}>
+                                                    <TableCell>
+                                                        <div>
+                                                            <Text size="sm" weight="medium">{d.product?.name || `Produk #${d.productId}`}</Text>
+                                                            {d.variant?.name && (
+                                                                <Text size="xsm" color="secondary">{d.variant.name}</Text>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Text size="sm" hasTabularNumbers color="secondary">
+                                                            Rp {unitPrice.toLocaleString('id-ID')}
+                                                        </Text>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Text size="sm" hasTabularNumbers weight="medium">
+                                                            {qty}
+                                                        </Text>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div>
+                                                            <Text size="sm" hasTabularNumbers weight="semibold">
+                                                                Rp {itemSubtotal.toLocaleString('id-ID')}
+                                                            </Text>
+                                                            {itemDisc > 0 && (
+                                                                <div className="text-xs text-emerald-600 font-mono tabular-nums font-medium">
+                                                                    -Rp {itemDisc.toLocaleString('id-ID')}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {/* Ringkasan Keuangan & Pembayaran (Receipt Breakdown) */}
+                            <div className="bg-zinc-50 dark:bg-zinc-900/60 p-4 rounded-xl border border-zinc-200/80 dark:border-zinc-800 space-y-2.5">
+                                <div className="flex justify-between items-center text-sm text-zinc-600 dark:text-zinc-400">
+                                    <span>Subtotal Kotor</span>
+                                    <span className="font-mono tabular-nums font-medium text-zinc-800 dark:text-zinc-200">
+                                        Rp {grossTotal.toLocaleString('id-ID')}
+                                    </span>
+                                </div>
+
+                                {discountAmt > 0 && (
+                                    <div className="flex justify-between items-center text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                                        <span>Diskon / Potongan Harga</span>
+                                        <span className="font-mono tabular-nums">
+                                            - Rp {discountAmt.toLocaleString('id-ID')}
+                                        </span>
+                                    </div>
+                                )}
+
+                                <div className="border-t border-dashed border-zinc-300 dark:border-zinc-700 my-1" />
+
+                                <div className="flex justify-between items-center">
+                                    <span className="text-base font-bold text-zinc-900 dark:text-zinc-100">Total Akhir</span>
+                                    <span className="font-mono text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                        Rp {finalTotal.toLocaleString('id-ID')}
+                                    </span>
+                                </div>
+
+                                <div className="border-t border-dashed border-zinc-300 dark:border-zinc-700 my-1" />
+
+                                {/* Informasi Pembayaran */}
+                                <div className="space-y-1.5 pt-1 text-xs">
+                                    <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
+                                        <span>Metode Pembayaran</span>
+                                        <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                                            {paymentMethod === 'CASH' ? 'Tunai (Cash)' : paymentMethod}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
+                                        <span>Uang Diterima / Dibayar</span>
+                                        <span className="font-mono tabular-nums font-semibold text-zinc-800 dark:text-zinc-200">
+                                            Rp {paidAmount.toLocaleString('id-ID')}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400 font-medium">
+                                        <span>Kembalian</span>
+                                        <span className="font-mono tabular-nums font-semibold text-zinc-800 dark:text-zinc-200">
+                                            Rp {changeAmount.toLocaleString('id-ID')}
+                                        </span>
+                                    </div>
+                                    {primaryPayment?.reference && (
+                                        <div className="flex justify-between items-center text-zinc-500 text-[11px]">
+                                            <span>No. Referensi Transaksi</span>
+                                            <span className="font-mono">{primaryPayment.reference}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <Divider />
+
+                            {/* Tombol Aksi */}
+                            <HStack justify="end" gap={2} wrap="wrap">
+                                <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    icon={<Printer size={14} />}
+                                    label="Cetak Struk"
+                                    onClick={() => printThermalReceipt(selectedSale)}
+                                />
+                                <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    icon={<Printer size={14} />}
+                                    label="Download PDF"
+                                    onClick={() => downloadReceiptPDF(selectedSale)}
+                                />
+                            </HStack>
+                        </VStack>
+                    );
+                })()}
             </Modal>
 
             {/* Void / Refund Modal */}
