@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Eye, Ban, RotateCcw, ReceiptText, Search, RefreshCw, Printer } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { printThermalReceipt } from '../lib/thermalPrinter';
-import { downloadOrShareFile } from '../lib/fileHelper';
 import { VStack } from '@astryxdesign/core/VStack';
 import { HStack } from '@astryxdesign/core/HStack';
 import { Card } from '@astryxdesign/core/Card';
@@ -90,84 +87,6 @@ const TransactionHistory = () => {
         } catch (e) {
             console.error(e);
         }
-    };
-
-    const downloadReceiptPDF = async (sale: any) => {
-        if (!sale) return;
-        const detailsCount = (sale.details || []).length;
-        const pageHeight = Math.max(160, 120 + detailsCount * 12);
-        const doc = new jsPDF({ unit: 'mm', format: [80, pageHeight] });
-        doc.setFontSize(12);
-        doc.text('POS SYSTEM STORE', 40, 10, { align: 'center' });
-        doc.setFontSize(7.5);
-        doc.text('Jl. Jendral Sudirman Kav. 52, Jakarta', 40, 14, { align: 'center' });
-        doc.text('Telp: (021) 5299-1000', 40, 17, { align: 'center' });
-        doc.line(5, 19, 75, 19);
-
-        doc.setFontSize(7.5);
-        doc.text(`No. Struk : ${sale.receiptNumber || '-'}`, 5, 23);
-        doc.text(`Waktu     : ${new Date(sale.date).toLocaleString('id-ID')}`, 5, 27);
-        doc.text(`Kasir     : ${sale.user?.name || 'Kasir Utama'}`, 5, 31);
-        doc.text(`Pelanggan : ${sale.customer?.name || 'Pelanggan Umum'}`, 5, 35);
-        doc.line(5, 37, 75, 37);
-
-        autoTable(doc, {
-            startY: 39,
-            margin: { left: 5, right: 5 },
-            head: [['Item', 'Qty', 'Total']],
-            body: (sale.details || []).map((d: any) => [
-                d.product?.name || `Produk #${d.productId}`,
-                String(d.quantity),
-                `Rp ${Number(d.subtotal || 0).toLocaleString('id-ID')}`,
-            ]),
-            styles: { fontSize: 7, cellPadding: 1.5 },
-        });
-
-        let finalY = (doc as any).lastAutoTable?.finalY || 70;
-        finalY += 4;
-        doc.line(5, finalY, 75, finalY);
-        finalY += 4;
-
-        doc.setFontSize(7.5);
-        doc.text('Subtotal:', 5, finalY);
-        doc.text(`Rp ${Number(sale.totalPrice || sale.finalPrice || 0).toLocaleString('id-ID')}`, 75, finalY, { align: 'right' });
-
-        if (Number(sale.discountAmount || 0) > 0) {
-            finalY += 4;
-            doc.text('Diskon:', 5, finalY);
-            doc.text(`-Rp ${Number(sale.discountAmount).toLocaleString('id-ID')}`, 75, finalY, { align: 'right' });
-        }
-
-        finalY += 5;
-        doc.setFontSize(9);
-        doc.text('TOTAL:', 5, finalY);
-        doc.text(`Rp ${Number(sale.finalPrice || 0).toLocaleString('id-ID')}`, 75, finalY, { align: 'right' });
-
-        finalY += 4;
-        doc.line(5, finalY, 75, finalY);
-        finalY += 4;
-
-        const method = sale.payments?.[0]?.method || 'TUNAI';
-        const paid = sale.payments?.[0]?.amount || sale.finalPrice || 0;
-        const change = sale.payments?.[0]?.change || 0;
-
-        doc.setFontSize(7.5);
-        doc.text(`Metode : ${method}`, 5, finalY);
-        finalY += 4;
-        doc.text('Bayar  :', 5, finalY);
-        doc.text(`Rp ${Number(paid).toLocaleString('id-ID')}`, 75, finalY, { align: 'right' });
-        finalY += 4;
-        doc.text('Kembali:', 5, finalY);
-        doc.text(`Rp ${Number(change).toLocaleString('id-ID')}`, 75, finalY, { align: 'right' });
-
-        finalY += 6;
-        doc.line(5, finalY, 75, finalY);
-        finalY += 5;
-        doc.setFontSize(6.5);
-        doc.text('Terima kasih atas kunjungan Anda!', 40, finalY, { align: 'center' });
-
-        const blob = doc.output('blob');
-        await downloadOrShareFile(blob, `struk-${sale.receiptNumber || 'pos'}.pdf`, 'application/pdf');
     };
 
     const handleVoidOrRefund = async () => {
@@ -573,13 +492,6 @@ const TransactionHistory = () => {
                                     icon={<Printer size={14} />}
                                     label="Cetak Struk"
                                     onClick={() => printThermalReceipt(selectedSale)}
-                                />
-                                <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    icon={<Printer size={14} />}
-                                    label="Download PDF"
-                                    onClick={() => downloadReceiptPDF(selectedSale)}
                                 />
                             </HStack>
                         </VStack>

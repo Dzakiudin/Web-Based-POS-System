@@ -97,7 +97,7 @@ const Inventory = () => {
     return (
         <VStack gap={4} width="100%">
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: 10, width: '100%' }}>
-                <TabList value={tab} onChange={(v) => setTab(v as 'lowstock' | 'movements')}>
+                <TabList value={tab} onChange={(v) => setTab(v as 'lowstock' | 'movements')} overflow="visible">
                     <Tab
                         value="lowstock"
                         label="Stok Rendah"

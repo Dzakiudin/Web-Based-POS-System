@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Flame } from 'lucide-react';
 import { Card } from '@astryxdesign/core/Card';
 import { VStack } from '@astryxdesign/core/VStack';
 import { HStack } from '@astryxdesign/core/HStack';
@@ -82,7 +82,7 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, periodTotal, onFilter
 
     const computedTotal = periodTotal ?? data.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
 
-    // Hitung persentase tren pertumbuhan dinamis (paruh kedua vs paruh pertama data)
+    // Hitung persentase tren pertumbuhan dinamis (paruh kedua vs paruh pertama data) untuk filter 7 Hari & 30 Hari
     const trendInfo = useMemo(() => {
         if (!data || data.length < 2) {
             return { percent: 12.4, isPositive: true };
@@ -104,6 +104,25 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, periodTotal, onFilter
         };
     }, [data]);
 
+    // Deteksi jam ramai transaksi untuk filter 'Hari Ini' (agar tidak memunculkan delta negatif parsial jam)
+    const todayPeakHour = useMemo(() => {
+        if (!data || data.length === 0) return '10:00 - 13:00';
+        let maxVal = 0;
+        let maxHour = 10;
+        data.forEach((d) => {
+            const amt = Number(d.amount) || 0;
+            if (amt > maxVal) {
+                maxVal = amt;
+                const match = d.date.match(/^(\d{1,2})/);
+                if (match) maxHour = parseInt(match[1], 10);
+            }
+        });
+        const endH = Math.min(23, maxHour + 3);
+        return `${String(maxHour).padStart(2, '0')}:00 - ${String(endH).padStart(2, '0')}:00`;
+    }, [data]);
+
+    const periodComparisonLabel = activeFilter === 'week' ? 'vs minggu lalu' : 'vs bulan lalu';
+
     return (
         <Card padding={4} elevation="none" height="100%">
             <VStack gap={4} height="100%">
@@ -111,24 +130,45 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, periodTotal, onFilter
                     <VStack gap={1}>
                         <HStack gap={2} align="center" wrap="wrap">
                             <Heading level={4} weight="semibold">Tren Pendapatan</Heading>
-                            <div
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 4,
-                                    padding: '2px 8px',
-                                    borderRadius: 9999,
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    backgroundColor: trendInfo.isPositive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                                    color: trendInfo.isPositive ? '#047857' : '#b91c1c',
-                                    border: `1px solid ${trendInfo.isPositive ? 'rgba(16, 185, 129, 0.28)' : 'rgba(239, 68, 68, 0.28)'}`,
-                                    fontVariantNumeric: 'tabular-nums',
-                                }}
-                            >
-                                {trendInfo.isPositive ? <TrendingUp size={12} strokeWidth={2.5} /> : <TrendingDown size={12} strokeWidth={2.5} />}
-                                <span>{trendInfo.isPositive ? `+${trendInfo.percent}%` : `-${trendInfo.percent}%`} vs periode lalu</span>
-                            </div>
+                            {activeFilter === 'today' ? (
+                                <div
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                        padding: '2px 8px',
+                                        borderRadius: 9999,
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                                        color: '#b45309',
+                                        border: '1px solid rgba(245, 158, 11, 0.28)',
+                                        fontVariantNumeric: 'tabular-nums',
+                                    }}
+                                >
+                                    <Flame size={12} color="#d97706" />
+                                    <span>Jam Ramai: {todayPeakHour}</span>
+                                </div>
+                            ) : (
+                                <div
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                        padding: '2px 8px',
+                                        borderRadius: 9999,
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        backgroundColor: trendInfo.isPositive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                                        color: trendInfo.isPositive ? '#047857' : '#b91c1c',
+                                        border: `1px solid ${trendInfo.isPositive ? 'rgba(16, 185, 129, 0.28)' : 'rgba(239, 68, 68, 0.28)'}`,
+                                        fontVariantNumeric: 'tabular-nums',
+                                    }}
+                                >
+                                    {trendInfo.isPositive ? <TrendingUp size={12} strokeWidth={2.5} /> : <TrendingDown size={12} strokeWidth={2.5} />}
+                                    <span>{trendInfo.isPositive ? `+${trendInfo.percent}%` : `-${trendInfo.percent}%`} {periodComparisonLabel}</span>
+                                </div>
+                            )}
                         </HStack>
                         <HStack gap={2} align="center">
                             <Text size="xsm" color="secondary">

@@ -6,7 +6,6 @@ import {
     LogOut,
     AlertTriangle,
     ArrowRight,
-    CircleDot,
     Search,
     PanelLeftClose,
     PanelLeftOpen,
@@ -304,20 +303,29 @@ const Layout = () => {
             }
             endContent={
                 <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 12, paddingRight: isMobile ? 0 : 8 }}>
-                    {!isMobile && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            icon={
-                                <CircleDot
-                                    size={14}
-                                    color={hasActiveShift ? '#16a34a' : '#a1a1aa'}
-                                />
-                            }
-                            label={hasActiveShift ? 'Shift Aktif' : 'Shift Tutup'}
-                            onClick={() => smoothNavigate('/cash-management')}
-                        />
-                    )}
+                    {/* Shift Status Header Indicator */}
+                    <button
+                        type="button"
+                        onClick={() => smoothNavigate('/cash-management')}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                            hasActiveShift
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
+                                : 'bg-amber-50 text-amber-700 border-amber-200/80 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
+                        }`}
+                        title={hasActiveShift ? 'Shift Kasir Aktif - Klik untuk kelola kas' : 'Shift Kasir Tutup - Klik untuk buka shift'}
+                    >
+                        <span className="relative flex h-2 w-2">
+                            {hasActiveShift ? (
+                                <>
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                                </>
+                            ) : (
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                            )}
+                        </span>
+                        <span>{hasActiveShift ? 'Shift Aktif' : 'Shift Tutup'}</span>
+                    </button>
 
                     {/* Notification Bell Button */}
                     <div style={{ position: 'relative' }}>
@@ -535,13 +543,22 @@ const Layout = () => {
                             justifyContent: 'space-between',
                             padding: '10px 14px',
                             borderRadius: 10,
-                            backgroundColor: '#f4f4f5',
-                            border: '1px solid #e4e4e7',
+                            backgroundColor: hasActiveShift ? '#ecfdf5' : '#fffbeb',
+                            border: hasActiveShift ? '1px solid #a7f3d0' : '1px solid #fde68a',
                             cursor: 'pointer',
                         }}
                     >
                         <HStack gap={2} align="center">
-                            <CircleDot size={16} color={hasActiveShift ? '#16a34a' : '#a1a1aa'} />
+                            <span className="relative flex h-2.5 w-2.5">
+                                {hasActiveShift ? (
+                                    <>
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                                    </>
+                                ) : (
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                                )}
+                            </span>
                             <VStack gap={0}>
                                 <Text size="sm" weight="semibold">Status Kasir</Text>
                                 <Text size="xsm" color="secondary">
@@ -550,7 +567,7 @@ const Layout = () => {
                             </VStack>
                         </HStack>
                         <Badge
-                            variant={hasActiveShift ? 'success' : 'neutral'}
+                            variant={hasActiveShift ? 'success' : 'warning'}
                             label={hasActiveShift ? 'Shift Aktif' : 'Shift Tutup'}
                         />
                     </div>
