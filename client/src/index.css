@@ -804,9 +804,12 @@ tbody tr:hover [class*="TableCell"] {
 /* ==========================================================================
    Universal Modal & Dialog Viewport Protection & Clean Scrolling
    ========================================================================== */
-dialog,
-.astryx-dialog,
-[class*="Dialog"] {
+dialog:not([open]) {
+  display: none !important;
+}
+
+dialog[open],
+.astryx-dialog[open] {
   max-height: 90dvh !important;
   max-width: 95vw !important;
   box-sizing: border-box !important;
@@ -837,9 +840,8 @@ dialog,
 }
 
 @media (max-width: 768px) {
-  dialog,
-  .astryx-dialog,
-  [class*="Dialog"] {
+  dialog[open],
+  .astryx-dialog[open] {
     max-height: 88dvh !important;
     width: calc(100vw - 20px) !important;
     max-width: calc(100vw - 20px) !important;

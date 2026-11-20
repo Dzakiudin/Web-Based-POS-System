@@ -13,6 +13,8 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, subtitle, children, width = 520 }) => {
+    if (!isOpen) return null;
+
     return (
         <Dialog
             isOpen={isOpen}

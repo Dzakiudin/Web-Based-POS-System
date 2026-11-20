@@ -22,13 +22,12 @@ import {
     BarChart3,
     ShieldCheck,
     Sparkles,
-    Grid2X2,
-    X,
 } from 'lucide-react';
 import { AppShell } from '@astryxdesign/core/AppShell';
 import { SideNav } from '@astryxdesign/core/SideNav';
 import { TopNav } from '@astryxdesign/core/TopNav';
 import { Drawer } from '@astryxdesign/core/Drawer';
+import { BottomSheet } from '@astryxdesign/core/BottomSheet';
 import { DropdownMenu, DropdownMenuItem, DropdownMenuDivider } from '@astryxdesign/core/DropdownMenu';
 import { Button } from '@astryxdesign/core/Button';
 import { IconButton } from '@astryxdesign/core/IconButton';
@@ -118,25 +117,6 @@ const Layout = () => {
             setShowMobileMenu(false);
         }
     }, [isMobile]);
-
-    // Lock body scroll and handle Escape key for mobile menu drawer
-    useEffect(() => {
-        if (showMobileMenu) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = '';
-        }
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && showMobileMenu) {
-                setShowMobileMenu(false);
-            }
-        };
-        window.addEventListener('keydown', handleEscape);
-        return () => {
-            document.body.style.overflow = '';
-            window.removeEventListener('keydown', handleEscape);
-        };
-    }, [showMobileMenu]);
 
     const smoothNavigate = (to: string) => {
         if (location.pathname === to) return;
@@ -536,90 +516,16 @@ const Layout = () => {
                 />
             )}
 
-            {/* Native Mobile Menu Drawer - Mobile Only & Rendered Only When Open */}
+            {/* Native Mobile Menu & Operations BottomSheet - Mobile Only & Rendered Only When Open */}
             {isMobile && showMobileMenu && (
-                <>
-                    {/* Backdrop */}
-                    <div
-                        className="pos-drawer-backdrop"
-                        onClick={() => setShowMobileMenu(false)}
-                        aria-hidden="true"
-                    />
-
-                    {/* Sheet Panel */}
-                    <div
-                        className="pos-drawer-sheet"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-label="Menu & Navigasi"
-                    >
-                        {/* Drag Handle Pill */}
-                        <div
-                            style={{
-                                width: 36,
-                                height: 4,
-                                borderRadius: 2,
-                                backgroundColor: '#d4d4d8',
-                                margin: '10px auto 4px auto',
-                                flexShrink: 0,
-                            }}
-                        />
-
-                        {/* Mobile Sheet Header with Close Button */}
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '6px 16px 10px 16px',
-                                borderBottom: '1px solid #f4f4f5',
-                                flexShrink: 0,
-                            }}
-                        >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div
-                                    style={{
-                                        width: 28,
-                                        height: 28,
-                                        borderRadius: 8,
-                                        backgroundColor: '#f4f4f5',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: '#18181b',
-                                    }}
-                                >
-                                    <Grid2X2 size={16} />
-                                </div>
-                                <span style={{ fontSize: 15, fontWeight: 700, color: '#18181b' }}>
-                                    Menu & Navigasi
-                                </span>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setShowMobileMenu(false)}
-                                aria-label="Tutup menu"
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: 32,
-                                    height: 32,
-                                    borderRadius: '50%',
-                                    border: '1px solid #e4e4e7',
-                                    backgroundColor: '#ffffff',
-                                    color: '#71717a',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        {/* Scrollable Content Body */}
-                        <div className="pos-drawer-body">
-                            <VStack gap={4} paddingBlockStart={3} paddingBlockEnd={6}>
-
+                <BottomSheet
+                    isOpen={showMobileMenu}
+                    onOpenChange={setShowMobileMenu}
+                    label="Menu & Fitur Lengkap"
+                    height="tall"
+                    padding={4}
+                >
+                    <VStack gap={4} paddingBlockEnd={6}>
                         {/* User Profile Card */}
                     <Card padding={3} variant="muted" elevation="none">
                         <HStack justify="between" align="center">
@@ -826,10 +732,8 @@ const Layout = () => {
                         />
                     </VStack>
                 </VStack>
-            </div>
-        </div>
-    </>
-)}
+            </BottomSheet>
+            )}
 
             {/* Change Password Modal */}
             <Modal
