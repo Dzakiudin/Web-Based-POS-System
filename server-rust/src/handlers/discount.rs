@@ -15,7 +15,7 @@ use serde_json::{json, Value};
 #[derive(Debug, Deserialize)]
 pub struct ValidatePromoPayload {
     pub code: String,
-    pub subtotal: Decimal,
+    pub subtotal: Option<Decimal>,
 }
 
 pub async fn get_discounts(
@@ -150,7 +150,8 @@ pub async fn validate_promo_code(
     .await?
     .ok_or_else(|| AppError::NotFound("Invalid promo code".to_string()))?;
 
-    if payload.subtotal < discount.min_purchase {
+    let subtotal = payload.subtotal.unwrap_or(Decimal::ZERO);
+    if subtotal < discount.min_purchase {
         return Err(AppError::BadRequest(format!(
             "Minimum purchase of {} required",
             discount.min_purchase
@@ -158,7 +159,7 @@ pub async fn validate_promo_code(
     }
 
     let discount_amount = if discount.discount_type == DiscountType::Percentage {
-        (payload.subtotal * discount.value) / Decimal::from(100)
+        (subtotal * discount.value) / Decimal::from(100)
     } else {
         discount.value
     };

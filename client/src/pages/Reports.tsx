@@ -17,6 +17,7 @@ import { EmptyState } from '@astryxdesign/core/EmptyState';
 import { useMediaQuery } from '@astryxdesign/core/hooks';
 import api from '../lib/axios';
 import StatCard from '../components/StatCard';
+import { downloadOrShareFile } from '../lib/fileHelper';
 
 interface DashboardStats {
     todayRevenue?: number;
@@ -80,7 +81,7 @@ const Reports = () => {
     const grossProfit = Number(summary.grossProfit || 0);
     const margin = totalRev > 0 ? ((grossProfit / totalRev) * 100).toFixed(1) : '0.0';
 
-    const handleExportCSV = () => {
+    const handleExportCSV = async () => {
         if (!sales.length) return;
         const headers = ['Tanggal', 'Jumlah Transaksi', 'Revenue (Rp)', 'Profit (Rp)'];
         const rows = sales.map((s) => [
@@ -91,14 +92,7 @@ const Reports = () => {
         ]);
         const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `laporan-penjualan-${startDate}-sd-${endDate}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        await downloadOrShareFile(blob, `laporan-penjualan-${startDate}-sd-${endDate}.csv`, 'text/csv');
     };
 
     return (

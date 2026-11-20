@@ -46,6 +46,7 @@ import { NavMenuContent } from './Sidebar';
 import BottomNavBar from './BottomNavBar';
 import Modal from './Modal';
 import { useToast } from './Toast';
+import { AppUpdateModal } from './AppUpdateModal';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/axios';
 
@@ -846,6 +847,7 @@ const Layout = () => {
                     )}
                 </VStack>
             </Drawer>
+            <AppUpdateModal />
         </>
     );
 };

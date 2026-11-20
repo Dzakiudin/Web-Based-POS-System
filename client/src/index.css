@@ -446,21 +446,31 @@ button:active:not(:disabled) {
 }
 
 /* Printable Thermal Receipt (58mm / 80mm standard) */
+.pos-receipt-print-only {
+  display: none !important;
+}
+
 @media print {
+  body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
   body * {
     visibility: hidden !important;
   }
-  #pos-printable-receipt,
-  #pos-printable-receipt * {
+  .pos-receipt-print-only,
+  .pos-receipt-print-only * {
     visibility: visible !important;
   }
-  #pos-printable-receipt {
-    position: fixed !important;
+  .pos-receipt-print-only {
+    display: block !important;
+    position: absolute !important;
     left: 0 !important;
     top: 0 !important;
     width: 78mm !important;
-    margin: 0 !important;
-    padding: 10px !important;
+    margin: 0 auto !important;
+    padding: 8px !important;
     background: #ffffff !important;
     color: #000000 !important;
     font-family: 'Courier New', Courier, monospace !important;
@@ -468,6 +478,7 @@ button:active:not(:disabled) {
     line-height: 1.35 !important;
     box-shadow: none !important;
     border: none !important;
+    z-index: 9999999 !important;
   }
 }
 

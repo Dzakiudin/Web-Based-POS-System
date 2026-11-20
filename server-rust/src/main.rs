@@ -228,7 +228,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Combine all API routers
     let api_routes = Router::new()
-        .route("/health", get(|| async { axum::Json(serde_json::json!({ "status": "ok", "app": "POS System Pro Max", "version": "2.0.0" })) }))
+        .route("/health", get(|| async { axum::Json(serde_json::json!({ "status": "ok", "app": "POS System Pro Max", "version": "2.0.2" })) }))
+        .route("/app/version", get(|| async {
+            axum::Json(serde_json::json!({
+                "version": "2.0.2",
+                "releaseDate": "2026-11-20",
+                "releaseNotes": "Perbaikan cetak struk thermal, download PDF & ekspor CSV di Android, serta sistem notifikasi update otomatis.",
+                "downloadUrl": "https://github.com/Dzakiudin/Web-Based-POS-System/releases/download/v2.0.0/pos-system-v2.0.0.apk"
+            }))
+        }))
         .nest("/auth", auth_routes)
         .nest("/products", product_routes)
         .nest("/categories", category_routes)

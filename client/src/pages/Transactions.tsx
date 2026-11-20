@@ -31,6 +31,7 @@ import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
 import useHardwareScanner from '../hooks/useHardwareScanner';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
+import { downloadOrShareFile } from '../lib/fileHelper';
 
 interface Category { id: number; name: string; color: string; }
 interface Product {
@@ -292,9 +293,11 @@ export const Transactions = () => {
         if (!promoCode.trim()) return;
         setPromoError('');
         try {
-            const r = await api.post('/discounts/validate', { code: promoCode });
-            setPromoDiscount({ type: r.data.type, value: Number(r.data.value), name: r.data.name });
-            toast.success(`Promo "${r.data.name}" diterapkan`);
+            const currentSubtotal = cart.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
+            const r = await api.post('/discounts/validate', { code: promoCode, subtotal: currentSubtotal });
+            const discountData = r.data.discount || r.data;
+            setPromoDiscount({ type: discountData.type, value: Number(discountData.value), name: discountData.name });
+            toast.success(`Promo "${discountData.name}" diterapkan`);
         } catch (e: any) {
             setPromoError(e.response?.data?.message || 'Kode promo tidak valid');
             setPromoDiscount(null);
@@ -390,7 +393,7 @@ export const Transactions = () => {
         }
     };
 
-    const printReceiptPDF = () => {
+    const printReceiptPDF = async () => {
         if (!successSale) return;
         const doc = new jsPDF({ unit: 'mm', format: [80, 150] });
         doc.setFontSize(12);
@@ -416,7 +419,9 @@ export const Transactions = () => {
         doc.text(`Total: Rp ${Number(successSale.finalPrice || 0).toLocaleString('id-ID')}`, 5, finalY + 8);
         doc.text(`Bayar (${successSale.method}): Rp ${Number(successSale.paid || 0).toLocaleString('id-ID')}`, 5, finalY + 13);
         doc.text(`Kembali: Rp ${Number(successSale.change || 0).toLocaleString('id-ID')}`, 5, finalY + 18);
-        doc.save(`struk-${successSale.receiptNumber || 'pos'}.pdf`);
+        
+        const blob = doc.output('blob');
+        await downloadOrShareFile(blob, `struk-${successSale.receiptNumber || 'pos'}.pdf`, 'application/pdf');
     };
 
     const filteredProducts = products.filter((p) => {
@@ -1406,7 +1411,7 @@ export const Transactions = () => {
 
             {/* Native Printable Thermal Receipt (58mm / 80mm Standard) */}
             {successSale && (
-                <div id="pos-printable-receipt" style={{ display: 'none' }}>
+                <div id="pos-printable-receipt" className="pos-receipt-print-only">
                     <div style={{ textAlign: 'center', marginBottom: 8 }}>
                         <div style={{ fontWeight: 'bold', fontSize: 13 }}>POS SYSTEM STORE</div>
                         <div>Jl. Jendral Sudirman Kav. 52, Jakarta</div>
