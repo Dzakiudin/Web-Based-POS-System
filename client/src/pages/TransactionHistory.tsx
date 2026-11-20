@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Eye, Ban, RotateCcw, ReceiptText, Search, RefreshCw, Printer } from 'lucide-react';
+import { Eye, Ban, RotateCcw, ReceiptText, Search, RefreshCw, Printer, Clock, User, Tag, Banknote, QrCode, CreditCard, ArrowRightLeft, Receipt } from 'lucide-react';
 import { printThermalReceipt } from '../lib/thermalPrinter';
 import { VStack } from '@astryxdesign/core/VStack';
 import { HStack } from '@astryxdesign/core/HStack';
@@ -311,7 +311,7 @@ const TransactionHistory = () => {
                 isOpen={!!selectedSale}
                 onClose={() => setSelectedSale(null)}
                 title={selectedSale ? `Rincian Struk ${selectedSale.receiptNumber}` : 'Detail Transaksi'}
-                width={580}
+                width={560}
             >
                 {selectedSale && (() => {
                     const primaryPayment = selectedSale.payments?.[0];
@@ -322,161 +322,240 @@ const TransactionHistory = () => {
                     const grossTotal = Number(selectedSale.totalPrice || selectedSale.finalPrice || 0);
                     const finalTotal = Number(selectedSale.finalPrice || 0);
 
+                    const getMethodBadge = (m: string) => {
+                        switch (m) {
+                            case 'CASH':
+                                return { label: 'Tunai (Cash)', icon: <Banknote size={13} />, bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' };
+                            case 'QRIS':
+                                return { label: 'QRIS', icon: <QrCode size={13} />, bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' };
+                            case 'CARD':
+                                return { label: 'Kartu / EDC', icon: <CreditCard size={13} />, bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' };
+                            case 'TRANSFER':
+                                return { label: 'Transfer Bank', icon: <ArrowRightLeft size={13} />, bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' };
+                            default:
+                                return { label: m, icon: <Receipt size={13} />, bg: '#f4f4f5', color: '#3f3f46', border: '#e4e4e7' };
+                        }
+                    };
+                    const methodInfo = getMethodBadge(paymentMethod);
+
                     return (
-                        <VStack gap={4}>
-                            {/* Metadata Ringkasan */}
-                            <div className="grid grid-cols-2 gap-3 p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border border-zinc-200/80 dark:border-zinc-800 text-xs">
-                                <div className="space-y-1">
-                                    <div className="text-zinc-500">Waktu Transaksi</div>
-                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                                        {new Date(selectedSale.date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                        <VStack gap={4} width="100%">
+                            {/* Metadata Ringkasan Grid */}
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(2, 1fr)',
+                                gap: 10,
+                                padding: 14,
+                                backgroundColor: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: 12,
+                            }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Waktu Transaksi</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <Clock size={13} color="#64748b" />
+                                        <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
+                                            {new Date(selectedSale.date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                                        </span>
                                     </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <div className="text-zinc-500">Status Transaksi</div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status Transaksi</span>
                                     <div>
                                         <Badge variant={STATUS_VARIANT[selectedSale.status] || 'neutral'} label={selectedSale.status} />
                                     </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <div className="text-zinc-500">Kasir</div>
-                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                                        {selectedSale.user?.name || 'Kasir Utama'}
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Kasir</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <User size={13} color="#64748b" />
+                                        <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
+                                            {selectedSale.user?.name || 'Kasir Utama'}
+                                        </span>
                                     </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <div className="text-zinc-500">Pelanggan</div>
-                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pelanggan</span>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
                                         {selectedSale.customer?.name || 'Pelanggan Umum'}
-                                    </div>
+                                    </span>
                                 </div>
                             </div>
 
                             {/* Alert catatan atau alasan refund/void jika ada */}
                             {selectedSale.refundReason && (
-                                <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg text-xs text-amber-800 dark:text-amber-200">
-                                    <span className="font-bold">Alasan Void / Refund:</span> {selectedSale.refundReason}
+                                <div style={{ padding: '10px 14px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, fontSize: 12, color: '#92400e' }}>
+                                    <strong>Alasan Void / Refund:</strong> {selectedSale.refundReason}
                                 </div>
                             )}
                             {selectedSale.notes && (
-                                <div className="p-2.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-lg text-xs text-blue-800 dark:text-blue-200">
-                                    <span className="font-bold">Catatan:</span> {selectedSale.notes}
+                                <div style={{ padding: '10px 14px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, fontSize: 12, color: '#1e40af' }}>
+                                    <strong>Catatan:</strong> {selectedSale.notes}
                                 </div>
                             )}
 
                             {/* Daftar Barang Belanja */}
                             <div>
-                                <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">
-                                    Daftar Barang Belanja ({selectedSale.details?.length || 0} item)
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                                        Daftar Barang Belanja ({selectedSale.details?.length || 0} item)
+                                    </span>
                                 </div>
-                                <Table density="compact" dividers="rows">
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHeaderCell>Produk</TableHeaderCell>
-                                            <TableHeaderCell>Harga Satuan</TableHeaderCell>
-                                            <TableHeaderCell>Qty</TableHeaderCell>
-                                            <TableHeaderCell>Subtotal</TableHeaderCell>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {(selectedSale.details || []).map((d: any) => {
-                                            const qty = Number(d.quantity || 1);
-                                            const unitPrice = Number(d.unitPrice || (d.subtotal ? Number(d.subtotal) / qty : 0));
-                                            const itemSubtotal = Number(d.subtotal || unitPrice * qty);
-                                            const itemDisc = Number(d.discountAmount || 0);
 
-                                            return (
-                                                <TableRow key={d.id}>
-                                                    <TableCell>
-                                                        <div>
-                                                            <Text size="sm" weight="medium">{d.product?.name || `Produk #${d.productId}`}</Text>
-                                                            {d.variant?.name && (
-                                                                <Text size="xsm" color="secondary">{d.variant.name}</Text>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Text size="sm" hasTabularNumbers color="secondary">
-                                                            Rp {unitPrice.toLocaleString('id-ID')}
-                                                        </Text>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Text size="sm" hasTabularNumbers weight="medium">
-                                                            {qty}
-                                                        </Text>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div>
-                                                            <Text size="sm" hasTabularNumbers weight="semibold">
-                                                                Rp {itemSubtotal.toLocaleString('id-ID')}
-                                                            </Text>
-                                                            {itemDisc > 0 && (
-                                                                <div className="text-xs text-emerald-600 font-mono tabular-nums font-medium">
-                                                                    -Rp {itemDisc.toLocaleString('id-ID')}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
+                                <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+                                    <Table density="compact" dividers="rows">
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHeaderCell>Produk</TableHeaderCell>
+                                                <TableHeaderCell>Harga Satuan</TableHeaderCell>
+                                                <TableHeaderCell>Qty</TableHeaderCell>
+                                                <TableHeaderCell>Subtotal</TableHeaderCell>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {(selectedSale.details || []).map((d: any) => {
+                                                const qty = Number(d.quantity || 1);
+                                                const unitPrice = Number(d.unitPrice || (d.subtotal ? Number(d.subtotal) / qty : 0));
+                                                const itemSubtotal = Number(d.subtotal || unitPrice * qty);
+                                                const itemDisc = Number(d.discountAmount || 0);
+
+                                                return (
+                                                    <TableRow key={d.id}>
+                                                        <TableCell>
+                                                            <div>
+                                                                <Text size="sm" weight="medium">{d.product?.name || `Produk #${d.productId}`}</Text>
+                                                                {d.variant?.name && (
+                                                                    <Text size="xsm" color="secondary">{d.variant.name}</Text>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <span style={{ fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', fontSize: 13, color: '#64748b' }}>
+                                                                Rp {unitPrice.toLocaleString('id-ID')}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <span style={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                padding: '1px 8px',
+                                                                backgroundColor: '#f1f5f9',
+                                                                borderRadius: 6,
+                                                                fontWeight: 700,
+                                                                fontSize: 12,
+                                                                color: '#334155'
+                                                            }}>
+                                                                {qty}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div>
+                                                                <span style={{ fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
+                                                                    Rp {itemSubtotal.toLocaleString('id-ID')}
+                                                                </span>
+                                                                {itemDisc > 0 && (
+                                                                    <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>
+                                                                        -Rp {itemDisc.toLocaleString('id-ID')}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </div>
 
-                            {/* Ringkasan Keuangan & Pembayaran (Receipt Breakdown) */}
-                            <div className="bg-zinc-50 dark:bg-zinc-900/60 p-4 rounded-xl border border-zinc-200/80 dark:border-zinc-800 space-y-2.5">
-                                <div className="flex justify-between items-center text-sm text-zinc-600 dark:text-zinc-400">
-                                    <span>Subtotal Kotor</span>
-                                    <span className="font-mono tabular-nums font-medium text-zinc-800 dark:text-zinc-200">
+                            {/* Ringkasan Finansial Struk (Receipt Breakdown Box) */}
+                            <div style={{
+                                backgroundColor: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: 12,
+                                padding: '16px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 10,
+                            }}>
+                                {/* Subtotal Kotor */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Subtotal Kotor</span>
+                                    <span style={{ fontFamily: 'Inter, monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
                                         Rp {grossTotal.toLocaleString('id-ID')}
                                     </span>
                                 </div>
 
+                                {/* Diskon / Potongan Harga */}
                                 {discountAmt > 0 && (
-                                    <div className="flex justify-between items-center text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                                        <span>Diskon / Potongan Harga</span>
-                                        <span className="font-mono tabular-nums">
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: '#059669', fontWeight: 600 }}>
+                                            <Tag size={13} />
+                                            <span>Diskon / Potongan Harga</span>
+                                        </span>
+                                        <span style={{ fontFamily: 'Inter, monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 14, color: '#059669' }}>
                                             - Rp {discountAmt.toLocaleString('id-ID')}
                                         </span>
                                     </div>
                                 )}
 
-                                <div className="border-t border-dashed border-zinc-300 dark:border-zinc-700 my-1" />
+                                {/* Dashed Divider */}
+                                <div style={{ borderTop: '1px dashed #cbd5e1', margin: '4px 0' }} />
 
-                                <div className="flex justify-between items-center">
-                                    <span className="text-base font-bold text-zinc-900 dark:text-zinc-100">Total Akhir</span>
-                                    <span className="font-mono text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                {/* Total Akhir */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>Total Akhir</span>
+                                    <span style={{ fontFamily: 'Inter, monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 800, fontSize: 18, color: '#059669', letterSpacing: '-0.02em' }}>
                                         Rp {finalTotal.toLocaleString('id-ID')}
                                     </span>
                                 </div>
 
-                                <div className="border-t border-dashed border-zinc-300 dark:border-zinc-700 my-1" />
+                                {/* Dashed Divider */}
+                                <div style={{ borderTop: '1px dashed #cbd5e1', margin: '4px 0' }} />
 
-                                {/* Informasi Pembayaran */}
-                                <div className="space-y-1.5 pt-1 text-xs">
-                                    <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
-                                        <span>Metode Pembayaran</span>
-                                        <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-                                            {paymentMethod === 'CASH' ? 'Tunai (Cash)' : paymentMethod}
+                                {/* Informasi Pembayaran & Kembalian */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 2 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>Metode Pembayaran</span>
+                                        <span style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 5,
+                                            padding: '3px 9px',
+                                            backgroundColor: methodInfo.bg,
+                                            color: methodInfo.color,
+                                            border: `1px solid ${methodInfo.border}`,
+                                            borderRadius: 9999,
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                        }}>
+                                            {methodInfo.icon}
+                                            {methodInfo.label}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
-                                        <span>Uang Diterima / Dibayar</span>
-                                        <span className="font-mono tabular-nums font-semibold text-zinc-800 dark:text-zinc-200">
+
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>Uang Diterima / Dibayar</span>
+                                        <span style={{ fontFamily: 'Inter, monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 600, fontSize: 13, color: '#1e293b' }}>
                                             Rp {paidAmount.toLocaleString('id-ID')}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400 font-medium">
-                                        <span>Kembalian</span>
-                                        <span className="font-mono tabular-nums font-semibold text-zinc-800 dark:text-zinc-200">
+
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>Kembalian</span>
+                                        <span style={{ fontFamily: 'Inter, monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 14, color: changeAmount > 0 ? '#059669' : '#64748b' }}>
                                             Rp {changeAmount.toLocaleString('id-ID')}
                                         </span>
                                     </div>
+
                                     {primaryPayment?.reference && (
-                                        <div className="flex justify-between items-center text-zinc-500 text-[11px]">
-                                            <span>No. Referensi Transaksi</span>
-                                            <span className="font-mono">{primaryPayment.reference}</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 2 }}>
+                                            <span style={{ fontSize: 11, color: '#94a3b8' }}>No. Referensi Transaksi</span>
+                                            <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b' }}>{primaryPayment.reference}</span>
                                         </div>
                                     )}
                                 </div>
@@ -485,15 +564,30 @@ const TransactionHistory = () => {
                             <Divider />
 
                             {/* Tombol Aksi */}
-                            <HStack justify="end" gap={2} wrap="wrap">
-                                <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    icon={<Printer size={14} />}
-                                    label="Cetak Struk"
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                                <button
+                                    type="button"
                                     onClick={() => printThermalReceipt(selectedSale)}
-                                />
-                            </HStack>
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        padding: '9px 18px',
+                                        backgroundColor: '#18181b',
+                                        color: '#ffffff',
+                                        border: '1px solid #27272a',
+                                        borderRadius: 10,
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                                        transition: 'all 150ms ease',
+                                    }}
+                                >
+                                    <Printer size={15} color="#34d399" />
+                                    <span>Cetak Struk Thermal</span>
+                                </button>
+                            </div>
                         </VStack>
                     );
                 })()}
