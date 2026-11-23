@@ -13,3 +13,4 @@ release-build/
 *.log
 logs/
 uploads/
+*.apk
