@@ -18,6 +18,7 @@ import { useMediaQuery } from '@astryxdesign/core/hooks';
 import api from '../lib/axios';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
+import PageHeader from '../components/PageHeader';
 
 interface Voucher {
     id: number;
@@ -52,19 +53,25 @@ const Vouchers = () => {
         try {
             const r = await api.get('/vouchers', { params: statusFilter ? { status: statusFilter } : {} });
             setVouchers(Array.isArray(r.data) ? r.data : []);
-        } catch (e) { console.error(e); }
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat daftar voucher');
+        }
     };
     const fetchDiscounts = async () => {
         try {
             const r = await api.get('/discounts');
             setDiscounts(Array.isArray(r.data) ? r.data : []);
-        } catch (e) { console.error(e); }
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat aturan diskon');
+        }
     };
     const fetchCustomers = async () => {
         try {
             const r = await api.get('/customers');
             setCustomers(Array.isArray(r.data) ? r.data : []);
-        } catch (e) { console.error(e); }
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat daftar pelanggan');
+        }
     };
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -98,6 +105,21 @@ const Vouchers = () => {
 
     return (
         <VStack gap={4} width="100%">
+            <PageHeader
+                title="Voucher & Kupon Belanja"
+                subtitle="Kelola kode kupon diskon nominal dan persentase untuk promosi kasir"
+                badge={<Badge variant="neutral" label={`${vouchers.length} Voucher`} />}
+                actions={
+                    !isMobile ? (
+                        <Button
+                            variant="primary"
+                            label="Buat Voucher"
+                            icon={<Plus size={16} />}
+                            onClick={() => setShowCreate(true)}
+                        />
+                    ) : undefined
+                }
+            />
             {isMobile ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', paddingTop: 4, paddingBottom: 2 }}>
                     <div style={{ width: '100%', minWidth: 0 }}>

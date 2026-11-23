@@ -14,8 +14,14 @@ use sqlx::Row;
 
 pub async fn get_sessions(
     State(state): State<SharedState>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<Value>>, AppError> {
+    auth.require_permission(&[
+        "cash.open_shift",
+        "cash.reconcile",
+        "report.view",
+        "transaction.create",
+    ])?;
     let rows = sqlx::query(
         r#"
         SELECT cs.id, cs."userId", cs."openingBalance", cs."closingBalance", cs."expectedBalance",
@@ -211,6 +217,13 @@ pub async fn open_session(
     auth: AuthUser,
     Json(payload): Json<OpenSessionRequest>,
 ) -> Result<Json<CashSession>, AppError> {
+    auth.require_permission(&["cash.open_shift", "cash.reconcile"])?;
+
+    if payload.opening_balance < Decimal::ZERO {
+        return Err(AppError::BadRequest(
+            "Saldo awal kas tidak boleh negatif".to_string(),
+        ));
+    }
     let existing = sqlx::query!(
         r#"
         SELECT id FROM cash_sessions
@@ -238,19 +251,44 @@ pub async fn open_session(
     )
     .bind(auth.id)
     .bind(payload.opening_balance)
-    .bind(payload.notes)
+    .bind(&payload.notes)
     .fetch_one(&state.db)
     .await?;
+
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO audit_logs ("userId", action, entity, "entityId", details)
+        VALUES ($1, 'CREATE', 'CashSession', $2, $3)
+        "#,
+    )
+    .bind(auth.id)
+    .bind(session.id)
+    .bind(
+        json!({
+            "openingBalance": session.opening_balance,
+            "note": payload.notes.unwrap_or_default()
+        })
+        .to_string(),
+    )
+    .execute(&state.db)
+    .await;
 
     Ok(Json(session))
 }
 
 pub async fn close_session(
     State(state): State<SharedState>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Path(id): Path<i32>,
     Json(payload): Json<CloseSessionRequest>,
 ) -> Result<Json<CashSession>, AppError> {
+    auth.require_permission(&["cash.open_shift", "cash.reconcile"])?;
+
+    if payload.closing_balance < Decimal::ZERO {
+        return Err(AppError::BadRequest(
+            "Saldo akhir kas tidak boleh negatif".to_string(),
+        ));
+    }
     let session = sqlx::query_as::<_, CashSession>(
         r#"
         SELECT id, "userId", "openingBalance", "closingBalance", "expectedBalance",
@@ -315,7 +353,7 @@ pub async fn close_session(
         UPDATE cash_sessions
         SET "closingBalance" = $1, "expectedBalance" = $2, difference = $3,
             status = 'CLOSED', notes = $4, "closedAt" = NOW()
-        WHERE id = $5
+        WHERE id = $5 AND status = 'OPEN'
         RETURNING id, "userId", "openingBalance", "closingBalance", "expectedBalance",
                   difference, status, notes, "openedAt", "closedAt"
         "#,
@@ -323,20 +361,58 @@ pub async fn close_session(
     .bind(payload.closing_balance)
     .bind(expected)
     .bind(diff)
-    .bind(payload.notes)
+    .bind(&payload.notes)
     .bind(id)
-    .fetch_one(&state.db)
-    .await?;
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::BadRequest("Session already closed".to_string()))?;
+
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO audit_logs ("userId", action, entity, "entityId", details)
+        VALUES ($1, 'UPDATE', 'CashSession', $2, $3)
+        "#,
+    )
+    .bind(auth.id)
+    .bind(id)
+    .bind(
+        json!({
+            "closingBalance": payload.closing_balance,
+            "expectedBalance": expected,
+            "difference": diff,
+            "note": payload.notes.unwrap_or_default()
+        })
+        .to_string(),
+    )
+    .execute(&state.db)
+    .await;
 
     Ok(Json(updated))
 }
 
 pub async fn add_movement(
     State(state): State<SharedState>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Path(id): Path<i32>,
     Json(payload): Json<AddMovementRequest>,
 ) -> Result<Json<CashMovement>, AppError> {
+    auth.require_permission(&["cash.open_shift", "cash.reconcile"])?;
+
+    if payload.amount <= Decimal::ZERO {
+        return Err(AppError::BadRequest(
+            "Nominal arus kas harus lebih dari Rp 0".to_string(),
+        ));
+    }
+    if payload.reason.trim().is_empty() {
+        return Err(AppError::BadRequest(
+            "Keterangan / alasan arus kas wajib diisi".to_string(),
+        ));
+    }
+    if payload.movement_type != "CASH_IN" && payload.movement_type != "CASH_OUT" {
+        return Err(AppError::BadRequest(
+            "Tipe arus kas tidak valid (harus CASH_IN atau CASH_OUT)".to_string(),
+        ));
+    }
     let session = sqlx::query_scalar::<_, String>(
         r#"SELECT status FROM cash_sessions WHERE id = $1"#
     )
@@ -357,11 +433,30 @@ pub async fn add_movement(
         "#,
     )
     .bind(id)
-    .bind(payload.movement_type)
+    .bind(&payload.movement_type)
     .bind(payload.amount)
-    .bind(payload.reason)
+    .bind(&payload.reason)
     .fetch_one(&state.db)
     .await?;
+
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO audit_logs ("userId", action, entity, "entityId", details)
+        VALUES ($1, 'UPDATE', 'CashSession', $2, $3)
+        "#,
+    )
+    .bind(auth.id)
+    .bind(id)
+    .bind(
+        json!({
+            "type": payload.movement_type,
+            "amount": payload.amount,
+            "reason": payload.reason
+        })
+        .to_string(),
+    )
+    .execute(&state.db)
+    .await;
 
     Ok(Json(movement))
 }

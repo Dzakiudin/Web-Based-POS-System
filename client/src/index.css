@@ -518,6 +518,7 @@ td,
   border-bottom: 1px solid #f0f0f2 !important;
   vertical-align: middle !important;
   line-height: 1.45 !important;
+  transition: background-color 140ms ease !important;
 }
 
 tr:last-child td,
@@ -526,11 +527,67 @@ tr:last-child [class*="TableCell"] {
   border-bottom: none !important;
 }
 
-/* Row Hover State */
+/* Row Hover State: subtle zinc-50/70 */
 tbody tr:hover td,
 tbody tr:hover .astryx-table-cell,
 tbody tr:hover [class*="TableCell"] {
-  background-color: #f8fafc !important;
+  background-color: rgba(244, 244, 245, 0.72) !important;
+}
+
+/* Table Ergonomics Helpers */
+.pos-table-num-cell {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
+  font-weight: 600 !important;
+}
+
+.pos-table-truncate {
+  max-width: 240px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* ==========================================================================
+   Enterprise Status Badge Palette
+   ========================================================================== */
+.astryx-badge,
+[class*="Badge"] {
+  border-radius: 6px !important;
+  padding: 2px 8px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Success: soft tinted emerald-50 text-emerald-700 border-emerald-200 */
+.astryx-badge-success,
+[class*="Badge"][class*="success"],
+.badge-success {
+  background-color: #ecfdf5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+/* Destructive / Warning / Error: soft tinted rose-50 text-rose-700 border-rose-200 */
+.astryx-badge-error,
+.astryx-badge-warning,
+.astryx-badge-destructive,
+[class*="Badge"][class*="error"],
+[class*="Badge"][class*="warning"],
+.badge-error {
+  background-color: #fff1f2 !important;
+  color: #be123c !important;
+  border: 1px solid #fecdd3 !important;
+}
+
+/* Neutral / Draft: zinc-100 text-zinc-700 border-zinc-200 */
+.astryx-badge-neutral,
+[class*="Badge"][class*="neutral"],
+.badge-neutral {
+  background-color: #f4f4f5 !important;
+  color: #3f3f46 !important;
+  border: 1px solid #e4e4e7 !important;
 }
 
 /* ==========================================================================
@@ -544,10 +601,19 @@ tbody tr:hover [class*="TableCell"] {
   border-radius: 9999px;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
   border: 1px solid transparent;
   cursor: pointer;
   transition: all 140ms ease;
   user-select: none;
+}
+@media (max-width: 768px) {
+  .pos-shift-badge {
+    gap: 5px;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
 }
 .pos-shift-badge-active {
   background-color: #ecfdf5;
@@ -648,7 +714,7 @@ tbody tr:hover [class*="TableCell"] {
 }
 .pos-numpad-display-box:focus-within {
   border-color: #18181b;
-  box-shadow: 0 0 0 1px #18181b;
+  box-shadow: 0 0 0 3px rgba(24, 24, 27, 0.06);
 }
 .pos-numpad-input {
   width: 100%;
@@ -894,6 +960,241 @@ tbody tr:hover [class*="TableCell"] {
 .pos-receipt-table tr:last-child td {
   border-bottom: none !important;
 }
+
+/* ==========================================================================
+   Cash Management Header Desktop Action Buttons
+   ========================================================================== */
+.pos-btn-cash-movement {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 9px;
+  background-color: #ffffff;
+  border: 1px solid #e4e4e7;
+  color: #18181b;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 120ms ease;
+  box-sizing: border-box;
+}
+
+.pos-btn-cash-movement:hover {
+  background-color: #f4f4f5;
+  border-color: #d4d4d8;
+}
+
+.pos-btn-cash-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 9px;
+  background-color: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #be123c;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 120ms ease;
+  box-sizing: border-box;
+}
+
+.pos-btn-cash-close:hover {
+  background-color: #ffe4e6;
+  border-color: #fda4af;
+}
+
+/* ==========================================================================
+   Report Filter Bar Responsive
+   ========================================================================== */
+.pos-report-filter-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pos-report-filter-item {
+  min-width: 140px;
+  flex: 0 1 auto;
+}
+
+.pos-report-filter-selector {
+  width: 230px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.pos-report-filter-btn {
+  flex-shrink: 0;
+}
+
+/* Tablet & Mobile: Stack cleanly so inputs never collide or truncate */
+@media (max-width: 860px) {
+  .pos-report-filter-bar {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .pos-report-filter-item,
+  .pos-report-filter-selector,
+  .pos-report-filter-btn {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .pos-report-filter-item > div,
+  .pos-report-filter-selector > div,
+  .pos-report-filter-btn > div,
+  .pos-report-filter-btn button {
+    width: 100% !important;
+  }
+}
+
+/* ==========================================================================
+   Success Checkout Modal Action Buttons Responsive
+   ========================================================================== */
+.pos-success-modal-actions {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.pos-btn-transaksi-baru {
+  order: 2;
+  flex-shrink: 0;
+}
+
+.pos-btn-cetak-struk {
+  order: 1;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .pos-success-modal-actions {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .pos-btn-transaksi-baru {
+    order: 1 !important;
+    width: 100% !important;
+  }
+
+  .pos-btn-cetak-struk {
+    order: 2 !important;
+    width: 100% !important;
+  }
+
+  .pos-btn-transaksi-baru button,
+  .pos-btn-cetak-struk button {
+    width: 100% !important;
+    height: 42px !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    justify-content: center !important;
+    border-radius: 9px !important;
+  }
+}
+
+/* Responsive PageHeader: Hide title and subtitles on mobile for clean, uncluttered layout */
+@media (max-width: 768px) {
+  .pos-page-header-title-box,
+  .pos-page-header-subtitle {
+    display: none !important;
+  }
+}
+
+/* POS Desktop Cart Panel Refinement (Square / Stripe POS standard) */
+.pos-cart-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background-color: #ffffff;
+  position: relative;
+}
+
+.pos-cart-header {
+  flex-shrink: 0;
+  padding: 18px 20px 14px 20px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #f4f4f5;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pos-cart-items-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 16px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: #e4e4e7 transparent;
+}
+
+.pos-cart-items-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.pos-cart-items-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pos-cart-items-scroll::-webkit-scrollbar-thumb {
+  background: #e4e4e7;
+  border-radius: 9999px;
+}
+
+.pos-cart-items-scroll::-webkit-scrollbar-thumb:hover {
+  background: #d4d4d8;
+}
+
+.pos-cart-item-card {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #e4e4e7;
+  background-color: #ffffff;
+  transition: all 120ms ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.pos-cart-item-card:hover {
+  border-color: #d4d4d8;
+  background-color: #fafafa;
+}
+
+.pos-cart-footer {
+  flex-shrink: 0;
+  background-color: #ffffff;
+  border-top: 1px solid #e4e4e7;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.03);
+  padding: 16px 20px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+
+
 
 
 

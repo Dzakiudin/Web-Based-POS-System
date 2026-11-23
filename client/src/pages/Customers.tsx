@@ -17,6 +17,7 @@ import api from '../lib/axios';
 import Modal from '../components/Modal';
 import HasPermission from '../components/HasPermission';
 import { useToast } from '../components/Toast';
+import PageHeader from '../components/PageHeader';
 
 interface Customer {
     id: number;
@@ -53,8 +54,8 @@ const Customers = () => {
         try {
             const r = await api.get('/customers');
             setCustomers(Array.isArray(r.data) ? r.data : []);
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat daftar pelanggan');
         }
     };
 
@@ -107,8 +108,26 @@ const Customers = () => {
 
     return (
         <VStack gap={4} width="100%">
+            {/* Unified Page Header Pattern */}
+            <PageHeader
+                title="Data Pelanggan & Loyalitas"
+                subtitle="Daftar pelanggan tetap, poin loyalitas, riwayat belanja, dan tingkatan membership"
+                actions={
+                    <HasPermission permission={['customer.manage', 'customer.create_basic']}>
+                        <Button
+                            variant="primary"
+                            label="Tambah Pelanggan"
+                            icon={<Plus size={16} />}
+                            onClick={() => { resetForm(); setShowModal(true); }}
+                            width={isMobile ? '100%' : undefined}
+                        />
+                    </HasPermission>
+                }
+            />
+
+            {/* Search Toolbar */}
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: 10, width: '100%' }}>
-                <div style={{ flex: 1, minWidth: 0, maxWidth: isMobile ? '100%' : 360 }}>
+                <div style={{ flex: 1, minWidth: 0, maxWidth: isMobile ? '100%' : 380 }}>
                     <TextInput
                         label="Cari pelanggan"
                         isLabelHidden
@@ -121,15 +140,6 @@ const Customers = () => {
                         width="100%"
                     />
                 </div>
-                <HasPermission permission={['customer.manage', 'customer.create_basic']}>
-                    <Button
-                        variant="primary"
-                        label="Tambah Pelanggan"
-                        icon={<Plus size={16} />}
-                        onClick={() => { resetForm(); setShowModal(true); }}
-                        width={isMobile ? '100%' : undefined}
-                    />
-                </HasPermission>
             </div>
 
             {filtered.length > 0 ? (

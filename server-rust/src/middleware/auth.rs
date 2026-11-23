@@ -62,13 +62,18 @@ impl FromRequestParts<SharedState> for AuthUser {
         };
 
         let mut validation = Validation::default();
-        validation.validate_exp = false; // allow flexible token expiry
+        validation.validate_exp = true; // Enforce token expiration for security
         let token_data = decode::<Claims>(
             token,
             &DecodingKey::from_secret(state.jwt_secret.as_bytes()),
             &validation,
         )
-        .map_err(|_| AppError::Forbidden("Invalid token.".to_string()))?;
+        .map_err(|e| match e.kind() {
+            jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
+                AppError::Unauthorized("Sesi login telah kedaluwarsa. Silakan login kembali.".to_string())
+            }
+            _ => AppError::Forbidden("Token otentikasi tidak valid.".to_string()),
+        })?;
 
         Ok(AuthUser {
             id: token_data.claims.id,

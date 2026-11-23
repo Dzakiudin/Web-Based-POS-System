@@ -106,19 +106,31 @@ pub async fn create_stock_movement(
         _ => payload.quantity,
     };
 
-    // Update product stock
-    let updated_product = sqlx::query!(
+    // Update product stock (guard against negative stock on OUT)
+    let updated_row = sqlx::query(
         r#"
         UPDATE products
         SET stock = stock + $1, "updatedAt" = NOW()
-        WHERE id = $2
-        RETURNING stock
+        WHERE id = $2 AND (stock + $1) >= 0
+        RETURNING name, stock
         "#,
-        delta,
-        payload.product_id
     )
-    .fetch_one(&mut *tx)
+    .bind(delta)
+    .bind(payload.product_id)
+    .fetch_optional(&mut *tx)
     .await?;
+
+    let updated_row = match updated_row {
+        Some(r) => r,
+        None => {
+            return Err(AppError::BadRequest(
+                "Produk tidak ditemukan atau stok tidak mencukupi (tidak boleh minus)".to_string(),
+            ));
+        }
+    };
+
+    let product_name: String = updated_row.get("name");
+    let new_stock: i32 = updated_row.get("stock");
 
     // Insert stock movement record
     let row = sqlx::query(
@@ -129,21 +141,43 @@ pub async fn create_stock_movement(
         "#,
     )
     .bind(payload.product_id)
-    .bind(payload.movement_type)
+    .bind(&payload.movement_type)
     .bind(payload.quantity)
-    .bind(payload.reason)
-    .bind(payload.reference)
+    .bind(&payload.reason)
+    .bind(&payload.reference)
     .bind(auth.id)
     .fetch_one(&mut *tx)
     .await?;
 
     let movement_id: i32 = row.get("id");
 
+    // Audit log for stock adjustment
+    sqlx::query(
+        r#"
+        INSERT INTO audit_logs ("userId", action, entity, "entityId", details)
+        VALUES ($1, 'UPDATE', 'Product', $2, $3)
+        "#,
+    )
+    .bind(auth.id)
+    .bind(payload.product_id)
+    .bind(
+        json!({
+            "name": product_name,
+            "type": payload.movement_type,
+            "quantity": payload.quantity,
+            "stock": new_stock,
+            "reason": payload.reason.unwrap_or_default()
+        })
+        .to_string(),
+    )
+    .execute(&mut *tx)
+    .await?;
+
     tx.commit().await?;
 
     Ok(Json(json!({
         "id": movement_id,
-        "newStock": updated_product.stock,
+        "newStock": new_stock,
         "message": "Stock updated successfully"
     })))
 }

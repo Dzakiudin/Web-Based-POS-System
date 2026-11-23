@@ -7,6 +7,7 @@ pub mod discount;
 pub mod product;
 pub mod report;
 pub mod sale;
+pub mod settings;
 pub mod stock;
 pub mod user;
 pub mod voucher;

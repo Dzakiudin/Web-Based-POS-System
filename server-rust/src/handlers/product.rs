@@ -215,11 +215,35 @@ pub async fn create_product(
     .await?;
 
     use sqlx::Row;
+    let product_id = row.get::<i32, _>("id");
+    let product_name = row.get::<String, _>("name");
+    let product_price = row.get::<Decimal, _>("price");
+    let product_stock = row.get::<i32, _>("stock");
+
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO audit_logs ("userId", action, entity, "entityId", details)
+        VALUES ($1, 'CREATE', 'Product', $2, $3)
+        "#,
+    )
+    .bind(auth.id)
+    .bind(product_id)
+    .bind(
+        json!({
+            "name": product_name,
+            "price": product_price,
+            "stock": product_stock
+        })
+        .to_string(),
+    )
+    .execute(&state.db)
+    .await;
+
     Ok(Json(json!({
-        "id": row.get::<i32, _>("id"),
-        "name": row.get::<String, _>("name"),
-        "price": row.get::<Decimal, _>("price"),
-        "stock": row.get::<i32, _>("stock"),
+        "id": product_id,
+        "name": product_name,
+        "price": product_price,
+        "stock": product_stock,
         "message": "Product created successfully"
     })))
 }
@@ -266,9 +290,33 @@ pub async fn update_product(
     .ok_or_else(|| AppError::NotFound("Product not found".to_string()))?;
 
     use sqlx::Row;
+    let product_id = row.get::<i32, _>("id");
+    let product_name = row.get::<String, _>("name");
+    let product_price = row.get::<Decimal, _>("price");
+    let product_stock = row.get::<i32, _>("stock");
+
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO audit_logs ("userId", action, entity, "entityId", details)
+        VALUES ($1, 'UPDATE', 'Product', $2, $3)
+        "#,
+    )
+    .bind(auth.id)
+    .bind(product_id)
+    .bind(
+        json!({
+            "name": product_name,
+            "price": product_price,
+            "stock": product_stock
+        })
+        .to_string(),
+    )
+    .execute(&state.db)
+    .await;
+
     Ok(Json(json!({
-        "id": row.get::<i32, _>("id"),
-        "name": row.get::<String, _>("name"),
+        "id": product_id,
+        "name": product_name,
         "message": "Product updated successfully"
     })))
 }
@@ -280,21 +328,37 @@ pub async fn delete_product(
 ) -> Result<Json<Value>, AppError> {
     auth.require_permission(&["product.crud"])?;
 
-    let rows_affected = sqlx::query!(
+    let row = sqlx::query(
         r#"
         UPDATE products
         SET "isActive" = false, "updatedAt" = NOW()
         WHERE id = $1
+        RETURNING name
         "#,
-        id
     )
-    .execute(&state.db)
-    .await?
-    .rows_affected();
+    .bind(id)
+    .fetch_optional(&state.db)
+    .await?;
 
-    if rows_affected == 0 {
-        return Err(AppError::NotFound("Product not found".to_string()));
-    }
+    let row = match row {
+        Some(r) => r,
+        None => return Err(AppError::NotFound("Product not found".to_string())),
+    };
+
+    use sqlx::Row;
+    let product_name = row.get::<String, _>("name");
+
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO audit_logs ("userId", action, entity, "entityId", details)
+        VALUES ($1, 'DELETE', 'Product', $2, $3)
+        "#,
+    )
+    .bind(auth.id)
+    .bind(id)
+    .bind(json!({ "name": product_name }).to_string())
+    .execute(&state.db)
+    .await;
 
     Ok(Json(json!({ "message": "Product deleted successfully" })))
 }

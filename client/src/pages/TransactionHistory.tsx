@@ -19,6 +19,7 @@ import api from '../lib/axios';
 import Modal from '../components/Modal';
 import HasPermission from '../components/HasPermission';
 import { useToast } from '../components/Toast';
+import PageHeader from '../components/PageHeader';
 
 interface Sale {
     id: number;
@@ -63,8 +64,8 @@ const TransactionHistory = () => {
             const r = await api.get('/sales', { params });
             const raw = r.data;
             setSales(Array.isArray(raw) ? raw : (raw.sales || []));
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat riwayat transaksi');
         } finally {
             setIsLoading(false);
         }
@@ -84,8 +85,8 @@ const TransactionHistory = () => {
         try {
             const r = await api.get(`/sales/${id}`);
             setSelectedSale(r.data);
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat detail struk');
         }
     };
 
@@ -104,8 +105,25 @@ const TransactionHistory = () => {
 
     return (
         <VStack gap={4} width="100%">
+            <PageHeader
+                title="Riwayat Transaksi Penjualan"
+                subtitle="Daftar struk transaksi kasir, rincian pembayaran, cetak ulang struk, void dan refund"
+                actions={
+                    !isMobile ? (
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={<RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />}
+                            label="Segarkan Data"
+                            onClick={fetchSales}
+                            isDisabled={isLoading}
+                        />
+                    ) : undefined
+                }
+            />
+
             {isMobile ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', paddingTop: 6, paddingBottom: 2 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', paddingTop: 2, paddingBottom: 2 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Text size="sm" color="secondary" weight="medium">Total riwayat</Text>
@@ -164,14 +182,6 @@ const TransactionHistory = () => {
                                     size="sm"
                                 />
                             </div>
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                icon={<RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />}
-                                label="Segarkan"
-                                onClick={fetchSales}
-                                isDisabled={isLoading}
-                            />
                             <SegmentedControl
                                 label="Filter status transaksi"
                                 value={statusFilter}
@@ -275,13 +285,13 @@ const TransactionHistory = () => {
                                                 </Text>
                                             </TableCell>
                                             <TableCell style={{ width: '15%', minWidth: 130 }}>
-                                                <Text size="sm">{s.user?.name || '-'}</Text>
+                                                <span className="pos-table-truncate" style={{ fontSize: 13.5 }}>{s.user?.name || '-'}</span>
                                             </TableCell>
                                             <TableCell style={{ width: '15%', minWidth: 130 }}>
-                                                <Text size="sm" color="secondary">{s.customer?.name || 'Umum'}</Text>
+                                                <span className="pos-table-truncate" style={{ fontSize: 13.5, color: '#71717a' }}>{s.customer?.name || 'Umum'}</span>
                                             </TableCell>
                                             <TableCell style={{ width: '14%', minWidth: 120, textAlign: 'right' }}>
-                                                <Text size="sm" weight="bold" hasTabularNumbers>Rp {Number(s.finalPrice || 0).toLocaleString('id-ID')}</Text>
+                                                <span className="pos-table-num-cell">Rp {Number(s.finalPrice || 0).toLocaleString('id-ID')}</span>
                                             </TableCell>
                                             <TableCell style={{ width: '10%', minWidth: 110, textAlign: 'center' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'center' }}>

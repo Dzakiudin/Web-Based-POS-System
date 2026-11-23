@@ -18,6 +18,7 @@ import { EmptyState } from '@astryxdesign/core/EmptyState';
 import api from '../lib/axios';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
+import PageHeader from '../components/PageHeader';
 
 interface Discount {
     id: number;
@@ -56,8 +57,8 @@ const Discounts = () => {
         try {
             const r = await api.get('/discounts');
             setDiscounts(Array.isArray(r.data) ? r.data : []);
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat aturan diskon');
         }
     };
 
@@ -124,18 +125,19 @@ const Discounts = () => {
 
     return (
         <VStack gap={4} width="100%">
-            <HStack justify="between" align="center" wrap="wrap" gap={3}>
-                <HStack gap={2} align="center">
-                    <Text size="sm" color="secondary">Total aturan diskon</Text>
-                    <Badge variant="neutral" label={discounts.length} />
-                </HStack>
-                <Button
-                    variant="primary"
-                    label="Tambah Diskon"
-                    icon={<Plus size={16} />}
-                    onClick={() => { resetForm(); setShowModal(true); }}
-                />
-            </HStack>
+            <PageHeader
+                title="Promosi & Diskon"
+                subtitle="Atur diskon harga produk, periode promo, dan syarat minimal belanja"
+                badge={<Badge variant="neutral" label={`${discounts.length} Promo`} />}
+                actions={
+                    <Button
+                        variant="primary"
+                        label="Tambah Diskon"
+                        icon={<Plus size={16} />}
+                        onClick={() => { resetForm(); setShowModal(true); }}
+                    />
+                }
+            />
 
             {discounts.length > 0 ? (
                 <Grid columns={{ minWidth: 280, max: 3 }} gap={3}>

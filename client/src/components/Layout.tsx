@@ -22,6 +22,7 @@ import {
     BarChart3,
     ShieldCheck,
     Sparkles,
+    Settings,
 } from 'lucide-react';
 import { AppShell } from '@astryxdesign/core/AppShell';
 import { SideNav } from '@astryxdesign/core/SideNav';
@@ -48,6 +49,8 @@ import Modal from './Modal';
 import { useToast } from './Toast';
 import { AppUpdateModal, triggerAppUpdateCheck } from './AppUpdateModal';
 import { useAuth } from '../context/AuthContext';
+import { useStoreSettings } from '../context/StoreSettingsContext';
+import { resolveUploadUrl } from '../lib/storeSettings';
 import api from '../lib/axios';
 
 interface Notification {
@@ -71,6 +74,7 @@ const QUICK_ROUTES = [
     { path: '/discounts', label: 'Aturan Diskon', desc: 'Diskon persentase & nominal' },
     { path: '/employees', label: 'Data Karyawan', desc: 'Kelola akun kasir & admin' },
     { path: '/audit-logs', label: 'Audit Logs', desc: 'Riwayat aktivitas keamanan' },
+    { path: '/settings', label: 'Pengaturan Aplikasi', desc: 'Nama aplikasi, logo, QRIS, rekening & struk' },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -87,12 +91,15 @@ const PAGE_TITLES: Record<string, string> = {
     vouchers: 'Voucher & Promo',
     'audit-logs': 'Audit Logs',
     discounts: 'Aturan Diskon',
+    settings: 'Pengaturan Aplikasi',
 };
 
 const Layout = () => {
     const { user, logout } = useAuth();
+    const { settings } = useStoreSettings();
     const toast = useToast();
     const location = useLocation();
+    const logoSrc = resolveUploadUrl(settings.logoUrl);
     const navigate = useNavigate();
     const isMobile = useMediaQuery('(max-width: 768px)');
     const isTransactionPage = location.pathname === '/transactions';
@@ -123,21 +130,56 @@ const Layout = () => {
         navigate(to);
     };
 
-    // Network connection status detection
+    // Network & POS server reachability detection
     useEffect(() => {
-        const handleOnline = () => {
-            setIsOnline(true);
-            toast.success('Koneksi sistem pulih (Online)');
+        let wasOffline = !navigator.onLine;
+
+        const markOnline = () => {
+            if (wasOffline) {
+                wasOffline = false;
+                setIsOnline(true);
+                toast.success('Koneksi ke server POS pulih (Online)');
+            } else {
+                setIsOnline(true);
+            }
         };
-        const handleOffline = () => {
-            setIsOnline(false);
-            toast.warning('Koneksi terputus (Offline mode)');
+
+        const markOffline = () => {
+            if (!wasOffline) {
+                wasOffline = true;
+                setIsOnline(false);
+                toast.warning('Koneksi ke server POS terputus — periksa jaringan atau server');
+            } else {
+                setIsOnline(false);
+            }
         };
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
+
+        const checkHealth = async () => {
+            if (!navigator.onLine) {
+                markOffline();
+                return;
+            }
+            try {
+                await api.get('/health', { timeout: 5000 });
+                markOnline();
+            } catch {
+                markOffline();
+            }
+        };
+
+        window.addEventListener('online', checkHealth);
+        window.addEventListener('offline', markOffline);
+        window.addEventListener('pos:server-online', markOnline);
+        window.addEventListener('pos:server-offline', markOffline);
+
+        const healthInterval = setInterval(checkHealth, 30000);
+
         return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
+            window.removeEventListener('online', checkHealth);
+            window.removeEventListener('offline', markOffline);
+            window.removeEventListener('pos:server-online', markOnline);
+            window.removeEventListener('pos:server-offline', markOffline);
+            clearInterval(healthInterval);
         };
     }, []);
 
@@ -146,6 +188,13 @@ const Layout = () => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isSavingPassword, setIsSavingPassword] = useState(false);
+
+    const canManageStoreSettings = Boolean(
+        user?.role === 'OWNER' ||
+        user?.role === 'ADMIN' ||
+        user?.permissions?.includes('role.manage') ||
+        user?.permissions?.includes('product.crud')
+    );
 
     // Auto-collapse sidebar on POS Kasir page for maximum catalog space
     useEffect(() => {
@@ -232,6 +281,10 @@ const Layout = () => {
     const pathKey = location.pathname.replace('/', '');
     const pageTitle = PAGE_TITLES[pathKey] || 'Dashboard';
 
+    useEffect(() => {
+        document.title = `${pageTitle} · ${settings.appName}`;
+    }, [pageTitle, settings.appName]);
+
     const filteredQuickRoutes = QUICK_ROUTES.filter(
         (r) =>
             r.label.toLowerCase().includes(quickQuery.toLowerCase()) ||
@@ -254,8 +307,8 @@ const Layout = () => {
         <TopNav
             label="Navigasi atas"
             style={{
-                minHeight: isMobile ? 60 : 64,
-                padding: isMobile ? '8px 16px' : '10px 24px',
+                minHeight: isMobile ? 58 : 64,
+                padding: isMobile ? '8px 12px' : '10px 24px',
                 alignItems: 'center',
                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
                 borderBottom: '1px solid #e4e4e7',
@@ -274,27 +327,48 @@ const Layout = () => {
                 )
             }
             heading={
-                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 11, minWidth: 0, marginRight: isMobile ? 10 : 0 }}>
                     <div
                         style={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: 11,
-                            background: 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
+                            width: isMobile ? 34 : 38,
+                            height: isMobile ? 34 : 38,
+                            borderRadius: isMobile ? 9 : 11,
+                            background: logoSrc ? '#ffffff' : 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
+                            border: logoSrc ? '1px solid #e4e4e7' : 'none',
                             color: '#ffffff',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            boxShadow: '0 2px 7px rgba(0, 0, 0, 0.14)',
+                            boxShadow: '0 2px 7px rgba(0, 0, 0, 0.10)',
+                            overflow: 'hidden',
                             flexShrink: 0,
                         }}
                     >
-                        <Store size={20} />
+                        {logoSrc ? (
+                            <img
+                                src={logoSrc}
+                                alt={settings.appName}
+                                style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 3 }}
+                            />
+                        ) : (
+                            <Store size={isMobile ? 18 : 20} />
+                        )}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: 16, fontWeight: 750, color: '#09090b', letterSpacing: '-0.025em', lineHeight: 1.2 }}>
-                                POS System
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                            <span
+                                style={{
+                                    fontSize: isMobile ? 14 : 16,
+                                    fontWeight: 750,
+                                    color: '#09090b',
+                                    letterSpacing: '-0.025em',
+                                    lineHeight: 1.2,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                }}
+                            >
+                                {settings.appName}
                             </span>
                             <span
                                 style={{
@@ -304,18 +378,30 @@ const Layout = () => {
                                     backgroundColor: isOnline ? '#16a34a' : '#ef4444',
                                     boxShadow: isOnline ? '0 0 6px rgba(22, 163, 74, 0.7)' : 'none',
                                     display: 'inline-block',
+                                    flexShrink: 0,
                                 }}
                                 title={isOnline ? 'Sistem Terhubung (Online)' : 'Jaringan Terputus (Offline)'}
                             />
                         </div>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#52525b', letterSpacing: '-0.01em', lineHeight: 1.15 }}>
+                        <span
+                            style={{
+                                fontSize: isMobile ? 11 : 12,
+                                fontWeight: 600,
+                                color: '#52525b',
+                                letterSpacing: '-0.01em',
+                                lineHeight: 1.15,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                            }}
+                        >
                             {pageTitle}
                         </span>
                     </div>
                 </div>
             }
             endContent={
-                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 12, paddingRight: isMobile ? 0 : 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 12, paddingRight: isMobile ? 0 : 8, flexShrink: 0 }}>
                     {/* Shift Status Header Indicator */}
                     <button
                         type="button"
@@ -343,9 +429,9 @@ const Layout = () => {
                             onClick={() => setShowNotifications(true)}
                             aria-label="Lihat notifikasi"
                             style={{
-                                width: 38,
-                                height: 38,
-                                borderRadius: 11,
+                                width: isMobile ? 34 : 38,
+                                height: isMobile ? 34 : 38,
+                                borderRadius: isMobile ? 9 : 11,
                                 border: '1px solid #e4e4e7',
                                 backgroundColor: '#ffffff',
                                 color: '#3f3f46',
@@ -357,7 +443,7 @@ const Layout = () => {
                                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
                             }}
                         >
-                            <Bell size={18} />
+                            <Bell size={isMobile ? 16 : 18} />
                         </button>
                         {notifications.length > 0 && (
                             <span
@@ -405,9 +491,9 @@ const Layout = () => {
                         >
                             <div
                                 style={{
-                                    width: 38,
-                                    height: 38,
-                                    borderRadius: 11,
+                                    width: 34,
+                                    height: 34,
+                                    borderRadius: 9,
                                     backgroundColor: '#f4f4f5',
                                     color: '#18181b',
                                     fontWeight: 700,
@@ -451,6 +537,14 @@ const Layout = () => {
                                 </button>
                             )}
                         >
+                            {canManageStoreSettings && (
+                                <DropdownMenuItem
+                                    label="Pengaturan Aplikasi"
+                                    description="Nama aplikasi, logo, QRIS, rekening & struk"
+                                    icon={<Settings size={15} />}
+                                    onClick={() => smoothNavigate('/settings')}
+                                />
+                            )}
                             <DropdownMenuItem
                                 label="Pembaruan & Info Versi"
                                 description="Cek rilis & fitur terbaru"
@@ -491,6 +585,30 @@ const Layout = () => {
                 topNav={topNavElement}
                 sideNav={isMobile ? undefined : sideNavElement}
             >
+                {!isOnline && (
+                    <div
+                        role="alert"
+                        style={{
+                            width: '100%',
+                            backgroundColor: '#fef2f2',
+                            borderBottom: '1px solid #fecaca',
+                            color: '#b91c1c',
+                            padding: isMobile ? '8px 14px' : '8px 24px',
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            flexShrink: 0,
+                        }}
+                    >
+                        <AlertTriangle size={15} />
+                        <span>
+                            Koneksi ke server POS terputus. Pastikan server toko menyala dan WiFi/LAN terhubung.
+                        </span>
+                    </div>
+                )}
                 <div
                     key={location.pathname}
                     className="pos-page-enter"
@@ -498,9 +616,15 @@ const Layout = () => {
                         width: '100%',
                         maxWidth: isTransactionPage ? '100%' : 1400,
                         height: isTransactionPage ? '100%' : undefined,
+                        display: isTransactionPage ? 'flex' : 'block',
+                        flexDirection: isTransactionPage ? 'column' : undefined,
+                        flex: isTransactionPage ? '1 1 auto' : undefined,
+                        minHeight: 0,
                         margin: '0 auto',
                         padding: isTransactionPage ? 0 : isMobile ? '12px 14px' : '24px 32px',
-                        paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 12px))' : '36px',
+                        paddingBottom: isTransactionPage
+                            ? (isMobile ? 'calc(80px + env(safe-area-inset-bottom, 12px))' : 0)
+                            : (isMobile ? 'calc(80px + env(safe-area-inset-bottom, 12px))' : '36px'),
                         boxSizing: 'border-box',
                     }}
                 >
@@ -703,6 +827,18 @@ const Layout = () => {
 
                     {/* Account Settings Actions */}
                     <VStack gap={2}>
+                        {canManageStoreSettings && (
+                            <Button
+                                variant="secondary"
+                                label="Pengaturan Aplikasi"
+                                icon={<Settings size={16} />}
+                                width="100%"
+                                onClick={() => {
+                                    setShowMobileMenu(false);
+                                    smoothNavigate('/settings');
+                                }}
+                            />
+                        )}
                         <Button
                             variant="secondary"
                             label="Pembaruan & Info Versi"

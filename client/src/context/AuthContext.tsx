@@ -26,10 +26,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const token = localStorage.getItem('token');
         const storedUser = localStorage.getItem('user');
         if (token && storedUser) {
-            setUser(JSON.parse(storedUser));
+            try {
+                setUser(JSON.parse(storedUser));
+            } catch {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                setUser(null);
+            }
         }
         setIsLoading(false);
     }, []);
+
+    // Auto-logout after 30 minutes of inactivity (security hardening for cashier workstations)
+    useEffect(() => {
+        if (!user) return;
+
+        let idleTimer: ReturnType<typeof setTimeout>;
+        const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30 minutes
+
+        const resetIdleTimer = () => {
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => {
+                logout();
+                window.location.href = '/login?reason=idle';
+            }, INACTIVITY_LIMIT_MS);
+        };
+
+        const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+        activityEvents.forEach((evt) => {
+            window.addEventListener(evt, resetIdleTimer, { passive: true });
+        });
+        resetIdleTimer();
+
+        return () => {
+            clearTimeout(idleTimer);
+            activityEvents.forEach((evt) => {
+                window.removeEventListener(evt, resetIdleTimer);
+            });
+        };
+    }, [user]);
 
     const login = (token: string, user: User) => {
         localStorage.setItem('token', token);

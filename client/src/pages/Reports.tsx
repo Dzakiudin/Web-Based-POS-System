@@ -19,6 +19,9 @@ import { useMediaQuery } from '@astryxdesign/core/hooks';
 import api from '../lib/axios';
 import StatCard from '../components/StatCard';
 import { downloadOrShareFile } from '../lib/fileHelper';
+import PageHeader from '../components/PageHeader';
+import { useToast } from '../components/Toast';
+import { useStoreSettings } from '../context/StoreSettingsContext';
 
 interface DashboardStats {
     todayRevenue?: number;
@@ -185,6 +188,8 @@ const CustomPeakHourTooltip = ({ active, payload }: any) => {
 };
 
 const Reports = () => {
+    const toast = useToast();
+    const { settings } = useStoreSettings();
     const isNarrow = useMediaQuery('(max-width: 1024px)');
     const isMobile = useMediaQuery('(max-width: 768px)');
     const [stats, setStats] = useState<DashboardStats>({});
@@ -202,9 +207,13 @@ const Reports = () => {
     const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
 
     useEffect(() => {
-        api.get('/reports/dashboard').then((r) => setStats(r.data || {})).catch(console.error);
-        api.get('/reports/top-products').then((r) => setTopProducts(Array.isArray(r.data) ? r.data : [])).catch(console.error);
-        api.get('/reports/peak-hours').then((r) => setPeakHours(Array.isArray(r.data) ? r.data : [])).catch(console.error);
+        Promise.all([
+            api.get('/reports/dashboard').then((r) => setStats(r.data || {})),
+            api.get('/reports/top-products').then((r) => setTopProducts(Array.isArray(r.data) ? r.data : [])),
+            api.get('/reports/peak-hours').then((r) => setPeakHours(Array.isArray(r.data) ? r.data : [])),
+        ]).catch((e: any) => {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat ringkasan laporan');
+        });
     }, []);
 
     useEffect(() => {
@@ -213,7 +222,9 @@ const Reports = () => {
                 setSales(Array.isArray(r.data?.chartData) ? r.data.chartData : []);
                 setSummary(r.data?.summary || {});
             })
-            .catch(console.error);
+            .catch((e: any) => {
+                toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat laporan penjualan periodik');
+            });
     }, [startDate, endDate]);
 
     const totalRev = Number(summary.totalRevenue || 0);
@@ -267,7 +278,7 @@ const Reports = () => {
             const avgMargin = totalRev > 0 ? ((grossProfit / totalRev) * 100).toFixed(1) : '0.0';
 
             const lines: string[] = [
-                csvLine(['LAPORAN PENJUALAN BISNIS - POS SYSTEM']),
+                csvLine([`LAPORAN PENJUALAN BISNIS - ${settings.appName.toUpperCase()}`]),
                 csvLine([`Periode: ${startDate} s/d ${endDate}`]),
                 csvLine([`Dicetak pada: ${printDate}`]),
                 '', // Baris kosong pemisah
@@ -296,7 +307,7 @@ const Reports = () => {
             const totalOmset = topProducts.reduce((sum, p) => sum + Number(p.totalRevenue || 0), 0);
 
             const lines: string[] = [
-                csvLine(['LAPORAN PERFORMA PRODUK TERLARIS - POS SYSTEM']),
+                csvLine([`LAPORAN PERFORMA PRODUK TERLARIS - ${settings.appName.toUpperCase()}`]),
                 csvLine([`Periode: ${startDate} s/d ${endDate}`]),
                 csvLine([`Dicetak pada: ${printDate}`]),
                 '', // Baris kosong pemisah
@@ -321,7 +332,7 @@ const Reports = () => {
             const totalOmset = peakHours.reduce((sum, h) => sum + Number(h.revenue || 0), 0);
 
             const lines: string[] = [
-                csvLine(['LAPORAN ANALISIS JAM SIBUK / PEAK HOURS - POS SYSTEM']),
+                csvLine([`LAPORAN ANALISIS JAM SIBUK / PEAK HOURS - ${settings.appName.toUpperCase()}`]),
                 csvLine([`Periode: Data Distribusi 24 Jam (${startDate} s/d ${endDate})`]),
                 csvLine([`Dicetak pada: ${printDate}`]),
                 '', // Baris kosong pemisah
@@ -343,7 +354,13 @@ const Reports = () => {
     };
 
     return (
-        <VStack gap={5} width="100%">
+        <VStack gap={4} width="100%">
+            {/* Unified Page Header Pattern */}
+            <PageHeader
+                title="Laporan Bisnis & Analitik"
+                subtitle="Analisis performa penjualan, margin laba kotor, jam sibuk, dan ekspor data"
+            />
+
             {/* KPI Row */}
             <Grid columns={isMobile ? 2 : { minWidth: 200, max: 4 }} gap={isMobile ? 2 : 3}>
                 <StatCard
@@ -379,7 +396,7 @@ const Reports = () => {
             {/* Charts Row */}
             <Grid columns={isNarrow ? 1 : 2} gap={4}>
                 {/* Smooth AreaChart Grafik Pendapatan */}
-                <Card padding={4} elevation="none">
+                <Card padding={isMobile ? 3 : 4} elevation="none">
                     <VStack gap={3}>
                         <VStack gap={0.5}>
                             <HStack justify="between" align="center">
@@ -468,7 +485,7 @@ const Reports = () => {
                 </Card>
 
                 {/* Jam Ramai (Peak Hours) dengan Visual Highlight */}
-                <Card padding={4} elevation="none">
+                <Card padding={isMobile ? 3 : 4} elevation="none">
                     <VStack gap={3}>
                         <HStack justify="between" align="center" wrap="wrap" gap={1}>
                             <VStack gap={0.5}>
@@ -537,7 +554,7 @@ const Reports = () => {
             </Grid>
 
             {/* Top Products */}
-            <Card padding={4} elevation="none">
+            <Card padding={isMobile ? 3 : 4} elevation="none">
                 <VStack gap={3}>
                     <Heading level={4} weight="semibold">Produk Terlaris</Heading>
                     {isNarrow ? (
@@ -638,54 +655,57 @@ const Reports = () => {
             </Card>
 
             {/* Detailed Sales Report */}
-            <Card padding={4} elevation="none">
+            <Card padding={isMobile ? 3 : 4} elevation="none">
                 <VStack gap={4}>
                     {/* Header + Toolbar Filter & Opsi Ekspor CSV */}
                     <div
                         style={{
                             display: 'flex',
-                            flexDirection: isMobile ? 'column' : 'row',
+                            flexDirection: 'row',
                             justifyContent: 'space-between',
-                            alignItems: isMobile ? 'stretch' : 'flex-end',
+                            alignItems: 'flex-start',
                             gap: 16,
                             width: '100%',
+                            flexWrap: 'wrap',
                         }}
                     >
-                        <VStack gap={0.5}>
+                        <VStack gap={0.5} style={{ minWidth: 240, flex: '1 1 auto' }}>
                             <Heading level={4} weight="semibold">Laporan Penjualan Periodik</Heading>
                             <Text size="xsm" color="secondary">Ringkasan omzet, laba kotor, dan margin laba per tanggal</Text>
                         </VStack>
 
-                        <div
-                            style={{
-                                display: 'flex',
-                                flexDirection: isMobile ? 'column' : 'row',
-                                gap: 8,
-                                alignItems: isMobile ? 'stretch' : 'flex-end',
-                                width: isMobile ? '100%' : 'auto',
-                                flexWrap: 'wrap',
-                            }}
-                        >
-                            <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto' }}>
-                                <div style={{ flex: isMobile ? 1 : undefined, minWidth: isMobile ? 0 : 135 }}>
-                                    <DateInput label="Dari" value={startDate as any} onChange={(v) => v && setStartDate(v)} size="sm" width="100%" />
-                                </div>
-                                <div style={{ flex: isMobile ? 1 : undefined, minWidth: isMobile ? 0 : 135 }}>
-                                    <DateInput label="Sampai" value={endDate as any} onChange={(v) => v && setEndDate(v)} size="sm" width="100%" />
-                                </div>
+                        <div className="pos-report-filter-bar">
+                            <div className="pos-report-filter-item">
+                                <DateInput
+                                    label="Dari"
+                                    value={startDate as any}
+                                    onChange={(v) => v && setStartDate(v)}
+                                    size="sm"
+                                    format="date"
+                                    width="100%"
+                                />
                             </div>
-                            <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto', alignItems: 'flex-end' }}>
-                                <div style={{ flex: isMobile ? 1 : undefined, width: isMobile ? undefined : 230, minWidth: 0 }}>
-                                    <Selector
-                                        label="Opsi Laporan"
-                                        isLabelHidden
-                                        size="sm"
-                                        value={exportType}
-                                        onChange={(v) => setExportType(v as ExportReportType)}
-                                        options={exportOptions}
-                                        width="100%"
-                                    />
-                                </div>
+                            <div className="pos-report-filter-item">
+                                <DateInput
+                                    label="Sampai"
+                                    value={endDate as any}
+                                    onChange={(v) => v && setEndDate(v)}
+                                    size="sm"
+                                    format="date"
+                                    width="100%"
+                                />
+                            </div>
+                            <div className="pos-report-filter-selector">
+                                <Selector
+                                    label="Opsi Laporan"
+                                    size="sm"
+                                    value={exportType}
+                                    onChange={(v) => setExportType(v as ExportReportType)}
+                                    options={exportOptions}
+                                    width="100%"
+                                />
+                            </div>
+                            <div className="pos-report-filter-btn">
                                 <Button
                                     variant="secondary"
                                     size="sm"
@@ -693,6 +713,7 @@ const Reports = () => {
                                     label="Ekspor CSV"
                                     onClick={handleExportCSV}
                                     isDisabled={isExportDisabled}
+                                    width="100%"
                                 />
                             </div>
                         </div>
@@ -854,10 +875,10 @@ const Reports = () => {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHeaderCell>Tanggal</TableHeaderCell>
-                                            <TableHeaderCell>Transaksi</TableHeaderCell>
-                                            <TableHeaderCell>Revenue</TableHeaderCell>
-                                            <TableHeaderCell>Gross Profit</TableHeaderCell>
-                                            <TableHeaderCell>Margin (%)</TableHeaderCell>
+                                            <TableHeaderCell style={{ textAlign: 'right' }}>Transaksi</TableHeaderCell>
+                                            <TableHeaderCell style={{ textAlign: 'right' }}>Revenue</TableHeaderCell>
+                                            <TableHeaderCell style={{ textAlign: 'right' }}>Gross Profit</TableHeaderCell>
+                                            <TableHeaderCell style={{ textAlign: 'right' }}>Margin (%)</TableHeaderCell>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -872,21 +893,21 @@ const Reports = () => {
                                                             {new Date(s.date).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                                                         </Text>
                                                     </TableCell>
-                                                    <TableCell><Text size="sm" hasTabularNumbers>{s.transactions} trx</Text></TableCell>
-                                                    <TableCell><Text size="sm" weight="semibold" hasTabularNumbers>Rp {dayRev.toLocaleString('id-ID')}</Text></TableCell>
-                                                    <TableCell>
+                                                    <TableCell style={{ textAlign: 'right' }}><span className="pos-table-num-cell">{s.transactions} trx</span></TableCell>
+                                                    <TableCell style={{ textAlign: 'right' }}><span className="pos-table-num-cell">Rp {dayRev.toLocaleString('id-ID')}</span></TableCell>
+                                                    <TableCell style={{ textAlign: 'right' }}>
                                                         <span
+                                                            className="pos-table-num-cell"
                                                             style={{
                                                                 color: '#059669',
                                                                 fontWeight: 600,
                                                                 fontSize: 14,
-                                                                fontVariantNumeric: 'tabular-nums',
                                                             }}
                                                         >
                                                             Rp {dayProfit.toLocaleString('id-ID')}
                                                         </span>
                                                     </TableCell>
-                                                    <TableCell>
+                                                    <TableCell style={{ textAlign: 'right' }}>
                                                         <span
                                                             style={{
                                                                 display: 'inline-flex',

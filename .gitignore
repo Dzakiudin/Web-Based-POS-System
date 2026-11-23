@@ -11,3 +11,5 @@ release-build/
 .DS_Store
 .vscode/
 *.log
+logs/
+uploads/

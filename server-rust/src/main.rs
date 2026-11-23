@@ -5,15 +5,22 @@ mod models;
 mod state;
 
 use axum::{
-    http::{header, StatusCode, Uri},
+    extract::{DefaultBodyLimit, Request},
+    http::{header, HeaderValue, StatusCode, Uri},
+    middleware::{self as axum_middleware, Next},
     response::IntoResponse,
     routing::{delete, get, post, put},
     Router,
 };
 use rust_embed::RustEmbed;
 use sqlx::postgres::PgPoolOptions;
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::SocketAddr,
+    path::{Component, Path},
+    sync::Arc,
+};
 use tower_http::{
+    compression::CompressionLayer,
     cors::{Any, CorsLayer},
     services::ServeDir,
     trace::TraceLayer,
@@ -24,10 +31,34 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[folder = "../client/dist"]
 struct FrontendAssets;
 
+fn is_safe_relative_path(rel_path: &str) -> bool {
+    if rel_path.contains("..") || rel_path.contains('\\') {
+        return false;
+    }
+    Path::new(rel_path)
+        .components()
+        .all(|c| matches!(c, Component::Normal(_)))
+}
+
+fn cache_control_for(path: &str) -> &'static str {
+    if path.starts_with("assets/") {
+        "public, max-age=31536000, immutable"
+    } else if path.ends_with(".html") || path.is_empty() {
+        "no-cache, no-store, must-revalidate"
+    } else {
+        "public, max-age=3600"
+    }
+}
+
 async fn static_spa_handler(uri: Uri) -> impl IntoResponse {
     let mut path = uri.path().trim_start_matches('/').to_string();
     if path.is_empty() {
         path = "index.html".to_string();
+    }
+
+    // Security guard: block path traversal attempts (e.g. /../../.env)
+    if !is_safe_relative_path(&path) {
+        return (StatusCode::BAD_REQUEST, "Invalid path").into_response();
     }
 
     // Try disk first if CLIENT_DIST_DIR, ../client/dist, or ./dist exists
@@ -39,11 +70,22 @@ async fn static_spa_handler(uri: Uri) -> impl IntoResponse {
 
     for dir in &disk_candidates {
         if !dir.is_empty() {
-            let file_path = std::path::Path::new(dir).join(&path);
-            if file_path.is_file() {
-                if let Ok(data) = std::fs::read(&file_path) {
-                    let mime = mime_guess::from_path(&path).first_or_octet_stream();
-                    return ([(header::CONTENT_TYPE, mime.as_ref())], data).into_response();
+            if let Ok(base_canon) = std::fs::canonicalize(dir) {
+                let candidate = base_canon.join(&path);
+                if let Ok(file_canon) = std::fs::canonicalize(&candidate) {
+                    if file_canon.starts_with(&base_canon) && file_canon.is_file() {
+                        if let Ok(data) = std::fs::read(&file_canon) {
+                            let mime = mime_guess::from_path(&path).first_or_octet_stream();
+                            return (
+                                [
+                                    (header::CONTENT_TYPE, mime.as_ref()),
+                                    (header::CACHE_CONTROL, cache_control_for(&path)),
+                                ],
+                                data,
+                            )
+                                .into_response();
+                        }
+                    }
                 }
             }
         }
@@ -53,16 +95,30 @@ async fn static_spa_handler(uri: Uri) -> impl IntoResponse {
     match FrontendAssets::get(&path) {
         Some(content) => {
             let mime = mime_guess::from_path(&path).first_or_octet_stream();
-            ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()
+            (
+                [
+                    (header::CONTENT_TYPE, mime.as_ref()),
+                    (header::CACHE_CONTROL, cache_control_for(&path)),
+                ],
+                content.data,
+            )
+                .into_response()
         }
         None => {
             // Check index.html on disk
             for dir in &disk_candidates {
                 if !dir.is_empty() {
-                    let index_path = std::path::Path::new(dir).join("index.html");
+                    let index_path = Path::new(dir).join("index.html");
                     if index_path.is_file() {
                         if let Ok(data) = std::fs::read(&index_path) {
-                            return ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], data).into_response();
+                            return (
+                                [
+                                    (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+                                    (header::CACHE_CONTROL, "no-cache, no-store, must-revalidate"),
+                                ],
+                                data,
+                            )
+                                .into_response();
                         }
                     }
                 }
@@ -70,13 +126,115 @@ async fn static_spa_handler(uri: Uri) -> impl IntoResponse {
 
             // SPA fallback: return embedded index.html
             match FrontendAssets::get("index.html") {
-                Some(content) => {
-                    ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], content.data).into_response()
-                }
+                Some(content) => (
+                    [
+                        (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+                        (header::CACHE_CONTROL, "no-cache, no-store, must-revalidate"),
+                    ],
+                    content.data,
+                )
+                    .into_response(),
                 None => (StatusCode::NOT_FOUND, "Frontend index.html not found").into_response(),
             }
         }
     }
+}
+
+async fn security_headers_middleware(req: Request, next: Next) -> impl IntoResponse {
+    let mut res = next.run(req).await;
+    let headers = res.headers_mut();
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        header::X_FRAME_OPTIONS,
+        HeaderValue::from_static("DENY"),
+    );
+    headers.insert(
+        header::HeaderName::from_static("referrer-policy"),
+        HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+    res
+}
+
+async fn ensure_db_schema_and_indexes(pool: &sqlx::PgPool) {
+    let statements = [
+        // Store, branding, QRIS, payment accounts & POS rules table
+        r#"CREATE TABLE IF NOT EXISTS store_settings (
+            id INT PRIMARY KEY DEFAULT 1,
+            "appName" TEXT NOT NULL DEFAULT 'POS System',
+            "storeName" TEXT NOT NULL DEFAULT 'POS SYSTEM STORE',
+            address TEXT NOT NULL DEFAULT 'Jl. Jendral Sudirman Kav. 52, Jakarta',
+            phone TEXT NOT NULL DEFAULT '(021) 5299-1000',
+            "footerLine1" TEXT NOT NULL DEFAULT 'Terima kasih atas kunjungan Anda!',
+            "footerLine2" TEXT NOT NULL DEFAULT 'Barang yang dibeli tidak dapat ditukar',
+            "paperWidth" TEXT NOT NULL DEFAULT '80mm',
+            "logoUrl" TEXT,
+            "qrisImageUrl" TEXT,
+            "paymentAccounts" JSONB NOT NULL DEFAULT '[{"bank":"BCA","accountNumber":"8830192831","accountName":"POS Store Official"},{"bank":"Mandiri","accountNumber":"137001928312","accountName":"POS Store Official"},{"bank":"GoPay / OVO / Dana","accountNumber":"081234567890","accountName":"POS Store"}]'::jsonb,
+            "requireOpenShift" BOOLEAN NOT NULL DEFAULT false,
+            "taxRate" NUMERIC(5,2) NOT NULL DEFAULT 0,
+            "serviceChargeRate" NUMERIC(5,2) NOT NULL DEFAULT 0,
+            "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
+        )"#,
+        // Seamless migration for existing store_settings tables
+        r#"ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS "appName" TEXT NOT NULL DEFAULT 'POS System'"#,
+        r#"ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS "logoUrl" TEXT"#,
+        r#"ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS "qrisImageUrl" TEXT"#,
+        r#"ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS "paymentAccounts" JSONB NOT NULL DEFAULT '[{"bank":"BCA","accountNumber":"8830192831","accountName":"POS Store Official"},{"bank":"Mandiri","accountNumber":"137001928312","accountName":"POS Store Official"},{"bank":"GoPay / OVO / Dana","accountNumber":"081234567890","accountName":"POS Store"}]'::jsonb"#,
+        r#"ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS "requireOpenShift" BOOLEAN NOT NULL DEFAULT false"#,
+        r#"ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS "taxRate" NUMERIC(5,2) NOT NULL DEFAULT 0"#,
+        r#"ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS "serviceChargeRate" NUMERIC(5,2) NOT NULL DEFAULT 0"#,
+        r#"INSERT INTO store_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING"#,
+        // Performance indexes for long-term high-volume POS operations
+        r#"CREATE INDEX IF NOT EXISTS idx_sales_date_status ON sales (date DESC, status)"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_sales_cash_session ON sales ("cashSessionId")"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_sales_customer ON sales ("customerId")"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_sales_user ON sales ("userId")"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_sale_details_sale ON sale_details ("saleId")"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_sale_details_product ON sale_details ("productId")"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_payments_sale ON payments ("saleId")"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_stock_movements_created ON stock_movements ("createdAt" DESC)"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_stock_movements_product ON stock_movements ("productId")"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs ("createdAt" DESC)"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_audit_logs_action_entity ON audit_logs (action, entity)"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_products_active_cat ON products ("isActive", "categoryId")"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_cash_sessions_status ON cash_sessions (status, "openedAt" DESC)"#,
+    ];
+
+    for sql in statements {
+        if let Err(e) = sqlx::query(sql).execute(pool).await {
+            tracing::warn!("Startup DB index/table init warning: {} (SQL: {})", e, sql);
+        }
+    }
+    tracing::info!("Database store_settings & performance indexes verified.");
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    tracing::info!("Shutdown signal received, draining active requests gracefully...");
 }
 
 #[tokio::main]
@@ -84,20 +242,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load .env
     dotenvy::dotenv().ok();
 
-    // Initialize tracing logger
+    // Ensure logs directory exists and setup persistent daily rolling file logger + stdout
+    std::fs::create_dir_all("./logs").ok();
+    let file_appender = tracing_appender::rolling::daily("./logs", "pos-server.log");
+    let (non_blocking_file, _log_guard) = tracing_appender::non_blocking(file_appender);
+
+    // Initialize tracing logger (stdout + daily file)
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,server_rust=debug,tower_http=debug".into()),
+                .unwrap_or_else(|_| "info,server_rust=debug,tower_http=info".into()),
         )
         .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(false)
+                .with_writer(non_blocking_file),
+        )
         .init();
 
     let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://postgres:291199@127.0.0.1:5433/pos_db".to_string());
+        .expect("FATAL: DATABASE_URL tidak ditemukan di .env atau environment variables!");
     let jwt_secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "pos_super_secret_jwt_key_2026_midnight_glass".to_string());
-    let uploads_dir = std::env::var("UPLOADS_DIR").unwrap_or_else(|_| "../server/uploads".to_string());
+        .expect("FATAL: JWT_SECRET tidak ditemukan di .env atau environment variables!");
+    let uploads_dir = std::env::var("UPLOADS_DIR").unwrap_or_else(|_| "./uploads".to_string());
     let port: u16 = std::env::var("PORT")
         .unwrap_or_else(|_| "5000".to_string())
         .parse()
@@ -106,24 +274,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Connecting to PostgreSQL database...");
     let pool = PgPoolOptions::new()
         .max_connections(20)
+        .min_connections(2)
+        .acquire_timeout(std::time::Duration::from_secs(5))
+        .idle_timeout(std::time::Duration::from_secs(300))
         .connect(&database_url)
         .await?;
     tracing::info!("Connected to PostgreSQL database successfully.");
+
+    ensure_db_schema_and_indexes(&pool).await;
 
     let shared_state = Arc::new(state::AppState {
         db: pool,
         jwt_secret,
         uploads_dir: uploads_dir.clone(),
+        failed_logins: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
     });
 
     // Ensure uploads directory exists
     std::fs::create_dir_all(&uploads_dir).ok();
 
-    // CORS configuration
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    // CORS configuration: restrict origins or allow specified domains
+    let allowed_origins_env = std::env::var("ALLOWED_ORIGINS").unwrap_or_default();
+    let cors = if allowed_origins_env.is_empty() || allowed_origins_env == "*" {
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any)
+    } else {
+        let origins: Vec<HeaderValue> = allowed_origins_env
+            .split(',')
+            .filter_map(|s| s.trim().parse::<HeaderValue>().ok())
+            .collect();
+        CorsLayer::new()
+            .allow_origin(origins)
+            .allow_methods(Any)
+            .allow_headers(Any)
+    };
 
     // 1. Auth routes
     let auth_routes = Router::new()
@@ -226,6 +412,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             post(handlers::user::reset_password),
         );
 
+    // 13. Store Settings routes
+    let settings_routes = Router::new()
+        .route("/public", get(handlers::settings::get_public_settings))
+        .route("/store", get(handlers::settings::get_store_settings))
+        .route("/store", put(handlers::settings::update_store_settings))
+        .route(
+            "/upload/:kind",
+            post(handlers::settings::upload_setting_image),
+        )
+        .route(
+            "/upload/:kind",
+            delete(handlers::settings::delete_setting_image),
+        );
+
     // Combine all API routers
     let api_routes = Router::new()
         .route("/health", get(|| async { axum::Json(serde_json::json!({ "status": "ok", "app": "POS System Pro Max", "version": "2.0.2" })) }))
@@ -248,28 +448,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/reports", report_routes)
         .nest("/stock-movements", stock_routes)
         .nest("/audit-logs", audit_routes)
-        .nest("/users", user_routes);
+        .nest("/users", user_routes)
+        .nest("/settings", settings_routes);
 
-    // Root app with embedded assets & disk fallback
+    // Root app with embedded assets, security headers, 5MB body limit & gzip/brotli compression
     let app = Router::new()
         .nest("/api", api_routes)
         .nest_service("/uploads", ServeDir::new(&uploads_dir))
         .fallback(static_spa_handler)
+        .layer(DefaultBodyLimit::max(5 * 1024 * 1024))
+        .layer(axum_middleware::from_fn(security_headers_middleware))
+        .layer(CompressionLayer::new())
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(shared_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let url = format!("http://localhost:{}", port);
-    tracing::info!("🚀 POS Pro Max Server (Rust) running on {}", url);
+    tracing::info!("🚀 POS Pro Max Server v2.0.2 (Rust) running on {}", url);
     println!("\n=======================================================");
-    println!("  ⚡ POS System Pro Max v2.0.0 (Native Release)");
+    println!("  ⚡ POS System Pro Max v2.0.2 (Native Release)");
     println!("  Aplikasi kasir & ritel siap digunakan.");
     println!("  Akses sistem di browser: {}", url);
     println!("=======================================================\n");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
 
     Ok(())
 }

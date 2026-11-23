@@ -1,26 +1,31 @@
 import axios from 'axios';
 
 export const getServerBaseUrl = (): string => {
-    const saved = localStorage.getItem('pos_server_url');
-    if (saved) {
-        return saved.replace(/\/+$/, '');
-    }
-    // If running in browser
+    // 1. If running in a standard browser on the local PC (port 5000) or remote domain, follow active origin
     if (typeof window !== 'undefined') {
         const { hostname, port, origin } = window.location;
-        // Accessing via Cloudflare domain or LAN IP or standard web
-        if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        // Remote web access (e.g. https://toko-aznun.ryzedns.org)
+        if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !origin.startsWith('capacitor://')) {
             return origin;
         }
+        // Local desktop browser on port 5000
         if (port === '5000') {
             return origin;
         }
     }
-    return 'http://localhost:5000';
+
+    // 2. In native Android APK (Capacitor webview), connect to the permanent production tunnel
+    const envBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim();
+    if (envBaseUrl) {
+        return envBaseUrl.replace(/\/+$/, '');
+    }
+
+    return 'https://toko-aznun.ryzedns.org';
 };
 
 const api = axios.create({
     baseURL: `${getServerBaseUrl()}/api`,
+    timeout: 15000,
 });
 
 api.interceptors.request.use((config) => {
@@ -35,11 +40,27 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use((response) => {
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pos:server-online'));
+    }
     return response;
 }, (error) => {
     if (error.response && error.response.status === 401) {
         localStorage.removeItem('token');
-        window.location.href = '/login';
+        localStorage.removeItem('user');
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            window.location.href = '/login?reason=expired';
+        }
+    } else if (!error.response) {
+        // Network error or timeout — notify UI connection indicator
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('pos:server-offline'));
+        }
+        if (error.code === 'ECONNABORTED') {
+            error.message = 'Koneksi ke server timeout (lebih dari 15 detik). Periksa jaringan toko.';
+        } else {
+            error.message = 'Tidak dapat terhubung ke server POS. Pastikan server toko menyala dan terhubung ke internet.';
+        }
     }
     return Promise.reject(error);
 });

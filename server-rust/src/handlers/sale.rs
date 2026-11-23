@@ -76,6 +76,7 @@ pub async fn create_sale(
     auth: AuthUser,
     Json(raw_val): Json<Value>,
 ) -> Result<Json<Value>, AppError> {
+    auth.require_permission(&["transaction.create"])?;
     tracing::info!("CREATE_SALE RAW PAYLOAD: {}", raw_val);
 
     let raw_items = raw_val
@@ -88,16 +89,14 @@ pub async fn create_sale(
         return Err(AppError::BadRequest("Keranjang belanja tidak boleh kosong".to_string()));
     }
 
-    struct ItemData {
+    struct RawItemInput {
         product_id: i32,
         variant_id: Option<i32>,
         quantity: i32,
-        unit_price: Decimal,
         discount_amount: Decimal,
-        subtotal: Decimal,
     }
 
-    let mut items = Vec::new();
+    let mut raw_parsed_items = Vec::with_capacity(raw_items.len());
     for it in raw_items {
         let product_id = it
             .get("productId")
@@ -106,82 +105,69 @@ pub async fn create_sale(
             .ok_or_else(|| AppError::BadRequest("ID produk tidak valid".to_string()))? as i32;
 
         let variant_id = it.get("variantId").and_then(|v| v.as_i64()).map(|x| x as i32);
-        let quantity = it.get("quantity").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
-        let unit_price = it
-            .get("unitPrice")
-            .or_else(|| it.get("price"))
-            .and_then(parse_decimal)
-            .unwrap_or(Decimal::ZERO);
+        let quantity = it
+            .get("quantity")
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| AppError::BadRequest("Jumlah item tidak valid".to_string()))? as i32;
+
+        if quantity <= 0 || quantity > 10_000 {
+            return Err(AppError::BadRequest(
+                "Jumlah pembelian setiap produk harus lebih dari 0".to_string(),
+            ));
+        }
+
         let discount_amount = it
             .get("discountAmount")
             .or_else(|| it.get("discount"))
             .and_then(parse_decimal)
             .unwrap_or(Decimal::ZERO);
-        let subtotal = it
-            .get("subtotal")
-            .and_then(parse_decimal)
-            .unwrap_or_else(|| unit_price * Decimal::from(quantity) - discount_amount);
 
-        items.push(ItemData {
+        if discount_amount < Decimal::ZERO {
+            return Err(AppError::BadRequest(
+                "Diskon item tidak boleh bernilai negatif".to_string(),
+            ));
+        }
+
+        raw_parsed_items.push(RawItemInput {
             product_id,
             variant_id,
             quantity,
-            unit_price,
             discount_amount,
-            subtotal,
         });
-    }
-
-    struct PaymentData {
-        method: String,
-        amount: Decimal,
-        change: Decimal,
-        reference: Option<String>,
-    }
-
-    let calculated_total: Decimal = items.iter().map(|i| i.subtotal).sum();
-    let discount_amount = raw_val.get("discountAmount").and_then(parse_decimal).unwrap_or(Decimal::ZERO);
-    let final_price = calculated_total - discount_amount;
-
-    let mut payments = Vec::new();
-    if let Some(p_arr) = raw_val.get("payments").and_then(|v| v.as_array()) {
-        for p in p_arr {
-            let mut method = p.get("method").and_then(|v| v.as_str()).unwrap_or("CASH").to_uppercase();
-            if method == "TRANSFER" {
-                method = "EWALLET".to_string();
-            }
-            let amount = p.get("amount").and_then(parse_decimal).unwrap_or(final_price);
-            let change = p.get("change").and_then(parse_decimal).unwrap_or(Decimal::ZERO);
-            let reference = p.get("reference").and_then(|v| v.as_str()).map(|s| s.to_string());
-            payments.push(PaymentData {
-                method,
-                amount,
-                change,
-                reference,
-            });
-        }
-    } else if let Some(m) = raw_val.get("method").and_then(|v| v.as_str()) {
-        let mut method = m.to_uppercase();
-        if method == "TRANSFER" {
-            method = "EWALLET".to_string();
-        }
-        let amount = raw_val.get("paid").or_else(|| raw_val.get("amount")).and_then(parse_decimal).unwrap_or(final_price);
-        let change = raw_val.get("change").and_then(parse_decimal).unwrap_or(Decimal::ZERO);
-        payments.push(PaymentData {
-            method,
-            amount,
-            change,
-            reference: None,
-        });
-    }
-
-    if payments.is_empty() {
-        return Err(AppError::BadRequest("Data pembayaran tidak boleh kosong".to_string()));
     }
 
     let customer_id = raw_val.get("customerId").and_then(|v| v.as_i64()).map(|x| x as i32);
-    let notes = raw_val.get("notes").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let notes = raw_val
+        .get("notes")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    if let Some(ref n) = notes {
+        if n.len() > 500 {
+            return Err(AppError::BadRequest(
+                "Catatan transaksi maksimal 500 karakter".to_string(),
+            ));
+        }
+    }
+
     let receipt_number = generate_receipt_number();
+
+    // Fetch POS operational rules (requireOpenShift, taxRate, serviceChargeRate)
+    let settings_row = sqlx::query(
+        r#"SELECT "requireOpenShift", "taxRate", "serviceChargeRate" FROM store_settings WHERE id = 1"#,
+    )
+    .fetch_optional(&state.db)
+    .await?;
+
+    let (require_open_shift, tax_rate, service_charge_rate) = match settings_row {
+        Some(r) => (
+            r.get::<bool, _>("requireOpenShift"),
+            r.get::<Decimal, _>("taxRate"),
+            r.get::<Decimal, _>("serviceChargeRate"),
+        ),
+        None => (false, Decimal::ZERO, Decimal::ZERO),
+    };
 
     // Check for open cash session (prefer user's own session, fallback to any active open session)
     let cash_session = sqlx::query!(
@@ -198,8 +184,200 @@ pub async fn create_sale(
 
     let cash_session_id = cash_session.map(|s| s.id);
 
-    // Start SQL transaction
+    if require_open_shift && cash_session_id.is_none() {
+        return Err(AppError::BadRequest(
+            "Shift kasir wajib dibuka terlebih dahulu sebelum melakukan transaksi. Silakan buka shift di menu Arus Kas.".to_string(),
+        ));
+    }
+
+    // Start SQL transaction (authoritative price resolution + stock deduction + voucher atomic)
     let mut tx = state.db.begin().await?;
+
+    struct ItemData {
+        product_id: i32,
+        variant_id: Option<i32>,
+        quantity: i32,
+        unit_price: Decimal,
+        discount_amount: Decimal,
+        subtotal: Decimal,
+    }
+
+    let mut items = Vec::with_capacity(raw_parsed_items.len());
+    for raw_it in raw_parsed_items {
+        // Resolve authoritative unit price directly from DB (never trust client-submitted price)
+        let db_price: Decimal = if let Some(vid) = raw_it.variant_id {
+            sqlx::query_scalar::<_, Decimal>(
+                r#"SELECT price FROM product_variants WHERE id = $1 AND "productId" = $2 AND "isActive" = true"#,
+            )
+            .bind(vid)
+            .bind(raw_it.product_id)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or_else(|| {
+                AppError::BadRequest(format!("Varian produk #{} tidak ditemukan atau nonaktif", vid))
+            })?
+        } else {
+            sqlx::query_scalar::<_, Decimal>(
+                r#"SELECT price FROM products WHERE id = $1 AND "isActive" = true"#,
+            )
+            .bind(raw_it.product_id)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or_else(|| {
+                AppError::BadRequest(format!(
+                    "Produk #{} tidak ditemukan atau sudah dinonaktifkan",
+                    raw_it.product_id
+                ))
+            })?
+        };
+
+        let line_gross = db_price * Decimal::from(raw_it.quantity);
+        if raw_it.discount_amount > line_gross {
+            return Err(AppError::BadRequest(
+                "Diskon item melebihi subtotal item".to_string(),
+            ));
+        }
+
+        items.push(ItemData {
+            product_id: raw_it.product_id,
+            variant_id: raw_it.variant_id,
+            quantity: raw_it.quantity,
+            unit_price: db_price,
+            discount_amount: raw_it.discount_amount,
+            subtotal: line_gross - raw_it.discount_amount,
+        });
+    }
+
+    let calculated_total: Decimal = items.iter().map(|i| i.subtotal).sum();
+    let discount_amount = raw_val
+        .get("discountAmount")
+        .and_then(parse_decimal)
+        .unwrap_or(Decimal::ZERO);
+
+    if discount_amount < Decimal::ZERO || discount_amount > calculated_total {
+        return Err(AppError::BadRequest(
+            "Nominal diskon transaksi tidak valid".to_string(),
+        ));
+    }
+
+    let after_discount = calculated_total - discount_amount;
+    let tax_amount = if tax_rate > Decimal::ZERO {
+        ((after_discount * tax_rate) / Decimal::from(100)).round_dp(0)
+    } else {
+        Decimal::ZERO
+    };
+    let service_charge_amount = if service_charge_rate > Decimal::ZERO {
+        ((after_discount * service_charge_rate) / Decimal::from(100)).round_dp(0)
+    } else {
+        Decimal::ZERO
+    };
+    let final_price = after_discount + tax_amount + service_charge_amount;
+
+    struct PaymentData {
+        method: String,
+        amount: Decimal,
+        change: Decimal,
+        reference: Option<String>,
+    }
+
+    let mut payments = Vec::new();
+    if let Some(p_arr) = raw_val.get("payments").and_then(|v| v.as_array()) {
+        for p in p_arr {
+            let mut method = p
+                .get("method")
+                .and_then(|v| v.as_str())
+                .unwrap_or("CASH")
+                .to_uppercase();
+            if method == "TRANSFER" {
+                method = "EWALLET".to_string();
+            }
+            if !matches!(method.as_str(), "CASH" | "QRIS" | "CARD" | "EWALLET") {
+                return Err(AppError::BadRequest(format!(
+                    "Metode pembayaran '{}' tidak valid",
+                    method
+                )));
+            }
+            let amount = p.get("amount").and_then(parse_decimal).unwrap_or(final_price);
+            let change = p.get("change").and_then(parse_decimal).unwrap_or(Decimal::ZERO);
+            if amount < Decimal::ZERO || change < Decimal::ZERO {
+                return Err(AppError::BadRequest(
+                    "Nominal pembayaran dan kembalian tidak boleh negatif".to_string(),
+                ));
+            }
+            let reference = p
+                .get("reference")
+                .and_then(|v| v.as_str())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty());
+            payments.push(PaymentData {
+                method,
+                amount,
+                change,
+                reference,
+            });
+        }
+    } else if let Some(m) = raw_val.get("method").and_then(|v| v.as_str()) {
+        let mut method = m.to_uppercase();
+        if method == "TRANSFER" {
+            method = "EWALLET".to_string();
+        }
+        if !matches!(method.as_str(), "CASH" | "QRIS" | "CARD" | "EWALLET") {
+            return Err(AppError::BadRequest(format!(
+                "Metode pembayaran '{}' tidak valid",
+                method
+            )));
+        }
+        let amount = raw_val
+            .get("paid")
+            .or_else(|| raw_val.get("amount"))
+            .and_then(parse_decimal)
+            .unwrap_or(final_price);
+        let change = raw_val
+            .get("change")
+            .and_then(parse_decimal)
+            .unwrap_or(Decimal::ZERO);
+        if amount < Decimal::ZERO || change < Decimal::ZERO {
+            return Err(AppError::BadRequest(
+                "Nominal pembayaran dan kembalian tidak boleh negatif".to_string(),
+            ));
+        }
+        payments.push(PaymentData {
+            method,
+            amount,
+            change,
+            reference: None,
+        });
+    }
+
+    if payments.is_empty() {
+        return Err(AppError::BadRequest(
+            "Data pembayaran tidak boleh kosong".to_string(),
+        ));
+    }
+
+    // Server-authoritative payment sufficiency check & change normalization
+    let total_paid: Decimal = payments.iter().map(|p| p.amount).sum();
+    if total_paid < final_price {
+        return Err(AppError::BadRequest(format!(
+            "Nominal pembayaran (Rp {}) kurang dari total tagihan (Rp {})",
+            total_paid, final_price
+        )));
+    }
+    if payments.len() == 1 {
+        if payments[0].method == "CASH" {
+            payments[0].change = payments[0].amount - final_price;
+        } else {
+            payments[0].amount = final_price;
+            payments[0].change = Decimal::ZERO;
+        }
+    } else {
+        let total_net: Decimal = payments.iter().map(|p| p.amount - p.change).sum();
+        if total_net < final_price {
+            return Err(AppError::BadRequest(
+                "Total pembayaran bersih kurang dari total tagihan".to_string(),
+            ));
+        }
+    }
 
     // 1. Insert Sale
     let sale_row = sqlx::query(
@@ -243,18 +421,38 @@ pub async fn create_sale(
         .execute(&mut *tx)
         .await?;
 
-        // Decrement product stock
-        sqlx::query(
+        // Decrement product stock with guard (prevent negative stock)
+        let update_result = sqlx::query(
             r#"
             UPDATE products
             SET stock = stock - $1, "updatedAt" = NOW()
-            WHERE id = $2
+            WHERE id = $2 AND stock >= $1
             "#
         )
         .bind(item.quantity)
         .bind(item.product_id)
         .execute(&mut *tx)
         .await?;
+
+        if update_result.rows_affected() == 0 {
+            // Find product name and available stock to return clear error
+            let prod_info = sqlx::query(
+                r#"SELECT name, stock FROM products WHERE id = $1"#
+            )
+            .bind(item.product_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+
+            let err_msg = match prod_info {
+                Some(p) => {
+                    let p_name: String = p.get("name");
+                    let p_stock: i32 = p.get("stock");
+                    format!("Stok untuk '{}' tidak mencukupi (sisa: {}, diminta: {})", p_name, p_stock, item.quantity)
+                }
+                None => format!("Produk dengan ID {} tidak ditemukan", item.product_id),
+            };
+            return Err(AppError::BadRequest(err_msg));
+        }
 
         // Stock movement record
         sqlx::query(
@@ -309,32 +507,88 @@ pub async fn create_sale(
         .await?;
     }
 
-    // 5. Update Voucher & Discount if used
+    // 5. Atomically redeem Voucher or increment Promo Discount usage inside transaction
     let voucher_id = raw_val.get("voucherId").and_then(|v| v.as_i64()).map(|x| x as i32);
-    let voucher_code = raw_val.get("voucherCode").and_then(|v| v.as_str());
+    let voucher_code = raw_val
+        .get("voucherCode")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
 
     if let Some(vid) = voucher_id {
-        let _ = sqlx::query(
+        let res = sqlx::query(
             r#"
             UPDATE vouchers
             SET "isUsed" = true, "usedAt" = NOW()
-            WHERE id = $1
-            "#
+            WHERE id = $1 AND "isUsed" = false AND "expiresAt" > NOW()
+            "#,
         )
         .bind(vid)
         .execute(&mut *tx)
-        .await;
+        .await?;
+
+        if res.rows_affected() == 0 {
+            return Err(AppError::BadRequest(
+                "Voucher sudah terpakai atau telah kedaluwarsa".to_string(),
+            ));
+        }
     } else if let Some(vcode) = voucher_code {
-        let _ = sqlx::query(
-            r#"
-            UPDATE vouchers
-            SET "isUsed" = true, "usedAt" = NOW()
-            WHERE UPPER(code) = UPPER($1)
-            "#
+        // Check if code belongs to a single-use voucher first
+        let is_voucher_exists = sqlx::query_scalar::<_, i32>(
+            r#"SELECT id FROM vouchers WHERE UPPER(code) = UPPER($1) LIMIT 1"#,
         )
         .bind(vcode)
-        .execute(&mut *tx)
-        .await;
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        if is_voucher_exists.is_some() {
+            let res = sqlx::query(
+                r#"
+                UPDATE vouchers
+                SET "isUsed" = true, "usedAt" = NOW()
+                WHERE UPPER(code) = UPPER($1) AND "isUsed" = false AND "expiresAt" > NOW()
+                "#,
+            )
+            .bind(vcode)
+            .execute(&mut *tx)
+            .await?;
+
+            if res.rows_affected() == 0 {
+                return Err(AppError::BadRequest(
+                    "Voucher sudah terpakai atau telah kedaluwarsa".to_string(),
+                ));
+            }
+        } else {
+            // Check if code belongs to a promo discount and enforce maxUses atomically
+            let is_discount_exists = sqlx::query_scalar::<_, i32>(
+                r#"SELECT id FROM discounts WHERE UPPER(code) = UPPER($1) LIMIT 1"#,
+            )
+            .bind(vcode)
+            .fetch_optional(&mut *tx)
+            .await?;
+
+            if is_discount_exists.is_some() {
+                let res = sqlx::query(
+                    r#"
+                    UPDATE discounts
+                    SET "usedCount" = "usedCount" + 1, "updatedAt" = NOW()
+                    WHERE UPPER(code) = UPPER($1)
+                      AND "isActive" = true
+                      AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
+                      AND ("endDate" IS NULL OR "endDate" >= NOW())
+                    "#,
+                )
+                .bind(vcode)
+                .execute(&mut *tx)
+                .await?;
+
+                if res.rows_affected() == 0 {
+                    return Err(AppError::BadRequest(
+                        "Promo sudah mencapai batas pemakaian atau tidak aktif".to_string(),
+                    ));
+                }
+            }
+        }
     }
 
     // 6. Audit Log
@@ -357,6 +611,10 @@ pub async fn create_sale(
         "receiptNumber": receipt_number,
         "totalPrice": calculated_total,
         "discountAmount": discount_amount,
+        "taxRate": tax_rate,
+        "taxAmount": tax_amount,
+        "serviceChargeRate": service_charge_rate,
+        "serviceChargeAmount": service_charge_amount,
         "finalPrice": final_price,
         "status": "COMPLETED",
         "message": "Sale created successfully"
@@ -536,34 +794,40 @@ pub async fn void_sale(
 ) -> Result<Json<Value>, AppError> {
     auth.require_permission(&["void.transaction"])?;
 
-    let sale_row = sqlx::query(
-        r#"SELECT status::text, "receiptNumber" FROM sales WHERE id = $1"#,
-    )
-    .bind(id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Sale not found".to_string()))?;
-
-    let status: String = sale_row.get("status");
-    let receipt_number: String = sale_row.get("receiptNumber");
-
-    if status != "COMPLETED" {
-        return Err(AppError::BadRequest("Only completed sales can be voided".to_string()));
-    }
-
     let mut tx = state.db.begin().await?;
 
-    sqlx::query!(
+    // Atomic status transition inside transaction to prevent double-void / double-stock-restore
+    let updated_row = sqlx::query(
         r#"
         UPDATE sales
         SET status = 'VOIDED', "refundReason" = $1, "updatedAt" = NOW()
-        WHERE id = $2
+        WHERE id = $2 AND status = 'COMPLETED'
+        RETURNING "receiptNumber", "finalPrice"
         "#,
-        payload.reason,
-        id
     )
-    .execute(&mut *tx)
+    .bind(&payload.reason)
+    .bind(id)
+    .fetch_optional(&mut *tx)
     .await?;
+
+    let updated_row = match updated_row {
+        Some(r) => r,
+        None => {
+            let exists = sqlx::query_scalar::<_, i32>("SELECT id FROM sales WHERE id = $1")
+                .bind(id)
+                .fetch_optional(&mut *tx)
+                .await?;
+            if exists.is_none() {
+                return Err(AppError::NotFound("Sale not found".to_string()));
+            }
+            return Err(AppError::BadRequest(
+                "Only completed sales can be voided".to_string(),
+            ));
+        }
+    };
+
+    let receipt_number: String = updated_row.get("receiptNumber");
+    let final_price: Decimal = updated_row.get("finalPrice");
 
     // Restore stock
     let details = sqlx::query!(
@@ -597,6 +861,26 @@ pub async fn void_sale(
         .await?;
     }
 
+    // Record audit log for VOID
+    sqlx::query(
+        r#"
+        INSERT INTO audit_logs ("userId", action, entity, "entityId", details)
+        VALUES ($1, 'VOID', 'Sale', $2, $3)
+        "#,
+    )
+    .bind(auth.id)
+    .bind(id)
+    .bind(
+        json!({
+            "receiptNumber": receipt_number,
+            "finalPrice": final_price,
+            "reason": payload.reason
+        })
+        .to_string(),
+    )
+    .execute(&mut *tx)
+    .await?;
+
     tx.commit().await?;
 
     Ok(Json(json!({ "message": "Sale voided successfully" })))
@@ -610,34 +894,40 @@ pub async fn refund_sale(
 ) -> Result<Json<Value>, AppError> {
     auth.require_permission(&["refund.process"])?;
 
-    let sale_row = sqlx::query(
-        r#"SELECT status::text, "receiptNumber" FROM sales WHERE id = $1"#,
-    )
-    .bind(id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Sale not found".to_string()))?;
-
-    let status: String = sale_row.get("status");
-    let receipt_number: String = sale_row.get("receiptNumber");
-
-    if status != "COMPLETED" {
-        return Err(AppError::BadRequest("Only completed sales can be refunded".to_string()));
-    }
-
     let mut tx = state.db.begin().await?;
 
-    sqlx::query!(
+    // Atomic status transition inside transaction to prevent double-refund / double-stock-restore
+    let updated_row = sqlx::query(
         r#"
         UPDATE sales
         SET status = 'REFUNDED', "refundReason" = $1, "updatedAt" = NOW()
-        WHERE id = $2
+        WHERE id = $2 AND status = 'COMPLETED'
+        RETURNING "receiptNumber", "finalPrice"
         "#,
-        payload.reason,
-        id
     )
-    .execute(&mut *tx)
+    .bind(&payload.reason)
+    .bind(id)
+    .fetch_optional(&mut *tx)
     .await?;
+
+    let updated_row = match updated_row {
+        Some(r) => r,
+        None => {
+            let exists = sqlx::query_scalar::<_, i32>("SELECT id FROM sales WHERE id = $1")
+                .bind(id)
+                .fetch_optional(&mut *tx)
+                .await?;
+            if exists.is_none() {
+                return Err(AppError::NotFound("Sale not found".to_string()));
+            }
+            return Err(AppError::BadRequest(
+                "Only completed sales can be refunded".to_string(),
+            ));
+        }
+    };
+
+    let receipt_number: String = updated_row.get("receiptNumber");
+    let final_price: Decimal = updated_row.get("finalPrice");
 
     // Restore stock
     let details = sqlx::query!(
@@ -670,6 +960,26 @@ pub async fn refund_sale(
         .execute(&mut *tx)
         .await?;
     }
+
+    // Record audit log for REFUND
+    sqlx::query(
+        r#"
+        INSERT INTO audit_logs ("userId", action, entity, "entityId", details)
+        VALUES ($1, 'REFUND', 'Sale', $2, $3)
+        "#,
+    )
+    .bind(auth.id)
+    .bind(id)
+    .bind(
+        json!({
+            "receiptNumber": receipt_number,
+            "finalPrice": final_price,
+            "reason": payload.reason
+        })
+        .to_string(),
+    )
+    .execute(&mut *tx)
+    .await?;
 
     tx.commit().await?;
 

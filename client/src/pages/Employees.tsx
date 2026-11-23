@@ -18,6 +18,7 @@ import api from '../lib/axios';
 import HasPermission from '../components/HasPermission';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
+import PageHeader from '../components/PageHeader';
 
 interface Employee {
     id: number;
@@ -51,8 +52,8 @@ const Employees = () => {
         try {
             const r = await api.get('/users');
             setEmployees(Array.isArray(r.data) ? r.data : []);
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat daftar karyawan');
         }
     };
 
@@ -110,20 +111,21 @@ const Employees = () => {
 
     return (
         <VStack gap={4} width="100%">
-            <HStack justify="between" align="center" wrap="wrap" gap={3}>
-                <HStack gap={2} align="center">
-                    <Text size="sm" color="secondary">Total karyawan</Text>
-                    <Badge variant="neutral" label={employees.length} />
-                </HStack>
-                <HasPermission permission="user.create_cashier">
-                    <Button
-                        variant="primary"
-                        label="Tambah Karyawan"
-                        icon={<UserPlus size={16} />}
-                        onClick={() => { resetForm(); setShowModal(true); }}
-                    />
-                </HasPermission>
-            </HStack>
+            <PageHeader
+                title="Manajemen Karyawan"
+                subtitle="Kelola akun kasir, peran staf, dan hak akses operasional toko"
+                badge={<Badge variant="neutral" label={`${employees.length} Karyawan`} />}
+                actions={
+                    <HasPermission permission="user.create_cashier">
+                        <Button
+                            variant="primary"
+                            label="Tambah Karyawan"
+                            icon={<UserPlus size={16} />}
+                            onClick={() => { resetForm(); setShowModal(true); }}
+                        />
+                    </HasPermission>
+                }
+            />
 
             {employees.length > 0 ? (
                 <Grid columns={{ minWidth: 280, max: 3 }} gap={3}>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Wallet, ArrowDownLeft, ArrowUpRight, Lock, Unlock } from 'lucide-react';
+import { Wallet, ArrowDownLeft, ArrowUpRight, Lock, Unlock, Info } from 'lucide-react';
 import { VStack } from '@astryxdesign/core/VStack';
 import { HStack } from '@astryxdesign/core/HStack';
 import { Card } from '@astryxdesign/core/Card';
@@ -18,6 +18,8 @@ import { useMediaQuery } from '@astryxdesign/core/hooks';
 import api from '../lib/axios';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
+import PageHeader from '../components/PageHeader';
+import { CurrencyInput } from '../components/CurrencyInput';
 
 interface CashSession {
     id: number;
@@ -70,8 +72,8 @@ const CashManagement = () => {
         try {
             const r = await api.get('/cash-sessions');
             setSessions(Array.isArray(r.data) ? r.data : []);
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat riwayat sesi kas');
         }
     };
 
@@ -171,7 +173,12 @@ const CashManagement = () => {
         : (openingBal + cashSales + cashIn - cashOut);
 
     return (
-        <VStack gap={5} width="100%">
+        <VStack gap={4} width="100%">
+            <PageHeader
+                title="Manajemen Arus Kas & Shift"
+                subtitle="Pencatatan kas masuk/keluar, saldo buka/tutup, dan rekonsiliasi shift kasir"
+            />
+
             {/* Active Session Card */}
             {activeSession ? (
                 <Card padding={4} elevation="none">
@@ -240,33 +247,57 @@ const CashManagement = () => {
                                     </button>
                                 </div>
                             ) : (
-                                <HStack gap={2}>
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        label="Kas Masuk / Keluar"
-                                        icon={<ArrowDownLeft size={15} />}
-                                        onClick={() => setShowMovement(true)}
-                                    />
+                                <HStack gap={2} align="center" style={{ gap: 10 }}>
                                     <button
                                         type="button"
+                                        className="pos-btn-cash-movement"
+                                        onClick={() => setShowMovement(true)}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 7,
+                                            height: 38,
+                                            padding: '0 16px',
+                                            borderRadius: 9,
+                                            backgroundColor: '#ffffff',
+                                            border: '1px solid #e4e4e7',
+                                            color: '#18181b',
+                                            fontSize: 13.5,
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                            transition: 'all 120ms ease',
+                                            boxSizing: 'border-box',
+                                        }}
+                                    >
+                                        <ArrowDownLeft size={16} color="#059669" />
+                                        <span>Kas Masuk / Keluar</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="pos-btn-cash-close"
                                         onClick={() => setShowClose(true)}
                                         style={{
                                             display: 'inline-flex',
                                             alignItems: 'center',
-                                            gap: 6,
-                                            padding: '7px 15px',
-                                            borderRadius: 8,
+                                            justifyContent: 'center',
+                                            gap: 7,
+                                            height: 38,
+                                            padding: '0 16px',
+                                            borderRadius: 9,
                                             backgroundColor: '#fff1f2',
                                             border: '1px solid #fecdd3',
                                             color: '#be123c',
-                                            fontSize: 13,
+                                            fontSize: 13.5,
                                             fontWeight: 600,
                                             cursor: 'pointer',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                                             transition: 'all 120ms ease',
+                                            boxSizing: 'border-box',
                                         }}
                                     >
-                                        <Lock size={14} color="#e11d48" />
+                                        <Lock size={15} color="#e11d48" />
                                         <span>Tutup Shift</span>
                                     </button>
                                 </HStack>
@@ -534,6 +565,39 @@ const CashManagement = () => {
                         )}
                     </VStack>
                 </Card>
+            ) : isMobile ? (
+                <div
+                    style={{
+                        width: '100%',
+                        backgroundColor: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: 14,
+                        padding: 14,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 12,
+                        boxSizing: 'border-box',
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%' }}>
+                        <Info size={18} color="#1d4ed8" style={{ flexShrink: 0, marginTop: 2 }} />
+                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: '#1e3a8a', lineHeight: 1.3 }}>
+                                Belum ada sesi kas yang aktif
+                            </div>
+                            <div style={{ fontSize: 13, color: '#1e40af', lineHeight: 1.45 }}>
+                                Buka shift kasir terlebih dahulu untuk mencatat saldo awal dan pergerakan uang tunai.
+                            </div>
+                        </div>
+                    </div>
+                    <Button
+                        variant="primary"
+                        label="Buka Shift Kas"
+                        icon={<Unlock size={16} />}
+                        width="100%"
+                        onClick={() => setShowOpen(true)}
+                    />
+                </div>
             ) : (
                 <Banner
                     status="info"
@@ -646,10 +710,10 @@ const CashManagement = () => {
                                             return (
                                                 <TableRow key={s.id}>
                                                     <TableCell style={{ width: '8%', textAlign: 'center' }}><Text size="sm" weight="medium">#{s.id}</Text></TableCell>
-                                                    <TableCell style={{ width: '18%' }}><Text size="sm">{s.user?.name || '-'}</Text></TableCell>
+                                                    <TableCell style={{ width: '18%' }}><span className="pos-table-truncate" style={{ fontSize: 13.5 }}>{s.user?.name || '-'}</span></TableCell>
                                                     <TableCell style={{ width: '18%' }}><Text size="xsm" color="secondary">{new Date(s.openedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</Text></TableCell>
-                                                    <TableCell style={{ width: '16%', textAlign: 'right' }}><Text size="sm" hasTabularNumbers>Rp {Number(s.openingBalance || 0).toLocaleString('id-ID')}</Text></TableCell>
-                                                    <TableCell style={{ width: '16%', textAlign: 'right' }}><Text size="sm" hasTabularNumbers>{s.closingBalance != null ? `Rp ${Number(s.closingBalance).toLocaleString('id-ID')}` : '-'}</Text></TableCell>
+                                                    <TableCell style={{ width: '16%', textAlign: 'right' }}><span className="pos-table-num-cell">Rp {Number(s.openingBalance || 0).toLocaleString('id-ID')}</span></TableCell>
+                                                    <TableCell style={{ width: '16%', textAlign: 'right' }}><span className="pos-table-num-cell">{s.closingBalance != null ? `Rp ${Number(s.closingBalance).toLocaleString('id-ID')}` : '-'}</span></TableCell>
                                                     <TableCell style={{ width: '14%', textAlign: 'right' }}>
                                                         <span style={{
                                                             display: 'inline-flex',
@@ -690,44 +754,15 @@ const CashManagement = () => {
             {/* Modal Buka Shift (Modal Awal Toko) */}
             <Modal isOpen={showOpen} onClose={() => setShowOpen(false)} title="Buka Shift Kas (Modal Awal Toko)" width={460}>
                 <VStack gap={4}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Modal Awal Kas / Laci (Rp)</span>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            backgroundColor: '#ffffff',
-                            border: '2px solid #e5e7eb',
-                            borderRadius: 10,
-                            padding: '8px 12px',
-                        }}>
-                            <span style={{ fontSize: 15, fontWeight: 700, color: '#9ca3af', marginRight: 8 }}>Rp</span>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                autoFocus
-                                style={{
-                                    width: '100%',
-                                    border: 'none',
-                                    outline: 'none',
-                                    fontSize: 16,
-                                    fontWeight: 700,
-                                    fontFamily: 'Inter, monospace',
-                                    fontVariantNumeric: 'tabular-nums',
-                                    color: '#111827',
-                                    backgroundColor: 'transparent',
-                                }}
-                                placeholder="0"
-                                value={openingBalance === 0 ? '' : openingBalance.toLocaleString('id-ID')}
-                                onChange={(e) => {
-                                    const raw = e.target.value.replace(/\D/g, '');
-                                    setOpeningBalance(raw ? Math.min(999999999999, Number(raw)) : 0);
-                                }}
-                            />
-                        </div>
-                        <span style={{ fontSize: 11, color: '#6b7280' }}>
-                            Uang modal awal perusahaan untuk kembalian & operasional laci (terpisah dari uang pribadi).
-                        </span>
-                    </div>
+                    <CurrencyInput
+                        label="Modal Awal Kas / Laci"
+                        value={openingBalance}
+                        onChange={setOpeningBalance}
+                        autoFocus
+                        isRequired
+                        size="lg"
+                        description="Uang modal awal perusahaan untuk kembalian & operasional laci (terpisah dari uang pribadi)."
+                    />
 
                     {/* Quick Preset Chips */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -801,44 +836,15 @@ const CashManagement = () => {
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Saldo Fisik Aktual di Laci (Rp)</span>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            backgroundColor: '#ffffff',
-                            border: '2px solid #e5e7eb',
-                            borderRadius: 10,
-                            padding: '8px 12px',
-                        }}>
-                            <span style={{ fontSize: 15, fontWeight: 700, color: '#9ca3af', marginRight: 8 }}>Rp</span>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                autoFocus
-                                style={{
-                                    width: '100%',
-                                    border: 'none',
-                                    outline: 'none',
-                                    fontSize: 16,
-                                    fontWeight: 700,
-                                    fontFamily: 'Inter, monospace',
-                                    fontVariantNumeric: 'tabular-nums',
-                                    color: '#111827',
-                                    backgroundColor: 'transparent',
-                                }}
-                                placeholder="0"
-                                value={closingBalance === 0 ? '' : closingBalance.toLocaleString('id-ID')}
-                                onChange={(e) => {
-                                    const raw = e.target.value.replace(/\D/g, '');
-                                    setClosingBalance(raw ? Math.min(999999999999, Number(raw)) : 0);
-                                }}
-                            />
-                        </div>
-                        <span style={{ fontSize: 11, color: '#6b7280' }}>
-                            Hitung seluruh uang fisik di laci saat ini. Sistem akan otomatis menghitung selisih (jika ada).
-                        </span>
-                    </div>
+                    <CurrencyInput
+                        label="Saldo Fisik Aktual di Laci"
+                        value={closingBalance}
+                        onChange={setClosingBalance}
+                        autoFocus
+                        isRequired
+                        size="lg"
+                        description="Hitung seluruh uang fisik di laci saat ini. Sistem akan otomatis menghitung selisih (jika ada)."
+                    />
 
                     <HStack justify="end" gap={2}>
                         <Button variant="secondary" label="Batal" onClick={() => setShowClose(false)} />
@@ -874,40 +880,13 @@ const CashManagement = () => {
                             : '📈 Kas Masuk: Suntikan dana tambahan modal atau penerimaan kas tunai akan menambah estimasi kas laci.'}
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Nominal Uang (Rp)</span>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            backgroundColor: '#ffffff',
-                            border: '2px solid #e5e7eb',
-                            borderRadius: 10,
-                            padding: '8px 12px',
-                        }}>
-                            <span style={{ fontSize: 15, fontWeight: 700, color: '#9ca3af', marginRight: 8 }}>Rp</span>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                style={{
-                                    width: '100%',
-                                    border: 'none',
-                                    outline: 'none',
-                                    fontSize: 16,
-                                    fontWeight: 700,
-                                    fontFamily: 'Inter, monospace',
-                                    fontVariantNumeric: 'tabular-nums',
-                                    color: '#111827',
-                                    backgroundColor: 'transparent',
-                                }}
-                                placeholder="0"
-                                value={movementForm.amount === 0 ? '' : movementForm.amount.toLocaleString('id-ID')}
-                                onChange={(e) => {
-                                    const raw = e.target.value.replace(/\D/g, '');
-                                    setMovementForm({ ...movementForm, amount: raw ? Math.min(999999999999, Number(raw)) : 0 });
-                                }}
-                            />
-                        </div>
-                    </div>
+                    <CurrencyInput
+                        label="Nominal Uang"
+                        value={movementForm.amount}
+                        onChange={(v) => setMovementForm({ ...movementForm, amount: v })}
+                        isRequired
+                        size="lg"
+                    />
 
                     {/* Quick Preset Chips */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

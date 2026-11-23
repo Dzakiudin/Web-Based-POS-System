@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Plus, Pencil, Trash2, Package, Search, Camera, Barcode, Sparkles, Loader2 } from 'lucide-react';
 import { VStack } from '@astryxdesign/core/VStack';
 import { HStack } from '@astryxdesign/core/HStack';
@@ -21,8 +21,13 @@ import Modal from '../components/Modal';
 import HasPermission from '../components/HasPermission';
 import { useToast } from '../components/Toast';
 import useHardwareScanner from '../hooks/useHardwareScanner';
-import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { lookupBarcodeInfo } from '../lib/barcodeCatalog';
+import PageHeader from '../components/PageHeader';
+import CurrencyInput from '../components/CurrencyInput';
+
+const BarcodeScannerModal = lazy(() =>
+    import('../components/BarcodeScannerModal').then((m) => ({ default: m.BarcodeScannerModal }))
+);
 
 interface Product {
     id: number;
@@ -76,8 +81,8 @@ const Products = () => {
         try {
             const r = await api.get('/products');
             setProducts(Array.isArray(r.data) ? r.data : []);
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat daftar produk');
         }
     };
 
@@ -85,8 +90,8 @@ const Products = () => {
         try {
             const r = await api.get('/categories');
             setCategories(Array.isArray(r.data) ? r.data : []);
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat daftar kategori');
         }
     };
 
@@ -137,8 +142,8 @@ const Products = () => {
             } else {
                 toast.info(`Barcode ${cleanBarcode} tercatat. Data nama belum ada di internet, silakan lengkapi nama produk.`);
             }
-        } catch (err) {
-            console.error(err);
+        } catch (err: any) {
+            toast.warning(err?.message || 'Gagal mencari info barcode otomatis');
         } finally {
             setIsLookingUp(false);
         }
@@ -259,7 +264,24 @@ const Products = () => {
 
     return (
         <VStack gap={4} width="100%">
-            {/* Toolbar */}
+            {/* Unified Page Header Pattern */}
+            <PageHeader
+                title="Katalog & Manajemen Produk"
+                subtitle="Kelola daftar produk, harga jual, barcode, stok minimal, dan kategori"
+                actions={
+                    <HasPermission permission="product.crud">
+                        <Button
+                            variant="primary"
+                            label="Tambah Produk"
+                            width={isMobile ? '100%' : undefined}
+                            icon={<Plus size={16} />}
+                            onClick={() => { handleCloseModal(); setIsModalOpen(true); }}
+                        />
+                    </HasPermission>
+                }
+            />
+
+            {/* Toolbar Search & Filter */}
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: 10, width: '100%' }}>
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, flex: 1, minWidth: 0, width: '100%' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -287,18 +309,6 @@ const Products = () => {
                         />
                     </div>
                 </div>
-
-                <HasPermission permission="product.crud">
-                    <div style={{ width: isMobile ? '100%' : 'auto', flexShrink: 0 }}>
-                        <Button
-                            variant="primary"
-                            label="Tambah Produk"
-                            width={isMobile ? '100%' : undefined}
-                            icon={<Plus size={16} />}
-                            onClick={() => { handleCloseModal(); setIsModalOpen(true); }}
-                        />
-                    </div>
-                </HasPermission>
             </div>
 
             {/* Product Grid */}
@@ -467,17 +477,16 @@ const Products = () => {
                         </Grid>
 
                         <Grid columns={{ minWidth: 140, max: 2 }} gap={3}>
-                            <NumberInput
-                                label="Harga Jual (Rp) *"
+                            <CurrencyInput
+                                label="Harga Jual"
                                 value={formData.price}
-                                onChange={(val) => setFormData({ ...formData, price: val || 0 })}
-                                min={0}
+                                onChange={(val) => setFormData({ ...formData, price: val })}
+                                isRequired
                             />
-                            <NumberInput
-                                label="Harga Modal (Rp)"
+                            <CurrencyInput
+                                label="Harga Modal (HPP)"
                                 value={formData.costPrice}
-                                onChange={(val) => setFormData({ ...formData, costPrice: val || 0 })}
-                                min={0}
+                                onChange={(val) => setFormData({ ...formData, costPrice: val })}
                             />
                         </Grid>
 
@@ -505,21 +514,25 @@ const Products = () => {
                 </form>
             </Modal>
 
-            {/* Mobile / Camera Barcode Scanner Modal for Packaging */}
-            <BarcodeScannerModal
-                isOpen={cameraScanOpen}
-                onClose={() => {
-                    setCameraScanOpen(false);
-                    setIsModalOpen(true);
-                }}
-                onScan={(code) => {
-                    setCameraScanOpen(false);
-                    setIsModalOpen(true);
-                    handleBarcodeAutoFill(code);
-                }}
-                title="Scan Barcode Kemasan Produk"
-                subtitle="Posisikan barcode pada kemasan produk di dalam kotak pemindai"
-            />
+            {/* Mobile / Camera Barcode Scanner Modal for Packaging (Lazy-loaded on demand) */}
+            {cameraScanOpen && (
+                <Suspense fallback={null}>
+                    <BarcodeScannerModal
+                        isOpen={cameraScanOpen}
+                        onClose={() => {
+                            setCameraScanOpen(false);
+                            setIsModalOpen(true);
+                        }}
+                        onScan={(code) => {
+                            setCameraScanOpen(false);
+                            setIsModalOpen(true);
+                            handleBarcodeAutoFill(code);
+                        }}
+                        title="Scan Barcode Kemasan Produk"
+                        subtitle="Posisikan barcode pada kemasan produk di dalam kotak pemindai"
+                    />
+                </Suspense>
+            )}
         </VStack>
     );
 };

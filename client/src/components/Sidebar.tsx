@@ -14,6 +14,7 @@ import {
     BarChart3,
     Percent,
     ShieldCheck,
+    Settings,
 } from 'lucide-react';
 import { SideNavSection, SideNavItem } from '@astryxdesign/core/SideNav';
 import { useAuth } from '../context/AuthContext';
@@ -57,6 +58,7 @@ const NAV_SECTIONS: NavSectionDef[] = [
             { path: '/reports', label: 'Laporan', icon: BarChart3, perms: ['report.view'] },
             { path: '/discounts', label: 'Diskon', icon: Percent, perms: ['discount.manage'] },
             { path: '/audit-logs', label: 'Audit Log', icon: ShieldCheck, perms: ['activity_log.view', 'audit_log.full'] },
+            { path: '/settings', label: 'Pengaturan', icon: Settings, perms: ['role.manage', 'product.crud'] },
         ],
     },
 ];

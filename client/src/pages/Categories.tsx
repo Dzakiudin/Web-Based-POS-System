@@ -14,6 +14,7 @@ import api from '../lib/axios';
 import Modal from '../components/Modal';
 import HasPermission from '../components/HasPermission';
 import { useToast } from '../components/Toast';
+import PageHeader from '../components/PageHeader';
 
 interface Category {
     id: number;
@@ -40,8 +41,8 @@ const Categories = () => {
         try {
             const r = await api.get('/categories');
             setCategories(Array.isArray(r.data) ? r.data : []);
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat daftar kategori');
         }
     };
 
@@ -87,20 +88,21 @@ const Categories = () => {
 
     return (
         <VStack gap={4} width="100%">
-            <HStack justify="between" align="center" wrap="wrap" gap={3}>
-                <HStack gap={2} align="center">
-                    <Text size="sm" color="secondary">Total kategori</Text>
-                    <Badge variant="neutral" label={categories.length} />
-                </HStack>
-                <HasPermission permission="category.manage">
-                    <Button
-                        variant="primary"
-                        label="Tambah Kategori"
-                        icon={<Plus size={16} />}
-                        onClick={() => { resetForm(); setShowModal(true); }}
-                    />
-                </HasPermission>
-            </HStack>
+            <PageHeader
+                title="Kategori Produk"
+                subtitle="Kelola pengelompokan menu, label kategori, dan organisasi katalog produk"
+                badge={<Badge variant="neutral" label={`${categories.length} Kategori`} />}
+                actions={
+                    <HasPermission permission="category.manage">
+                        <Button
+                            variant="primary"
+                            label="Tambah Kategori"
+                            icon={<Plus size={16} />}
+                            onClick={() => { resetForm(); setShowModal(true); }}
+                        />
+                    </HasPermission>
+                }
+            />
 
             {categories.length > 0 ? (
                 <Grid columns={{ minWidth: 260, max: 3 }} gap={3}>

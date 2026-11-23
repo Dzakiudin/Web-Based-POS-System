@@ -29,6 +29,7 @@ import { useMediaQuery } from '@astryxdesign/core/hooks';
 import api from '../lib/axios';
 import StatCard from '../components/StatCard';
 import RevenueChart from '../components/RevenueChart';
+import PageHeader from '../components/PageHeader';
 
 interface SaleData {
     id: number;
@@ -402,68 +403,59 @@ const Dashboard = () => {
 
     return (
         <VStack gap={5} width="100%">
-            {/* Header Action Bar dengan Hero CTA 'Buka Kasir' */}
-            {isMobile ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <Text size="sm" color="secondary" weight="medium">{todayFormatted}</Text>
-                        <Text size="xsm" color="secondary">Ringkasan transaksi dan metrik performa toko</Text>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-                        {/* Baris 1: Full-width Buka Kasir */}
-                        <button
-                            type="button"
-                            onClick={() => navigate('/transactions')}
-                            className="pos-tap-active group"
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 8,
-                                width: '100%',
-                                padding: '10px 16px',
-                                background: 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
-                                color: '#ffffff',
-                                borderRadius: 10,
-                                border: '1px solid #3f3f46',
-                                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.16)',
-                                fontSize: 13,
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                outline: 'none',
-                                transition: 'all 180ms ease',
-                            }}
-                        >
-                            <ShoppingCart size={16} color="#34d399" strokeWidth={2.4} />
-                            <span>Buka Kasir</span>
-                            <kbd
+            {/* Unified Page Header Pattern */}
+            <PageHeader
+                title="Dashboard Bisnis"
+                subtitle={`Ringkasan performa penjualan, metrik bisnis, dan operasional toko · ${todayFormatted}`}
+                actions={
+                    !isMobile ? (
+                        <HStack gap={2} align="center">
+                            <button
+                                type="button"
+                                onClick={() => navigate('/transactions')}
+                                className="pos-tap-active group"
                                 style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    padding: '1px 6px',
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-                                    border: '1px solid rgba(255, 255, 255, 0.22)',
-                                    borderRadius: 4,
-                                    color: '#e4e4e7',
-                                    letterSpacing: '0.05em',
+                                    gap: 8,
+                                    padding: '7px 14px',
+                                    background: 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
+                                    color: '#ffffff',
+                                    borderRadius: 10,
+                                    border: '1px solid #3f3f46',
+                                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.16)',
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    outline: 'none',
+                                    transition: 'all 180ms ease',
                                 }}
                             >
-                                F1
-                            </kbd>
-                        </button>
-
-                        {/* Baris 2: Sejajar 50%-50% (grid-cols-2) Produk & Laporan */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, width: '100%' }}>
+                                <ShoppingCart size={15} color="#34d399" strokeWidth={2.4} />
+                                <span>Buka Kasir</span>
+                                <kbd
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        padding: '1px 5px',
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        backgroundColor: 'rgba(255, 255, 255, 0.16)',
+                                        border: '1px solid rgba(255, 255, 255, 0.22)',
+                                        borderRadius: 4,
+                                        color: '#e4e4e7',
+                                        letterSpacing: '0.05em',
+                                    }}
+                                >
+                                    F1
+                                </kbd>
+                            </button>
                             <Button
                                 variant="secondary"
                                 size="sm"
                                 label="Produk"
                                 icon={<Package size={15} />}
                                 onClick={() => navigate('/products')}
-                                width="100%"
                             />
                             <Button
                                 variant="secondary"
@@ -471,77 +463,11 @@ const Dashboard = () => {
                                 label="Laporan"
                                 icon={<BarChart3 size={15} />}
                                 onClick={() => navigate('/reports')}
-                                width="100%"
                             />
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <HStack justify="between" align="center" wrap="wrap" gap={3}>
-                    <VStack gap={0.5}>
-                        <Text size="sm" color="secondary" weight="medium">{todayFormatted}</Text>
-                        <Text size="xsm" color="secondary">Ringkasan transaksi dan metrik performa toko</Text>
-                    </VStack>
-                    <HStack gap={2} wrap="wrap" align="center">
-                        {/* Primary Hero CTA Button: Buka Kasir dengan Shortcut Hint [F1] */}
-                        <button
-                            type="button"
-                            onClick={() => navigate('/transactions')}
-                            className="pos-tap-active group"
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                padding: '7px 14px',
-                                background: 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
-                                color: '#ffffff',
-                                borderRadius: 10,
-                                border: '1px solid #3f3f46',
-                                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.16)',
-                                fontSize: 13,
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                outline: 'none',
-                                transition: 'all 180ms ease',
-                            }}
-                        >
-                            <ShoppingCart size={15} color="#34d399" strokeWidth={2.4} />
-                            <span>Buka Kasir</span>
-                            <kbd
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    padding: '1px 5px',
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-                                    border: '1px solid rgba(255, 255, 255, 0.22)',
-                                    borderRadius: 4,
-                                    color: '#e4e4e7',
-                                    letterSpacing: '0.05em',
-                                }}
-                            >
-                                F1
-                            </kbd>
-                        </button>
-
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            label="Produk"
-                            icon={<Package size={15} />}
-                            onClick={() => navigate('/products')}
-                        />
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            label="Laporan"
-                            icon={<BarChart3 size={15} />}
-                            onClick={() => navigate('/reports')}
-                        />
-                    </HStack>
-                </HStack>
-            )}
+                        </HStack>
+                    ) : undefined
+                }
+            />
 
             {/* 4 Balanced KPI Cards dengan Enterprise Trend Badges */}
             <Grid columns={{ minWidth: isNarrow ? 140 : 210, max: 4 }} gap={isNarrow ? 2 : 3}>

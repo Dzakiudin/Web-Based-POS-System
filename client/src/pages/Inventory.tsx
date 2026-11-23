@@ -18,6 +18,7 @@ import api from '../lib/axios';
 import HasPermission from '../components/HasPermission';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
+import PageHeader from '../components/PageHeader';
 
 interface Product {
     id: number;
@@ -71,8 +72,8 @@ const Inventory = () => {
             }
             const p = await api.get('/products');
             setProducts(Array.isArray(p.data) ? p.data : []);
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat data inventaris');
         }
     };
 
@@ -96,6 +97,23 @@ const Inventory = () => {
 
     return (
         <VStack gap={4} width="100%">
+            {/* Unified Page Header Pattern */}
+            <PageHeader
+                title="Inventaris & Manajemen Stok"
+                subtitle="Pantau stok menipis, peringatan habis, dan riwayat penyesuaian opname stok"
+                actions={
+                    <HasPermission permission={['stock.in_out', 'stock.opname']}>
+                        <Button
+                            variant="primary"
+                            label="Sesuaikan Stok"
+                            icon={<SlidersHorizontal size={16} />}
+                            onClick={() => setShowAdjust(true)}
+                            width={isMobile ? '100%' : undefined}
+                        />
+                    </HasPermission>
+                }
+            />
+
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: 10, width: '100%' }}>
                 <TabList value={tab} onChange={(v) => setTab(v as 'lowstock' | 'movements')} overflow="visible">
                     <Tab
@@ -110,16 +128,6 @@ const Inventory = () => {
                         icon={<RefreshCw size={15} />}
                     />
                 </TabList>
-
-                <HasPermission permission={['stock.in_out', 'stock.opname']}>
-                    <Button
-                        variant="primary"
-                        label="Sesuaikan Stok"
-                        icon={<SlidersHorizontal size={16} />}
-                        onClick={() => setShowAdjust(true)}
-                        width={isMobile ? '100%' : undefined}
-                    />
-                </HasPermission>
             </div>
 
             {tab === 'lowstock' ? (
@@ -152,8 +160,8 @@ const Inventory = () => {
                                         <TableRow>
                                             <TableHeaderCell>Produk</TableHeaderCell>
                                             <TableHeaderCell>Kategori</TableHeaderCell>
-                                            <TableHeaderCell>Stok Saat Ini</TableHeaderCell>
-                                            <TableHeaderCell>Min. Stok</TableHeaderCell>
+                                            <TableHeaderCell style={{ textAlign: 'right' }}>Stok Saat Ini</TableHeaderCell>
+                                            <TableHeaderCell style={{ textAlign: 'right' }}>Min. Stok</TableHeaderCell>
                                             <TableHeaderCell>Status</TableHeaderCell>
                                         </TableRow>
                                     </TableHeader>
@@ -161,14 +169,14 @@ const Inventory = () => {
                                         {lowStock.map((p) => (
                                             <TableRow key={p.id}>
                                                 <TableCell>
-                                                    <VStack gap={0}>
-                                                        <Text size="sm" weight="semibold">{p.name}</Text>
+                                                    <VStack gap={0} className="pos-table-truncate">
+                                                        <Text size="sm" weight="semibold" maxLines={1}>{p.name}</Text>
                                                         {p.sku && <Text size="xsm" color="secondary">{p.sku}</Text>}
                                                     </VStack>
                                                 </TableCell>
                                                 <TableCell><Text size="sm" color="secondary">{p.category?.name || '-'}</Text></TableCell>
-                                                <TableCell><Text size="sm" weight="bold" hasTabularNumbers>{p.stock}</Text></TableCell>
-                                                <TableCell><Text size="sm" color="secondary" hasTabularNumbers>{p.minStock}</Text></TableCell>
+                                                <TableCell style={{ textAlign: 'right' }}><span className="pos-table-num-cell">{p.stock}</span></TableCell>
+                                                <TableCell style={{ textAlign: 'right' }}><span className="pos-table-num-cell" style={{ color: '#71717a' }}>{p.minStock}</span></TableCell>
                                                 <TableCell>
                                                     <Badge variant={p.stock === 0 ? 'error' : 'warning'} label={p.stock === 0 ? 'Habis' : 'Menipis'} />
                                                 </TableCell>
@@ -222,7 +230,7 @@ const Inventory = () => {
                                         <TableHeaderCell>Waktu</TableHeaderCell>
                                         <TableHeaderCell>Produk</TableHeaderCell>
                                         <TableHeaderCell>Tipe</TableHeaderCell>
-                                        <TableHeaderCell>Jumlah</TableHeaderCell>
+                                        <TableHeaderCell style={{ textAlign: 'right' }}>Jumlah</TableHeaderCell>
                                         <TableHeaderCell>Alasan</TableHeaderCell>
                                         <TableHeaderCell>Petugas</TableHeaderCell>
                                     </TableRow>
@@ -235,16 +243,16 @@ const Inventory = () => {
                                                     {new Date(m.createdAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
                                                 </Text>
                                             </TableCell>
-                                            <TableCell><Text size="sm" weight="medium">{m.product?.name || '-'}</Text></TableCell>
+                                            <TableCell className="pos-table-truncate"><Text size="sm" weight="medium" maxLines={1}>{m.product?.name || '-'}</Text></TableCell>
                                             <TableCell>
                                                 <Badge variant={TYPE_VARIANTS[m.type] || 'neutral'} label={m.type} />
                                             </TableCell>
-                                            <TableCell>
-                                                <Text size="sm" weight="semibold" hasTabularNumbers>
+                                            <TableCell style={{ textAlign: 'right' }}>
+                                                <span className="pos-table-num-cell" style={{ color: m.type === 'IN' || m.type === 'REFUND' ? '#059669' : '#e11d48' }}>
                                                     {m.type === 'IN' || m.type === 'REFUND' ? `+${m.quantity}` : m.quantity}
-                                                </Text>
+                                                </span>
                                             </TableCell>
-                                            <TableCell><Text size="sm" color="secondary">{m.reason || m.reference || '-'}</Text></TableCell>
+                                            <TableCell className="pos-table-truncate"><Text size="sm" color="secondary" maxLines={1}>{m.reason || m.reference || '-'}</Text></TableCell>
                                             <TableCell><Text size="sm" color="secondary">{m.user?.name || 'Sistem'}</Text></TableCell>
                                         </TableRow>
                                     ))}

@@ -47,12 +47,13 @@ jobs:
       - name: Upload APK to Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pos-system-android-apk
+          name: toko-aznun-android-apk
           path: client/android/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload APK to GitHub Release v2.0.0
+      - name: Upload APK to GitHub Release v2.1.0
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp client/android/app/build/outputs/apk/debug/app-debug.apk pos-system-v2.0.0.apk
-          gh release upload v2.0.0 pos-system-v2.0.0.apk --clobber
+          cp client/android/app/build/outputs/apk/debug/app-debug.apk pos-system-v2.1.0.apk
+          cp client/android/app/build/outputs/apk/debug/app-debug.apk toko-aznun-v2.1.0.apk
+          gh release upload v2.1.0 pos-system-v2.1.0.apk toko-aznun-v2.1.0.apk --clobber || true
