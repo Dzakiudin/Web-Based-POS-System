@@ -60,9 +60,9 @@ if %errorlevel% neq 0 (
 )
 
 :: 5. Jalankan Tunnel
-echo [3/3] Menghubungkan Domain toko-aznun.ryzedns.org ke Cloud...
+echo [3/3] Menghubungkan Domain toko-aznun.indevs.in ke Cloud...
 echo ======================================================================
-echo   Domain Publik : https://toko-aznun.ryzedns.org
+echo   Domain Publik : https://toko-aznun.indevs.in
 echo   Akses Lokal   : http://localhost:5000
 echo ======================================================================
 echo.
@@ -71,7 +71,7 @@ echo.
 start "" http://localhost:5000
 
 if not "!CF_TOKEN!"=="" (
-    echo [STATUS] Menjalankan Named Tunnel permanen untuk toko-aznun.ryzedns.org...
+    echo [STATUS] Menjalankan Named Tunnel permanen untuk toko-aznun.indevs.in...
     %CF_CMD% tunnel run --token !CF_TOKEN!
 ) else (
     echo [PERHATIAN] CLOUDFLARE_TUNNEL_TOKEN belum diisi di file .env.

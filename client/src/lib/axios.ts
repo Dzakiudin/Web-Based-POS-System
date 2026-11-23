@@ -4,7 +4,7 @@ export const getServerBaseUrl = (): string => {
     // 1. If running in a standard browser on the local PC (port 5000) or remote domain, follow active origin
     if (typeof window !== 'undefined') {
         const { hostname, port, origin } = window.location;
-        // Remote web access (e.g. https://toko-aznun.ryzedns.org)
+        // Remote web access (e.g. https://toko-aznun.indevs.in)
         if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !origin.startsWith('capacitor://')) {
             return origin;
         }
@@ -20,7 +20,7 @@ export const getServerBaseUrl = (): string => {
         return envBaseUrl.replace(/\/+$/, '');
     }
 
-    return 'https://toko-aznun.ryzedns.org';
+    return 'https://toko-aznun.indevs.in';
 };
 
 const api = axios.create({
