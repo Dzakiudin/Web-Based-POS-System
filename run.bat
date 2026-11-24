@@ -1,6 +1,7 @@
 @echo off
+cd /d "%~dp0"
 setlocal enabledelayedexpansion
-title TOKO AZNUN - POS System Server & Cloud Tunnel
+title TOKO AZNUN - POS System Server ^& Cloud Tunnel
 color 0B
 
 echo ======================================================================
