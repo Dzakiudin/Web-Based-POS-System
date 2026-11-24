@@ -26,10 +26,10 @@ import { sound } from '../lib/sound';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { useStoreSettings } from '../context/StoreSettingsContext';
-import { resolveUploadUrl } from '../lib/storeSettings';
 import useHardwareScanner from '../hooks/useHardwareScanner';
 import { printThermalReceipt } from '../lib/thermalPrinter';
 import PageHeader from '../components/PageHeader';
+import SafeImage from '../components/SafeImage';
 
 const BarcodeScannerModal = lazy(() =>
     import('../components/BarcodeScannerModal').then((m) => ({ default: m.BarcodeScannerModal }))
@@ -111,8 +111,6 @@ export const Transactions = () => {
     } | null>(null);
     const [promoError, setPromoError] = useState('');
     const [successSale, setSuccessSale] = useState<any>(null);
-
-    const qrisImageSrc = resolveUploadUrl(settings.qrisImageUrl);
 
     useEffect(() => {
         fetchProducts();
@@ -952,10 +950,11 @@ export const Transactions = () => {
                                                     }}
                                                 >
                                                     {p.image ? (
-                                                        <img
-                                                            src={p.image.startsWith('http') ? p.image : `http://localhost:5000${p.image}`}
+                                                        <SafeImage
+                                                            src={p.image}
                                                             alt={p.name}
                                                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                            fallback={<Package size={26} color="#a1a1aa" />}
                                                         />
                                                     ) : (
                                                         <Package size={26} color="#a1a1aa" />
@@ -1530,7 +1529,7 @@ export const Transactions = () => {
                                     </span>
                                 </div>
 
-                                {qrisImageSrc ? (
+                                {settings.qrisImageUrl ? (
                                     <>
                                         <div
                                             style={{
@@ -1543,8 +1542,8 @@ export const Transactions = () => {
                                                 border: '1px solid #f4f4f5',
                                             }}
                                         >
-                                            <img
-                                                src={qrisImageSrc}
+                                            <SafeImage
+                                                src={settings.qrisImageUrl}
                                                 alt={`QRIS ${settings.storeName}`}
                                                 style={{
                                                     maxWidth: '100%',

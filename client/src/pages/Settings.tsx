@@ -30,6 +30,7 @@ import { Badge } from '@astryxdesign/core/Badge';
 import { Divider } from '@astryxdesign/core/Divider';
 import { useMediaQuery } from '@astryxdesign/core/hooks';
 import PageHeader from '../components/PageHeader';
+import SafeImage from '../components/SafeImage';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../context/AuthContext';
 import { useStoreSettings } from '../context/StoreSettingsContext';
@@ -300,15 +301,12 @@ const Settings = () => {
                                             flexShrink: 0,
                                         }}
                                     >
-                                        {logoPreviewSrc ? (
-                                            <img
-                                                src={logoPreviewSrc}
-                                                alt="Logo Aplikasi"
-                                                style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }}
-                                            />
-                                        ) : (
-                                            <Store size={24} color="#ffffff" />
-                                        )}
+                                        <SafeImage
+                                            src={form.logoUrl}
+                                            alt="Logo Aplikasi"
+                                            style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }}
+                                            fallback={<Store size={24} color="#ffffff" />}
+                                        />
                                     </div>
                                     <VStack gap={1.5} style={{ flex: 1, minWidth: 0 }}>
                                         <Text size="sm" weight="semibold">Logo Aplikasi / Toko</Text>
@@ -426,9 +424,9 @@ const Settings = () => {
                                         textAlign: 'center',
                                     }}
                                 >
-                                    {qrisPreviewSrc ? (
-                                        <img
-                                            src={qrisPreviewSrc}
+                                    {form.qrisImageUrl ? (
+                                        <SafeImage
+                                            src={form.qrisImageUrl}
                                             alt="QRIS Pembayaran Toko"
                                             style={{
                                                 maxWidth: '100%',

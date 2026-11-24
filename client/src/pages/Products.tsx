@@ -24,6 +24,7 @@ import useHardwareScanner from '../hooks/useHardwareScanner';
 import { lookupBarcodeInfo } from '../lib/barcodeCatalog';
 import PageHeader from '../components/PageHeader';
 import CurrencyInput from '../components/CurrencyInput';
+import SafeImage from '../components/SafeImage';
 
 const BarcodeScannerModal = lazy(() =>
     import('../components/BarcodeScannerModal').then((m) => ({ default: m.BarcodeScannerModal }))
@@ -332,10 +333,11 @@ const Products = () => {
                                         }}
                                     >
                                         {product.image ? (
-                                            <img
-                                                src={product.image.startsWith('http') ? product.image : `http://localhost:5000${product.image}`}
+                                            <SafeImage
+                                                src={product.image}
                                                 alt={product.name}
                                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                fallback={<Package size={28} color="#a1a1aa" />}
                                             />
                                         ) : (
                                             <Package size={28} color="#a1a1aa" />

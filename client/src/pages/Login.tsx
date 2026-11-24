@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useStoreSettings } from '../context/StoreSettingsContext';
-import { resolveUploadUrl } from '../lib/storeSettings';
+import SafeImage from '../components/SafeImage';
 import { useNavigate } from 'react-router-dom';
 import { Store, LogIn } from 'lucide-react';
 import { Center } from '@astryxdesign/core/Center';
@@ -24,7 +24,6 @@ const Login = () => {
     const { login } = useAuth();
     const { settings } = useStoreSettings();
     const navigate = useNavigate();
-    const logoSrc = resolveUploadUrl(settings.logoUrl);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -57,15 +56,12 @@ const Login = () => {
                 <VStack gap={5}>
                     <VStack gap={2} align="center">
                         <HStack gap={2} align="center">
-                            {logoSrc ? (
-                                <img
-                                    src={logoSrc}
-                                    alt={settings.appName}
-                                    style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain' }}
-                                />
-                            ) : (
-                                <Store size={24} />
-                            )}
+                            <SafeImage
+                                src={settings.logoUrl}
+                                alt={settings.appName}
+                                style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain' }}
+                                fallback={<Store size={24} />}
+                            />
                             <Heading level={3} weight="bold">{settings.appName}</Heading>
                         </HStack>
                         <Text size="sm" color="secondary" justify="center">

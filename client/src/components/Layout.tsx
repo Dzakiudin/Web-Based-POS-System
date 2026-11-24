@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import SafeImage from './SafeImage';
 import {
     Store,
     Bell,
@@ -50,7 +51,6 @@ import { useToast } from './Toast';
 import { AppUpdateModal, triggerAppUpdateCheck } from './AppUpdateModal';
 import { useAuth } from '../context/AuthContext';
 import { useStoreSettings } from '../context/StoreSettingsContext';
-import { resolveUploadUrl } from '../lib/storeSettings';
 import api from '../lib/axios';
 
 interface Notification {
@@ -99,7 +99,6 @@ const Layout = () => {
     const { settings } = useStoreSettings();
     const toast = useToast();
     const location = useLocation();
-    const logoSrc = resolveUploadUrl(settings.logoUrl);
     const navigate = useNavigate();
     const isMobile = useMediaQuery('(max-width: 768px)');
     const isTransactionPage = location.pathname === '/transactions';
@@ -333,8 +332,8 @@ const Layout = () => {
                             width: isMobile ? 34 : 38,
                             height: isMobile ? 34 : 38,
                             borderRadius: isMobile ? 9 : 11,
-                            background: logoSrc ? '#ffffff' : 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
-                            border: logoSrc ? '1px solid #e4e4e7' : 'none',
+                            background: settings.logoUrl ? '#ffffff' : 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
+                            border: settings.logoUrl ? '1px solid #e4e4e7' : 'none',
                             color: '#ffffff',
                             display: 'flex',
                             alignItems: 'center',
@@ -344,15 +343,12 @@ const Layout = () => {
                             flexShrink: 0,
                         }}
                     >
-                        {logoSrc ? (
-                            <img
-                                src={logoSrc}
-                                alt={settings.appName}
-                                style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 3 }}
-                            />
-                        ) : (
-                            <Store size={isMobile ? 18 : 20} />
-                        )}
+                        <SafeImage
+                            src={settings.logoUrl}
+                            alt={settings.appName}
+                            style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 3 }}
+                            fallback={<Store size={isMobile ? 18 : 20} />}
+                        />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
