@@ -4,7 +4,7 @@ export const getServerBaseUrl = (): string => {
     // 1. If running in a standard browser on the local PC (port 5000) or remote domain, follow active origin
     if (typeof window !== 'undefined') {
         const { hostname, port, origin } = window.location;
-        // Remote web access (e.g. https://toko-aznun.indevs.in)
+        // Remote web access
         if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !origin.startsWith('capacitor://')) {
             return origin;
         }
@@ -14,13 +14,13 @@ export const getServerBaseUrl = (): string => {
         }
     }
 
-    // 2. In native Android APK (Capacitor webview), connect to the permanent production tunnel
+    // 2. In native Android APK (Capacitor webview), connect to the permanent production domain
     const envBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim();
     if (envBaseUrl) {
         return envBaseUrl.replace(/\/+$/, '');
     }
 
-    return 'https://toko-aznun.indevs.in';
+    return 'https://earthquaking-jen-faunlike.ngrok-free.dev';
 };
 
 const api = axios.create({
@@ -30,6 +30,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
     config.baseURL = `${getServerBaseUrl()}/api`;
+    config.headers['ngrok-skip-browser-warning'] = 'true';
     const token = localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;

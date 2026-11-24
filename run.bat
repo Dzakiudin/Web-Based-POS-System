@@ -33,58 +33,34 @@ if %errorlevel% equ 0 (
 echo [OK] Server lokal aktif di http://localhost:5000
 echo.
 
-:: 3. Ambil CLOUDFLARE_TUNNEL_TOKEN dari file .env jika ada
-set "CF_TOKEN="
-if exist ".env" (
-    for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
-        set "KEY=%%A"
-        set "VAL=%%B"
-        set "KEY=!KEY: =!"
-        if /i "!KEY!"=="CLOUDFLARE_TUNNEL_TOKEN" (
-            set "VAL=!VAL:"=!"
-            set "VAL=!VAL:'=!"
-            set "CF_TOKEN=!VAL!"
-        )
-    )
-)
-
-:: 4. Cek cloudflared
-where cloudflared >nul 2>nul
-if %errorlevel% neq 0 (
-    if not exist "cloudflared.exe" (
-        echo [INFO] Mengunduh cloudflared.exe otomatis...
-        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile 'cloudflared.exe'"
-    )
-    set "CF_CMD=cloudflared.exe"
-) else (
-    set "CF_CMD=cloudflared"
-)
-
-:: 5. Jalankan Tunnel
-echo [3/3] Menghubungkan Domain toko-aznun.indevs.in ke Cloud...
+:: 3. Jalankan Cloud Tunnel Permanen (Ngrok Static Domain)
+echo [3/3] Menghubungkan Server Toko ke Internet Publik...
 echo ======================================================================
-echo   Domain Publik : https://toko-aznun.indevs.in
-echo   Akses Lokal   : http://localhost:5000
+echo   Akses HP Kasir / Internet : https://earthquaking-jen-faunlike.ngrok-free.dev
+echo   Akses PC Toko (Lokal)     : http://localhost:5000
 echo ======================================================================
 echo.
 
-:: Buka browser lokal
+:: Buka browser lokal otomatis
 start "" http://localhost:5000
 
-if not "!CF_TOKEN!"=="" (
-    echo [STATUS] Menjalankan Named Tunnel permanen untuk toko-aznun.indevs.in...
-    %CF_CMD% tunnel run --token !CF_TOKEN!
-) else (
-    echo [PERHATIAN] CLOUDFLARE_TUNNEL_TOKEN belum diisi di file .env.
+where ngrok >nul 2>nul
+if %errorlevel% equ 0 (
+    echo [STATUS] Tunnel Cloud aktif permanen. Jangan tutup jendela ini saat toko buka.
     echo.
-    set /p "INPUT_TOKEN=Masukkan Cloudflare Tunnel Token Anda (atau tekan ENTER untuk Quick Tunnel): "
-    if not "!INPUT_TOKEN!"=="" (
-        echo CLOUDFLARE_TUNNEL_TOKEN="!INPUT_TOKEN!" >> .env
-        echo [INFO] Token tersimpan ke .env! Menjalankan tunnel permanen...
-        %CF_CMD% tunnel run --token !INPUT_TOKEN!
+    ngrok http --url=https://earthquaking-jen-faunlike.ngrok-free.dev 127.0.0.1:5000
+) else (
+    echo [INFO] Menjalankan via Cloudflare Tunnel...
+    if exist "cloudflared.exe" (
+        cloudflared.exe tunnel --url http://localhost:5000
     ) else (
-        echo [INFO] Menjalankan Quick Tunnel sementara...
-        %CF_CMD% tunnel --url http://localhost:5000
+        where cloudflared >nul 2>nul
+        if %errorlevel% equ 0 (
+            cloudflared tunnel --url http://localhost:5000
+        ) else (
+            echo [PERINGATAN] ngrok maupun cloudflared tidak ditemukan.
+            pause
+        )
     )
 )
 
