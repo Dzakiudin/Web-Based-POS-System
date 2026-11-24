@@ -25,11 +25,12 @@ echo.
 echo [2/3] Menjalankan POS System Server di port 5000...
 tasklist /fi "imagename eq pos-system.exe" | findstr /i "pos-system.exe" >nul
 if %errorlevel% equ 0 (
-    echo [INFO] Server pos-system.exe sudah berjalan di background.
-) else (
-    start "POS-Server-Toko-Aznun" /min pos-system.exe
-    timeout /t 2 >nul
+    echo [INFO] Memperbarui proses server ke versi terbaru...
+    taskkill /f /im pos-system.exe >nul 2>&1
+    timeout /t 1 >nul
 )
+start "POS-Server-Toko-Aznun" /min pos-system.exe
+timeout /t 2 >nul
 echo [OK] Server lokal aktif di http://localhost:5000
 echo.
 

@@ -1,10 +1,20 @@
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
 
 export const getServerBaseUrl = (): string => {
-    // 1. If running in a standard browser on the local PC (port 5000) or remote domain, follow active origin
+    const defaultRemoteUrl = 'https://earthquaking-jen-faunlike.ngrok-free.dev';
+    const envBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim();
+    const targetRemoteUrl = (envBaseUrl || defaultRemoteUrl).replace(/\/+$/, '');
+
+    // 1. If running inside native Android/iOS Capacitor app, ALWAYS use the production remote URL
+    if (Capacitor.isNativePlatform()) {
+        return targetRemoteUrl;
+    }
+
+    // 2. If running in a web browser:
     if (typeof window !== 'undefined') {
         const { hostname, port, origin } = window.location;
-        // Remote web access
+        // Remote web access (e.g. accessed through ngrok or domain)
         if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !origin.startsWith('capacitor://')) {
             return origin;
         }
@@ -14,13 +24,7 @@ export const getServerBaseUrl = (): string => {
         }
     }
 
-    // 2. In native Android APK (Capacitor webview), connect to the permanent production domain
-    const envBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim();
-    if (envBaseUrl) {
-        return envBaseUrl.replace(/\/+$/, '');
-    }
-
-    return 'https://earthquaking-jen-faunlike.ngrok-free.dev';
+    return targetRemoteUrl;
 };
 
 const api = axios.create({
@@ -30,7 +34,11 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
     config.baseURL = `${getServerBaseUrl()}/api`;
-    config.headers['ngrok-skip-browser-warning'] = 'true';
+    if (config.headers && typeof (config.headers as any).set === 'function') {
+        (config.headers as any).set('ngrok-skip-browser-warning', 'true');
+    } else {
+        config.headers['ngrok-skip-browser-warning'] = 'true';
+    }
     const token = localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;

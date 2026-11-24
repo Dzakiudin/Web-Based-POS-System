@@ -28,6 +28,8 @@ jobs:
           node-version: 22
 
       - name: Install dependencies & Build Client
+        env:
+          VITE_API_BASE_URL: https://earthquaking-jen-faunlike.ngrok-free.dev
         run: |
           cd client
           npm ci --legacy-peer-deps || npm install

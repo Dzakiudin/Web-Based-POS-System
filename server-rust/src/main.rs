@@ -6,7 +6,7 @@ mod state;
 
 use axum::{
     extract::{DefaultBodyLimit, Request},
-    http::{header, HeaderValue, StatusCode, Uri},
+    http::{header, HeaderValue, Method, StatusCode, Uri},
     middleware::{self as axum_middleware, Next},
     response::IntoResponse,
     routing::{delete, get, post, put},
@@ -21,7 +21,7 @@ use std::{
 };
 use tower_http::{
     compression::CompressionLayer,
-    cors::{Any, CorsLayer},
+    cors::{AllowHeaders, AllowOrigin, CorsLayer},
     services::ServeDir,
     trace::TraceLayer,
 };
@@ -293,23 +293,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Ensure uploads directory exists
     std::fs::create_dir_all(&uploads_dir).ok();
 
-    // CORS configuration: restrict origins or allow specified domains
-    let allowed_origins_env = std::env::var("ALLOWED_ORIGINS").unwrap_or_default();
-    let cors = if allowed_origins_env.is_empty() || allowed_origins_env == "*" {
-        CorsLayer::new()
-            .allow_origin(Any)
-            .allow_methods(Any)
-            .allow_headers(Any)
-    } else {
-        let origins: Vec<HeaderValue> = allowed_origins_env
-            .split(',')
-            .filter_map(|s| s.trim().parse::<HeaderValue>().ok())
-            .collect();
-        CorsLayer::new()
-            .allow_origin(origins)
-            .allow_methods(Any)
-            .allow_headers(Any)
-    };
+    // CORS configuration: mirror request origin & headers, allow all standard methods with credentials
+    let cors = CorsLayer::new()
+        .allow_origin(AllowOrigin::mirror_request())
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+            Method::PATCH,
+            Method::HEAD,
+        ])
+        .allow_headers(AllowHeaders::mirror_request())
+        .allow_credentials(true);
 
     // 1. Auth routes
     let auth_routes = Router::new()
