@@ -30,7 +30,7 @@ interface Voucher {
     customer: { id: number; name: string } | null;
     discount: { id: number; name: string; type: string; value: string } | null;
 }
-interface Discount { id: number; name: string; type: string; value: string; }
+interface Discount { id: number; name: string; type: string; value: string; scope?: string; }
 interface Customer { id: number; name: string; }
 
 const Vouchers = () => {
@@ -60,7 +60,8 @@ const Vouchers = () => {
     const fetchDiscounts = async () => {
         try {
             const r = await api.get('/discounts');
-            setDiscounts(Array.isArray(r.data) ? r.data : []);
+            const list = Array.isArray(r.data) ? r.data : [];
+            setDiscounts(list.filter((d: Discount) => !d.scope || d.scope === 'ORDER'));
         } catch (e: any) {
             toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat aturan diskon');
         }

@@ -203,6 +203,8 @@ pub async fn create_sale(
     }
 
     let mut items = Vec::with_capacity(raw_parsed_items.len());
+    let mut matched_wholesale_discount_ids: Vec<i32> = Vec::new();
+
     for raw_it in raw_parsed_items {
         // Resolve authoritative unit price directly from DB (never trust client-submitted price)
         let db_price: Decimal = if let Some(vid) = raw_it.variant_id {
@@ -231,8 +233,46 @@ pub async fn create_sale(
             })?
         };
 
+        // Resolve authoritative wholesale / qty-based discount rules for this product
+        let (wholesale_discount, matched_rule_id) = if raw_it.variant_id.is_none() {
+            let wholesale_rules = sqlx::query_as::<_, crate::handlers::discount::WholesaleRule>(
+                r#"
+                SELECT id, name, "minQuantity", "pricingMode", value, "unitLabel"
+                FROM discounts
+                WHERE scope = 'PRODUCT_QTY'
+                  AND "productId" = $1
+                  AND "isActive" = true
+                  AND ("endDate" IS NULL OR "endDate" >= NOW())
+                  AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
+                "#,
+            )
+            .bind(raw_it.product_id)
+            .fetch_all(&mut *tx)
+            .await?;
+
+            crate::handlers::discount::select_best_wholesale_discount(
+                db_price,
+                raw_it.quantity,
+                &wholesale_rules,
+            )
+        } else {
+            (Decimal::ZERO, None)
+        };
+
+        if let Some(rule_id) = matched_rule_id {
+            if wholesale_discount > Decimal::ZERO {
+                matched_wholesale_discount_ids.push(rule_id);
+            }
+        }
+
         let line_gross = db_price * Decimal::from(raw_it.quantity);
-        if raw_it.discount_amount > line_gross {
+        let effective_item_discount = if wholesale_discount > Decimal::ZERO {
+            wholesale_discount
+        } else {
+            raw_it.discount_amount
+        };
+
+        if effective_item_discount > line_gross {
             return Err(AppError::BadRequest(
                 "Diskon item melebihi subtotal item".to_string(),
             ));
@@ -243,8 +283,8 @@ pub async fn create_sale(
             variant_id: raw_it.variant_id,
             quantity: raw_it.quantity,
             unit_price: db_price,
-            discount_amount: raw_it.discount_amount,
-            subtotal: line_gross - raw_it.discount_amount,
+            discount_amount: effective_item_discount,
+            subtotal: line_gross - effective_item_discount,
         });
     }
 
@@ -588,6 +628,29 @@ pub async fn create_sale(
                     ));
                 }
             }
+        }
+    }
+
+    // 5b. Increment usage counter for matched wholesale quantity rules atomically
+    for rule_id in matched_wholesale_discount_ids {
+        let res = sqlx::query(
+            r#"
+            UPDATE discounts
+            SET "usedCount" = "usedCount" + 1, "updatedAt" = NOW()
+            WHERE id = $1
+              AND "isActive" = true
+              AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
+              AND ("endDate" IS NULL OR "endDate" >= NOW())
+            "#,
+        )
+        .bind(rule_id)
+        .execute(&mut *tx)
+        .await?;
+
+        if res.rows_affected() == 0 {
+            return Err(AppError::BadRequest(
+                "Batas pemakaian promo grosir baru saja habis".to_string(),
+            ));
         }
     }
 

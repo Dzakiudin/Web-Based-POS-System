@@ -380,6 +380,19 @@ pub struct Discount {
     #[serde(rename = "minPurchase")]
     pub min_purchase: Decimal,
     pub code: Option<String>,
+    pub scope: String,
+    #[sqlx(rename = "productId")]
+    #[serde(rename = "productId")]
+    pub product_id: Option<i32>,
+    #[sqlx(rename = "minQuantity")]
+    #[serde(rename = "minQuantity")]
+    pub min_quantity: i32,
+    #[sqlx(rename = "pricingMode")]
+    #[serde(rename = "pricingMode")]
+    pub pricing_mode: String,
+    #[sqlx(rename = "unitLabel")]
+    #[serde(rename = "unitLabel")]
+    pub unit_label: Option<String>,
     #[sqlx(rename = "startDate")]
     #[serde(rename = "startDate")]
     pub start_date: NaiveDateTime,
@@ -432,8 +445,8 @@ pub fn parse_flexible_datetime(s: &str) -> Option<NaiveDateTime> {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateDiscountRequest {
     pub name: String,
-    #[serde(rename = "type")]
-    pub discount_type: DiscountType,
+    #[serde(rename = "type", default)]
+    pub discount_type: Option<DiscountType>,
     pub value: Decimal,
     #[serde(rename = "minPurchase")]
     pub min_purchase: Option<Decimal>,
@@ -444,6 +457,17 @@ pub struct CreateDiscountRequest {
     pub end_date: Option<String>,
     #[serde(rename = "maxUses")]
     pub max_uses: Option<i32>,
+    #[serde(rename = "isActive")]
+    pub is_active: Option<bool>,
+    pub scope: Option<String>,
+    #[serde(rename = "productId")]
+    pub product_id: Option<i32>,
+    #[serde(rename = "minQuantity")]
+    pub min_quantity: Option<i32>,
+    #[serde(rename = "pricingMode")]
+    pub pricing_mode: Option<String>,
+    #[serde(rename = "unitLabel")]
+    pub unit_label: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone)]

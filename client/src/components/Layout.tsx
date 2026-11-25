@@ -71,7 +71,7 @@ const QUICK_ROUTES = [
     { path: '/cash-management', label: 'Arus Kas Sesi', desc: 'Buka/tutup shift kasir' },
     { path: '/reports', label: 'Laporan Bisnis', desc: 'Omzet, profit, dan jam ramai' },
     { path: '/vouchers', label: 'Voucher & Promo', desc: 'Kode promo pelanggan' },
-    { path: '/discounts', label: 'Aturan Diskon', desc: 'Diskon persentase & nominal' },
+    { path: '/discounts', label: 'Aturan Diskon', desc: 'Harga grosir, paket kardus & promo' },
     { path: '/employees', label: 'Data Karyawan', desc: 'Kelola akun kasir & admin' },
     { path: '/audit-logs', label: 'Audit Logs', desc: 'Riwayat aktivitas keamanan' },
     { path: '/settings', label: 'Pengaturan Aplikasi', desc: 'Nama aplikasi, logo, QRIS, rekening & struk' },
@@ -715,7 +715,7 @@ const Layout = () => {
                                 { path: '/products', label: 'Daftar Produk', sub: 'Katalog & SKU', icon: Package, bg: '#f5f3ff', color: '#7c3aed' },
                                 { path: '/categories', label: 'Kategori', sub: 'Grup Menu', icon: Tags, bg: '#ecfeff', color: '#0891b2' },
                                 { path: '/inventory', label: 'Manajemen Stok', sub: 'Log & Opname', icon: Warehouse, bg: '#fffbeb', color: '#d97706' },
-                                { path: '/discounts', label: 'Aturan Diskon', sub: 'Promo & Diskon', icon: Percent, bg: '#fff7ed', color: '#ea580c' },
+                                { path: '/discounts', label: 'Aturan Diskon', sub: 'Grosir & Promo', icon: Percent, bg: '#fff7ed', color: '#ea580c' },
                                 { path: '/vouchers', label: 'Voucher Belanja', sub: 'Kupon Kasir', icon: Ticket, bg: '#f0fdfa', color: '#0d9488' },
                             ].map((m) => {
                                 const Icon = m.icon;

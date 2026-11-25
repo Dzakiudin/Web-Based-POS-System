@@ -50,12 +50,26 @@ export const printThermalReceipt = (sale: any, customSettings?: StoreSettings) =
         ? new Date(sale.date).toLocaleString('id-ID')
         : new Date().toLocaleString('id-ID');
 
-    const items = sale.items || (sale.details ? sale.details.map((d: any) => ({
-        name: d.product?.name || `Produk #${d.productId}`,
-        quantity: d.quantity,
-        price: d.unitPrice || d.price || (Number(d.subtotal) / Math.max(1, Number(d.quantity))),
-        subtotal: d.subtotal,
-    })) : []);
+    const items = sale.items
+        ? sale.items.map((it: any) => ({
+              name: it.name,
+              quantity: Number(it.quantity),
+              price: Number(it.price),
+              discount: Number(it.discount ?? it.discountAmount ?? 0),
+              subtotal: Number(it.subtotal ?? (Number(it.price) * Number(it.quantity) - Number(it.discount ?? it.discountAmount ?? 0))),
+          }))
+        : sale.details
+        ? sale.details.map((d: any) => ({
+              name: d.product?.name || `Produk #${d.productId}`,
+              quantity: Number(d.quantity),
+              price: Number(d.unitPrice || d.price || (Number(d.subtotal) / Math.max(1, Number(d.quantity)))),
+              discount: Number(d.discountAmount ?? d.discount ?? 0),
+              subtotal: Number(d.subtotal),
+          }))
+        : [];
+
+    const itemsDiscountSum = items.reduce((s: number, it: any) => s + Number(it.discount || 0), 0);
+    const receiptGrossNormal = Number(sale.totalPrice || sale.finalPrice || 0) + itemsDiscountSum;
 
     const paymentMethod = sale.method || sale.payments?.[0]?.method || 'TUNAI';
     const paidAmount = sale.paid || sale.payments?.[0]?.amount || sale.finalPrice || 0;
@@ -119,6 +133,12 @@ export const printThermalReceipt = (sale: any, customSettings?: StoreSettings) =
           <span>${Number(it.quantity)} x Rp ${Number(it.price).toLocaleString('id-ID')}</span>
           <span>Rp ${(Number(it.subtotal || (Number(it.price) * Number(it.quantity)))).toLocaleString('id-ID')}</span>
         </div>
+        ${Number(it.discount || 0) > 0 ? `
+          <div class="row" style="font-size: ${is58mm ? '10px' : '11px'};">
+            <span>Diskon Grosir:</span>
+            <span>-Rp ${Number(it.discount).toLocaleString('id-ID')}</span>
+          </div>
+        ` : ''}
       </div>
     `).join('')}
   </div>
@@ -126,11 +146,17 @@ export const printThermalReceipt = (sale: any, customSettings?: StoreSettings) =
   <div>
     <div class="row">
       <span>Subtotal:</span>
-      <span>Rp ${Number(sale.totalPrice || sale.finalPrice || 0).toLocaleString('id-ID')}</span>
+      <span>Rp ${receiptGrossNormal.toLocaleString('id-ID')}</span>
     </div>
+    ${itemsDiscountSum > 0 ? `
+      <div class="row">
+        <span>Hemat Grosir:</span>
+        <span>-Rp ${itemsDiscountSum.toLocaleString('id-ID')}</span>
+      </div>
+    ` : ''}
     ${Number(sale.discountAmount || 0) > 0 ? `
       <div class="row">
-        <span>Diskon:</span>
+        <span>Diskon Promo:</span>
         <span>-Rp ${Number(sale.discountAmount).toLocaleString('id-ID')}</span>
       </div>
     ` : ''}

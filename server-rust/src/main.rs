@@ -201,6 +201,13 @@ async fn ensure_db_schema_and_indexes(pool: &sqlx::PgPool) {
         r#"CREATE INDEX IF NOT EXISTS idx_audit_logs_action_entity ON audit_logs (action, entity)"#,
         r#"CREATE INDEX IF NOT EXISTS idx_products_active_cat ON products ("isActive", "categoryId")"#,
         r#"CREATE INDEX IF NOT EXISTS idx_cash_sessions_status ON cash_sessions (status, "openedAt" DESC)"#,
+        // Wholesale / quantity-based discount rules extension on discounts table
+        r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'ORDER'"#,
+        r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "productId" INT REFERENCES products(id) ON DELETE CASCADE"#,
+        r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "minQuantity" INT NOT NULL DEFAULT 1"#,
+        r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "pricingMode" TEXT NOT NULL DEFAULT 'ORDER'"#,
+        r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "unitLabel" TEXT"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_discounts_scope_product ON discounts (scope, "productId", "isActive")"#,
     ];
 
     for sql in statements {

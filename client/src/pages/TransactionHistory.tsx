@@ -341,7 +341,11 @@ const TransactionHistory = () => {
                     const paidAmount = Number(primaryPayment?.amount || selectedSale.finalPrice || 0);
                     const changeAmount = Number(primaryPayment?.change || 0);
                     const discountAmt = Number(selectedSale.discountAmount || 0);
-                    const grossTotal = Number(selectedSale.totalPrice || selectedSale.finalPrice || 0);
+                    const itemsDiscountTotal = (selectedSale.details || []).reduce(
+                        (s: number, d: any) => s + Number(d.discountAmount || 0),
+                        0
+                    );
+                    const grossTotal = Number(selectedSale.totalPrice || selectedSale.finalPrice || 0) + itemsDiscountTotal;
                     const finalTotal = Number(selectedSale.finalPrice || 0);
 
                     const getMethodBadge = (m: string) => {
@@ -580,6 +584,19 @@ const TransactionHistory = () => {
                                         Rp {grossTotal.toLocaleString('id-ID')}
                                     </span>
                                 </div>
+
+                                {/* Hemat Grosir / Produk */}
+                                {itemsDiscountTotal > 0 && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: '#059669', fontWeight: 600 }}>
+                                            <Tag size={13} />
+                                            <span>Hemat Grosir / Produk</span>
+                                        </span>
+                                        <span style={{ fontFamily: 'Inter, monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 14, color: '#059669' }}>
+                                            - Rp {itemsDiscountTotal.toLocaleString('id-ID')}
+                                        </span>
+                                    </div>
+                                )}
 
                                 {/* Diskon / Potongan Harga */}
                                 {discountAmt > 0 && (

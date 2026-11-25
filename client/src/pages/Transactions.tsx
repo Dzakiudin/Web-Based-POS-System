@@ -30,6 +30,84 @@ import useHardwareScanner from '../hooks/useHardwareScanner';
 import { printThermalReceipt } from '../lib/thermalPrinter';
 import PageHeader from '../components/PageHeader';
 import SafeImage from '../components/SafeImage';
+import {
+    calculateWholesaleRuleDiscount,
+    evaluateWholesaleForProduct,
+    isWholesaleRuleCurrentlyEligible,
+    formatWholesaleSummary,
+    type DiscountRule,
+} from '../lib/wholesale';
+
+const CartQtyInput = ({
+    quantity,
+    maxStock,
+    onCommit,
+}: {
+    quantity: number;
+    maxStock: number;
+    onCommit: (nextQty: number) => void;
+}) => {
+    const [draft, setDraft] = useState(String(quantity));
+    const [focused, setFocused] = useState(false);
+
+    useEffect(() => {
+        if (!focused) {
+            setDraft(String(quantity));
+        }
+    }, [quantity, focused]);
+
+    return (
+        <input
+            type="text"
+            inputMode="numeric"
+            aria-label="Jumlah beli"
+            value={draft}
+            onFocus={(e) => {
+                setFocused(true);
+                e.currentTarget.select();
+            }}
+            onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '');
+                setDraft(digits);
+                if (digits) {
+                    const parsed = Number(digits);
+                    if (parsed >= 1) {
+                        onCommit(Math.min(maxStock, parsed));
+                    }
+                }
+            }}
+            onBlur={() => {
+                setFocused(false);
+                const parsed = Number(draft);
+                if (!draft || Number.isNaN(parsed) || parsed < 1) {
+                    setDraft(String(quantity));
+                } else {
+                    const clamped = Math.min(maxStock, Math.max(1, Math.floor(parsed)));
+                    setDraft(String(clamped));
+                    if (clamped !== quantity) onCommit(clamped);
+                }
+            }}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                    (e.currentTarget as HTMLInputElement).blur();
+                }
+            }}
+            style={{
+                width: 40,
+                height: 28,
+                textAlign: 'center',
+                fontSize: 13,
+                fontWeight: 700,
+                fontVariantNumeric: 'tabular-nums',
+                color: '#18181b',
+                backgroundColor: '#fafafa',
+                border: focused ? '1.5px solid #18181b' : '1px solid #e4e4e7',
+                borderRadius: 6,
+                outline: 'none',
+            }}
+        />
+    );
+};
 
 const BarcodeScannerModal = lazy(() =>
     import('../components/BarcodeScannerModal').then((m) => ({ default: m.BarcodeScannerModal }))
@@ -43,7 +121,12 @@ interface Product {
     category?: { id: number; name: string; color: string } | null;
 }
 interface Customer { id: number; name: string; loyaltyPoints: number; membershipTier: string; }
-interface CartItem extends Product { quantity: number; discount: number; }
+interface CartItem extends Product {
+    quantity: number;
+    discount: number;
+    appliedRuleName?: string | null;
+    appliedUnitLabel?: string | null;
+}
 
 export const Transactions = () => {
     const toast = useToast();
@@ -54,6 +137,7 @@ export const Transactions = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [customers, setCustomers] = useState<Customer[]>([]);
+    const [wholesaleRules, setWholesaleRules] = useState<DiscountRule[]>([]);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -116,6 +200,7 @@ export const Transactions = () => {
         fetchProducts();
         fetchCustomers();
         fetchCategories();
+        fetchWholesaleRules();
         api.get('/cash-sessions/active')
             .then((r) => {
                 const active = r.data?.id ? r.data : r.data?.session;
@@ -216,6 +301,34 @@ export const Transactions = () => {
         }
     };
 
+    const getProductWholesaleRules = (productId: number, rulesList: DiscountRule[] = wholesaleRules) =>
+        rulesList
+            .filter((r) => r.productId === productId)
+            .sort((a, b) => Number(a.minQuantity || 0) - Number(b.minQuantity || 0));
+
+    const withWholesaleDiscount = (item: CartItem, rulesList: DiscountRule[] = wholesaleRules): CartItem => {
+        const rules = getProductWholesaleRules(item.id, rulesList);
+        const evalRes = evaluateWholesaleForProduct(Number(item.price), item.quantity, rules);
+        return {
+            ...item,
+            discount: evalRes.discountAmount,
+            appliedRuleName: evalRes.matchedRule?.name || null,
+            appliedUnitLabel: evalRes.matchedRule?.unitLabel || null,
+        };
+    };
+
+    const fetchWholesaleRules = async () => {
+        try {
+            const r = await api.get('/discounts');
+            const list = Array.isArray(r.data) ? r.data : [];
+            const eligible = list.filter(isWholesaleRuleCurrentlyEligible);
+            setWholesaleRules(eligible);
+            setCart((prev) => prev.map((it) => withWholesaleDiscount(it, eligible)));
+        } catch {
+            // Non-blocking if user doesn't have wholesale rules
+        }
+    };
+
     const addToCart = (product: Product) => {
         if (product.stock <= 0) {
             sound.playWarning();
@@ -230,9 +343,11 @@ export const Transactions = () => {
                     toast.warning('Jumlah melebihi stok tersedia');
                     return prev;
                 }
-                return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
+                return prev.map((i) =>
+                    i.id === product.id ? withWholesaleDiscount({ ...i, quantity: i.quantity + 1 }) : i
+                );
             }
-            return [...prev, { ...product, quantity: 1, discount: 0 }];
+            return [...prev, withWholesaleDiscount({ ...product, quantity: 1, discount: 0 })];
         });
     };
 
@@ -246,9 +361,24 @@ export const Transactions = () => {
                     if (i.id !== id) return i;
                     const newQty = i.quantity + delta;
                     if (newQty > i.stock) return i;
-                    return { ...i, quantity: newQty };
+                    return withWholesaleDiscount({ ...i, quantity: newQty });
                 })
                 .filter((i) => i.quantity > 0)
+        );
+    };
+
+    const setExactQuantity = (id: number, targetQty: number) => {
+        const clamped = Math.max(1, Math.floor(targetQty));
+        sound.playBeep();
+        setCart((prev) =>
+            prev.map((i) => {
+                if (i.id !== id) return i;
+                if (clamped > i.stock) {
+                    toast.warning(`Jumlah melebihi stok tersedia (stok: ${i.stock})`);
+                    return withWholesaleDiscount({ ...i, quantity: i.stock });
+                }
+                return withWholesaleDiscount({ ...i, quantity: clamped });
+            })
         );
     };
 
@@ -288,7 +418,7 @@ export const Transactions = () => {
     const resumeHeldOrder = (heldId: string) => {
         const target = heldOrders.find((h) => h.id === heldId);
         if (!target) return;
-        setCart(target.items);
+        setCart(target.items.map((it) => withWholesaleDiscount(it)));
         setSelectedCustomerId(target.customerId);
         setPromoDiscount(target.promoDiscount);
         setPromoCode(target.promoCode);
@@ -314,8 +444,11 @@ export const Transactions = () => {
         if (!promoCode.trim()) return;
         setPromoError('');
         try {
-            const currentSubtotal = cart.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
-            const r = await api.post('/discounts/validate', { code: promoCode.trim(), subtotal: currentSubtotal });
+            const currentNetSubtotal = cart.reduce(
+                (sum, i) => sum + Math.max(0, Number(i.price) * i.quantity - Number(i.discount || 0)),
+                0
+            );
+            const r = await api.post('/discounts/validate', { code: promoCode.trim(), subtotal: currentNetSubtotal });
             const discountData = r.data.discount || r.data;
             setPromoDiscount({
                 type: discountData.type,
@@ -342,11 +475,12 @@ export const Transactions = () => {
     };
 
     const subtotal = cart.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
-    const itemDiscountTotal = cart.reduce((sum, i) => sum + i.discount * i.quantity, 0);
+    const itemDiscountTotal = cart.reduce((sum, i) => sum + Number(i.discount || 0), 0);
+    const subtotalAfterItemDiscount = Math.max(0, subtotal - itemDiscountTotal);
     const promoAmount = promoDiscount
         ? promoDiscount.type === 'PERCENTAGE'
-            ? ((subtotal - itemDiscountTotal) * promoDiscount.value) / 100
-            : promoDiscount.value
+            ? Math.round((subtotalAfterItemDiscount * promoDiscount.value) / 100)
+            : Math.min(subtotalAfterItemDiscount, promoDiscount.value)
         : 0;
     const totalDiscount = itemDiscountTotal + promoAmount;
     const afterDiscount = Math.max(0, subtotal - totalDiscount);
@@ -414,8 +548,8 @@ export const Transactions = () => {
             }
 
             const payload = {
-                totalPrice: subtotal,
-                discountAmount: totalDiscount,
+                totalPrice: subtotalAfterItemDiscount,
+                discountAmount: promoAmount,
                 finalPrice: grandTotal,
                 customerId: selectedCustomerId ? Number(selectedCustomerId) : null,
                 voucherCode: promoDiscount?.code || null,
@@ -447,7 +581,10 @@ export const Transactions = () => {
             sound.playSuccess();
             setSuccessSale({
                 ...r.data,
-                items: [...cart],
+                items: cart.map((i) => ({
+                    ...i,
+                    subtotal: Number(i.price) * i.quantity - Number(i.discount || 0),
+                })),
                 paid: paymentMethod === 'CASH' ? cashPaid : grandTotal,
                 change,
                 method: paymentMethod,
@@ -456,6 +593,7 @@ export const Transactions = () => {
             setShowCheckout(false);
             clearCart();
             fetchProducts();
+            fetchWholesaleRules();
             toast.success('Transaksi berhasil!');
         } catch (e: any) {
             toast.error(e.response?.data?.message || 'Gagal memproses transaksi');
@@ -551,37 +689,115 @@ export const Transactions = () => {
             <div className="pos-cart-items-scroll">
                 <VStack gap={2}>
                     {cart.length > 0 ? (
-                        cart.map((item) => (
-                            <div key={item.id} className="pos-cart-item-card">
-                                <VStack gap={1.5}>
-                                    <HStack justify="between" align="start" gap={2}>
-                                        <VStack gap={0} style={{ flex: 1, minWidth: 0 }}>
-                                            <Text size="sm" weight="semibold" maxLines={1}>{item.name}</Text>
-                                            <Text size="xsm" color="secondary" hasTabularNumbers>
-                                                Rp {Number(item.price).toLocaleString('id-ID')}
-                                            </Text>
-                                        </VStack>
-                                        <IconButton
-                                            variant="ghost"
-                                            size="sm"
-                                            label="Hapus item"
-                                            icon={<Trash2 size={14} color="#a1a1aa" />}
-                                            onClick={() => removeFromCart(item.id)}
-                                        />
-                                    </HStack>
-                                    <HStack justify="between" align="center">
-                                        <HStack gap={1.5} align="center">
-                                            <IconButton variant="secondary" size="sm" label="Kurangi" icon={<Minus size={13} />} onClick={() => updateQuantity(item.id, -1)} />
-                                            <Text size="sm" weight="bold" hasTabularNumbers style={{ minWidth: 24, textAlign: 'center' }}>{item.quantity}</Text>
-                                            <IconButton variant="secondary" size="sm" label="Tambah" icon={<Plus size={13} />} onClick={() => updateQuantity(item.id, 1)} />
+                        cart.map((item) => {
+                            const unitPrice = Number(item.price);
+                            const lineGross = unitPrice * item.quantity;
+                            const lineDiscount = Number(item.discount || 0);
+                            const lineNet = Math.max(0, lineGross - lineDiscount);
+                            const prodRules = getProductWholesaleRules(item.id);
+
+                            return (
+                                <div key={item.id} className="pos-cart-item-card">
+                                    <VStack gap={1.5}>
+                                        <HStack justify="between" align="start" gap={2}>
+                                            <VStack gap={0.5} style={{ flex: 1, minWidth: 0 }}>
+                                                <Text size="sm" weight="semibold" maxLines={1}>{item.name}</Text>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                                    <Text size="xsm" color="secondary" hasTabularNumbers>
+                                                        Rp {unitPrice.toLocaleString('id-ID')} / pcs
+                                                    </Text>
+                                                    {lineDiscount > 0 && (
+                                                        <span
+                                                            style={{
+                                                                fontSize: 10.5,
+                                                                fontWeight: 700,
+                                                                padding: '1px 6px',
+                                                                borderRadius: 999,
+                                                                backgroundColor: '#dcfce7',
+                                                                color: '#15803d',
+                                                                whiteSpace: 'nowrap',
+                                                            }}
+                                                        >
+                                                            {item.appliedUnitLabel?.trim() || 'Grosir'} · Hemat Rp {lineDiscount.toLocaleString('id-ID')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </VStack>
+                                            <IconButton
+                                                variant="ghost"
+                                                size="sm"
+                                                label="Hapus item"
+                                                icon={<Trash2 size={14} color="#a1a1aa" />}
+                                                onClick={() => removeFromCart(item.id)}
+                                            />
                                         </HStack>
-                                        <Text size="sm" weight="bold" hasTabularNumbers style={{ color: '#18181b' }}>
-                                            Rp {(Number(item.price) * item.quantity).toLocaleString('id-ID')}
-                                        </Text>
-                                    </HStack>
-                                </VStack>
-                            </div>
-                        ))
+                                        <HStack justify="between" align="center">
+                                            <HStack gap={1.5} align="center">
+                                                <IconButton variant="secondary" size="sm" label="Kurangi" icon={<Minus size={13} />} onClick={() => updateQuantity(item.id, -1)} />
+                                                <CartQtyInput
+                                                    quantity={item.quantity}
+                                                    maxStock={item.stock}
+                                                    onCommit={(nextQty) => setExactQuantity(item.id, nextQty)}
+                                                />
+                                                <IconButton variant="secondary" size="sm" label="Tambah" icon={<Plus size={13} />} onClick={() => updateQuantity(item.id, 1)} />
+                                            </HStack>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                                {lineDiscount > 0 && (
+                                                    <span style={{ fontSize: 11, color: '#a1a1aa', textDecoration: 'line-through', fontVariantNumeric: 'tabular-nums' }}>
+                                                        Rp {lineGross.toLocaleString('id-ID')}
+                                                    </span>
+                                                )}
+                                                <Text size="sm" weight="bold" hasTabularNumbers style={{ color: lineDiscount > 0 ? '#059669' : '#18181b' }}>
+                                                    Rp {lineNet.toLocaleString('id-ID')}
+                                                </Text>
+                                            </div>
+                                        </HStack>
+                                        {prodRules.length > 0 && (
+                                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingTop: 2 }}>
+                                                {prodRules.map((rule) => {
+                                                    const minQty = Math.max(1, Number(rule.minQuantity || 1));
+                                                    const pkgName = rule.unitLabel?.trim() || `${minQty} pcs`;
+                                                    const isApplyMode = item.quantity < minQty;
+                                                    const targetQty = isApplyMode ? minQty : item.quantity + minQty;
+                                                    const canReach = targetQty <= item.stock;
+                                                    const pkgDisc = calculateWholesaleRuleDiscount(unitPrice, minQty, rule);
+                                                    const pkgPrice = Math.max(0, unitPrice * minQty - pkgDisc);
+                                                    return (
+                                                        <button
+                                                            key={rule.id}
+                                                            type="button"
+                                                            disabled={!canReach}
+                                                            onClick={() => setExactQuantity(item.id, targetQty)}
+                                                            style={{
+                                                                fontSize: 11,
+                                                                fontWeight: 650,
+                                                                padding: '3px 8px',
+                                                                borderRadius: 6,
+                                                                border: isApplyMode ? '1px solid #bbf7d0' : '1px solid #e4e4e7',
+                                                                backgroundColor: isApplyMode ? '#f0fdf4' : '#fafafa',
+                                                                color: !canReach ? '#a1a1aa' : isApplyMode ? '#15803d' : '#3f3f46',
+                                                                cursor: canReach ? 'pointer' : 'not-allowed',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: 4,
+                                                            }}
+                                                            title={!canReach ? `Stok sisa ${item.stock}, tidak cukup ${targetQty}` : undefined}
+                                                        >
+                                                            <Package size={11} />
+                                                            <span>
+                                                                {isApplyMode
+                                                                    ? `Jadikan ${pkgName} (${minQty}) · Rp ${pkgPrice.toLocaleString('id-ID')}`
+                                                                    : `+1 ${pkgName} (+${minQty})`}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </VStack>
+                                </div>
+                            );
+                        })
                     ) : (
                         <div style={{ padding: '36px 0' }}>
                             <EmptyState title="Keranjang kosong" description="Ketuk produk untuk menambahkan ke pesanan." isCompact />
@@ -693,10 +909,16 @@ export const Transactions = () => {
                         <Text size="sm" color="secondary">Subtotal</Text>
                         <span className="pos-table-num-cell" style={{ fontSize: 13.5, fontWeight: 500 }}>Rp {subtotal.toLocaleString('id-ID')}</span>
                     </HStack>
-                    {totalDiscount > 0 && (
+                    {itemDiscountTotal > 0 && (
                         <HStack justify="between">
-                            <Text size="sm" color="secondary">Diskon</Text>
-                            <span className="pos-table-num-cell" style={{ color: '#059669', fontSize: 13.5, fontWeight: 600 }}>- Rp {totalDiscount.toLocaleString('id-ID')}</span>
+                            <Text size="sm" color="secondary">Hemat Grosir / Paket</Text>
+                            <span className="pos-table-num-cell" style={{ color: '#059669', fontSize: 13.5, fontWeight: 600 }}>- Rp {itemDiscountTotal.toLocaleString('id-ID')}</span>
+                        </HStack>
+                    )}
+                    {promoAmount > 0 && (
+                        <HStack justify="between">
+                            <Text size="sm" color="secondary">Diskon Promo</Text>
+                            <span className="pos-table-num-cell" style={{ color: '#059669', fontSize: 13.5, fontWeight: 600 }}>- Rp {promoAmount.toLocaleString('id-ID')}</span>
                         </HStack>
                     )}
                     {taxAmount > 0 && (
@@ -915,6 +1137,8 @@ export const Transactions = () => {
                                     {filteredProducts.map((p) => {
                                         const inCart = cart.find((c) => c.id === p.id);
                                         const isOut = p.stock <= 0;
+                                        const prodRules = getProductWholesaleRules(p.id);
+                                        const firstRuleSummary = prodRules.length > 0 ? formatWholesaleSummary(prodRules[0], Number(p.price)) : null;
                                         return (
                                             <div
                                                 key={p.id}
@@ -960,6 +1184,27 @@ export const Transactions = () => {
                                                         <Package size={26} color="#a1a1aa" />
                                                     )}
 
+                                                    {prodRules.length > 0 && !isOut && (
+                                                        <div style={{ position: 'absolute', bottom: 5, left: 5 }}>
+                                                            <span
+                                                                style={{
+                                                                    fontSize: 10,
+                                                                    fontWeight: 700,
+                                                                    padding: '2px 6px',
+                                                                    borderRadius: 6,
+                                                                    backgroundColor: 'rgba(22, 163, 74, 0.92)',
+                                                                    color: '#ffffff',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 3,
+                                                                }}
+                                                            >
+                                                                <Tag size={9} />
+                                                                Grosir
+                                                            </span>
+                                                        </div>
+                                                    )}
+
                                                     {/* Stock status overlay */}
                                                     {isOut ? (
                                                         <div
@@ -996,9 +1241,16 @@ export const Transactions = () => {
                                                 </div>
 
                                                 <VStack gap={1} style={{ flex: 1, justifyContent: 'space-between' }}>
-                                                    <Text size="sm" weight="semibold" maxLines={2} style={{ lineHeight: 1.3 }}>
-                                                        {p.name}
-                                                    </Text>
+                                                    <div>
+                                                        <Text size="sm" weight="semibold" maxLines={2} style={{ lineHeight: 1.3 }}>
+                                                            {p.name}
+                                                        </Text>
+                                                        {firstRuleSummary && (
+                                                            <div style={{ fontSize: 10.5, color: '#15803d', fontWeight: 600, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {firstRuleSummary.packageLabel}: {firstRuleSummary.priceDisplay}
+                                                            </div>
+                                                        )}
+                                                    </div>
 
                                                     <HStack justify="between" align="center" gap={1} style={{ marginTop: 'auto', paddingTop: 2 }}>
                                                         <Text size="sm" weight="bold" hasTabularNumbers style={{ color: '#09090b' }}>
@@ -1829,22 +2081,46 @@ export const Transactions = () => {
                         <div>--------------------------------</div>
                     </div>
                     <div style={{ marginBottom: 6 }}>
-                        {(successSale.items || []).map((it: any, idx: number) => (
-                            <div key={idx} style={{ marginBottom: 3 }}>
-                                <div>{it.name}</div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>{it.quantity} x {Number(it.price).toLocaleString('id-ID')}</span>
-                                    <span>Rp {(Number(it.price) * it.quantity).toLocaleString('id-ID')}</span>
+                        {(successSale.items || []).map((it: any, idx: number) => {
+                            const itemDisc = Number(it.discount ?? it.discountAmount ?? 0);
+                            const lineNet = Number(it.subtotal ?? (Number(it.price) * it.quantity - itemDisc));
+                            return (
+                                <div key={idx} style={{ marginBottom: 3 }}>
+                                    <div>{it.name}</div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span>{it.quantity} x {Number(it.price).toLocaleString('id-ID')}</span>
+                                        <span>Rp {lineNet.toLocaleString('id-ID')}</span>
+                                    </div>
+                                    {itemDisc > 0 && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span>Diskon Grosir:</span>
+                                            <span>-Rp {itemDisc.toLocaleString('id-ID')}</span>
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                         <div>--------------------------------</div>
                     </div>
                     <div style={{ marginBottom: 8 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Subtotal:</span>
-                            <span>Rp {Number(successSale.totalPrice || successSale.finalPrice || 0).toLocaleString('id-ID')}</span>
-                        </div>
+                        {(() => {
+                            const itemsDiscSum = (successSale.items || []).reduce((s: number, it: any) => s + Number(it.discount ?? it.discountAmount ?? 0), 0);
+                            const grossNormal = Number(successSale.totalPrice || successSale.finalPrice || 0) + itemsDiscSum;
+                            return (
+                                <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span>Subtotal:</span>
+                                        <span>Rp {grossNormal.toLocaleString('id-ID')}</span>
+                                    </div>
+                                    {itemsDiscSum > 0 && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span>Hemat Grosir:</span>
+                                            <span>-Rp {itemsDiscSum.toLocaleString('id-ID')}</span>
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
                         {Number(successSale.discountAmount || 0) > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span>Diskon:</span>
