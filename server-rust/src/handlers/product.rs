@@ -471,3 +471,246 @@ pub async fn delete_variant(
 
     Ok(Json(json!({ "message": "Variant deleted successfully" })))
 }
+
+#[derive(Debug, Deserialize)]
+pub struct BarcodeLookupQuery {
+    pub refresh: Option<bool>,
+}
+
+fn resolve_scraper_paths() -> (String, Option<std::path::PathBuf>) {
+    let script_candidates: Vec<std::path::PathBuf> = [
+        std::env::var("BARCODE_SCRAPER_SCRIPT").ok().map(std::path::PathBuf::from),
+        Some(std::path::PathBuf::from("scripts/barcode_scraper.py")),
+        Some(std::path::PathBuf::from("../scripts/barcode_scraper.py")),
+        std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|d| d.join("scripts/barcode_scraper.py"))),
+        std::env::current_exe().ok().and_then(|p| {
+            p.parent()
+                .and_then(|d| d.parent())
+                .map(|d| d.join("scripts/barcode_scraper.py"))
+        }),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+
+    let script_path = script_candidates.into_iter().find(|p| p.is_file());
+
+    let py_candidates: Vec<std::path::PathBuf> = [
+        std::env::var("SCRAPER_PYTHON").ok().map(std::path::PathBuf::from),
+        Some(std::path::PathBuf::from(".venv-scraper/Scripts/python.exe")),
+        Some(std::path::PathBuf::from("../.venv-scraper/Scripts/python.exe")),
+        Some(std::path::PathBuf::from(".venv-scraper/bin/python")),
+        Some(std::path::PathBuf::from("../.venv-scraper/bin/python")),
+        std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|d| d.join(".venv-scraper/Scripts/python.exe"))),
+        std::env::current_exe().ok().and_then(|p| {
+            p.parent()
+                .and_then(|d| d.parent())
+                .map(|d| d.join(".venv-scraper/Scripts/python.exe"))
+        }),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+
+    let python_bin = py_candidates
+        .into_iter()
+        .find(|p| p.is_file())
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| "python".to_string());
+
+    (python_bin, script_path)
+}
+
+pub async fn lookup_barcode(
+    State(state): State<SharedState>,
+    auth: AuthUser,
+    Path(raw_barcode): Path<String>,
+    Query(query): Query<BarcodeLookupQuery>,
+) -> Result<Json<Value>, AppError> {
+    auth.require_permission(&["product.view", "product.crud"])?;
+
+    let clean: String = raw_barcode
+        .trim()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect();
+
+    if clean.len() < 4 || clean.len() > 32 {
+        return Err(AppError::BadRequest(
+            "Format barcode tidak valid (4-32 karakter alfanumerik)".to_string(),
+        ));
+    }
+
+    let force_refresh = query.refresh.unwrap_or(false);
+
+    // 1. Check PostgreSQL barcode_cache first (instant hit)
+    if !force_refresh {
+        if let Ok(Some(row)) = sqlx::query(
+            r#"
+            SELECT barcode, name, brand, category, image, "suggestedPrice", source
+            FROM barcode_cache
+            WHERE barcode = $1
+            "#,
+        )
+        .bind(&clean)
+        .fetch_optional(&state.db)
+        .await
+        {
+            use sqlx::Row;
+            let suggested_price: Option<Decimal> = row.get("suggestedPrice");
+            return Ok(Json(json!({
+                "found": true,
+                "cached": true,
+                "barcode": row.get::<String, _>("barcode"),
+                "name": row.get::<String, _>("name"),
+                "brand": row.get::<Option<String>, _>("brand").unwrap_or_default(),
+                "category": row.get::<Option<String>, _>("category").unwrap_or_default(),
+                "image": row.get::<Option<String>, _>("image"),
+                "suggestedPrice": suggested_price.and_then(|d| d.to_string().parse::<f64>().ok()),
+                "source": row.get::<Option<String>, _>("source").unwrap_or_else(|| "cache".to_string()),
+            })));
+        }
+    }
+
+    // 2. Run D4Vinci/Scrapling Deep Multi-Source Python Worker
+    let (python_bin, script_opt) = resolve_scraper_paths();
+    let Some(script_path) = script_opt else {
+        tracing::warn!("Barcode scraper script scripts/barcode_scraper.py not found");
+        return Ok(Json(json!({
+            "found": false,
+            "barcode": clean,
+            "error": "Scraper script not installed"
+        })));
+    };
+
+    let mut cmd = tokio::process::Command::new(&python_bin);
+    cmd.arg(&script_path)
+        .arg(&clean)
+        .env("PYTHONIOENCODING", "utf-8")
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    #[cfg(windows)]
+    {
+        // CREATE_NO_WINDOW prevents flashing console window on Windows
+        cmd.creation_flags(0x08000000);
+    }
+
+    let output = match tokio::time::timeout(std::time::Duration::from_secs(16), cmd.output()).await
+    {
+        Ok(Ok(out)) => out,
+        Ok(Err(e)) => {
+            tracing::warn!(
+                "Failed to spawn Scrapling barcode worker ({}): {}",
+                python_bin,
+                e
+            );
+            return Ok(Json(json!({
+                "found": false,
+                "barcode": clean,
+                "error": format!("Scraper unavailable: {}", e)
+            })));
+        }
+        Err(_) => {
+            tracing::warn!("Scrapling barcode lookup timed out for {}", clean);
+            return Ok(Json(json!({
+                "found": false,
+                "barcode": clean,
+                "error": "Timeout"
+            })));
+        }
+    };
+
+    let stdout_str = String::from_utf8_lossy(&output.stdout);
+    let json_line = stdout_str
+        .lines()
+        .rev()
+        .find(|line| line.trim_start().starts_with('{'))
+        .unwrap_or("");
+
+    let parsed: Value = match serde_json::from_str(json_line) {
+        Ok(v) => v,
+        Err(e) => {
+            let stderr_str = String::from_utf8_lossy(&output.stderr);
+            tracing::warn!(
+                "Invalid JSON from barcode_scraper.py for {}: {} (stderr: {})",
+                clean,
+                e,
+                stderr_str.chars().take(300).collect::<String>()
+            );
+            return Ok(Json(json!({
+                "found": false,
+                "barcode": clean
+            })));
+        }
+    };
+
+    let found = parsed.get("found").and_then(|v| v.as_bool()).unwrap_or(false);
+    if found {
+        let name = parsed
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        if !name.is_empty() {
+            let brand = parsed
+                .get("brand")
+                .and_then(|v| v.as_str())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty());
+            let category = parsed
+                .get("category")
+                .and_then(|v| v.as_str())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty());
+            let image = parsed
+                .get("image")
+                .and_then(|v| v.as_str())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty());
+            let source = parsed
+                .get("source")
+                .and_then(|v| v.as_str())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty());
+            let suggested_price: Option<Decimal> = parsed
+                .get("suggestedPrice")
+                .and_then(|v| v.as_f64())
+                .and_then(|f| Decimal::from_f64_retain(f.round()));
+
+            if let Err(e) = sqlx::query(
+                r#"
+                INSERT INTO barcode_cache (barcode, name, brand, category, image, "suggestedPrice", source, "updatedAt")
+                VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+                ON CONFLICT (barcode) DO UPDATE
+                SET name = EXCLUDED.name,
+                    brand = COALESCE(EXCLUDED.brand, barcode_cache.brand),
+                    category = COALESCE(EXCLUDED.category, barcode_cache.category),
+                    image = COALESCE(EXCLUDED.image, barcode_cache.image),
+                    "suggestedPrice" = COALESCE(EXCLUDED."suggestedPrice", barcode_cache."suggestedPrice"),
+                    source = COALESCE(EXCLUDED.source, barcode_cache.source),
+                    "updatedAt" = NOW()
+                "#,
+            )
+            .bind(&clean)
+            .bind(&name)
+            .bind(&brand)
+            .bind(&category)
+            .bind(&image)
+            .bind(suggested_price)
+            .bind(&source)
+            .execute(&state.db)
+            .await
+            {
+                tracing::warn!("Failed to cache barcode {}: {}", clean, e);
+            }
+        }
+    }
+
+    Ok(Json(parsed))
+}

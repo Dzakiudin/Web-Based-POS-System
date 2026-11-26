@@ -215,6 +215,16 @@ async fn ensure_db_schema_and_indexes(pool: &sqlx::PgPool) {
         r#"CREATE INDEX IF NOT EXISTS idx_discounts_scope_product ON discounts (scope, "productId", "isActive")"#,
         r#"CREATE INDEX IF NOT EXISTS idx_discounts_scope_category ON discounts (scope, "categoryId", "isActive")"#,
         r#"ALTER TABLE sale_details ADD COLUMN IF NOT EXISTS "pricingMode" TEXT"#,
+        r#"CREATE TABLE IF NOT EXISTS barcode_cache (
+            barcode TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            brand TEXT,
+            category TEXT,
+            image TEXT,
+            "suggestedPrice" NUMERIC(12,2),
+            source TEXT,
+            "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
+        )"#,
     ];
 
     for sql in statements {
@@ -371,6 +381,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let product_routes = Router::new()
         .route("/", get(handlers::product::get_products))
         .route("/", post(handlers::product::create_product))
+        .route(
+            "/barcode-lookup/:barcode",
+            get(handlers::product::lookup_barcode),
+        )
         .route("/:id", get(handlers::product::get_product))
         .route("/:id", put(handlers::product::update_product))
         .route("/:id", delete(handlers::product::delete_product))
@@ -489,7 +503,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             axum::Json(serde_json::json!({
                 "version": app_version,
                 "releaseDate": "2026-11-26",
-                "releaseNotes": "• Perbaikan Zona Waktu Transaksi (WIB +07:00) & Grafik Tren Pendapatan agar transaksi tampil sesuai jam lokal.\n• Label diskon di Kartu Aturan, Keranjang Kasir, Rincian Riwayat, & Struk Thermal kini spesifik sesuai jenisnya (Paket, Grosir, Beli X Gratis Y, Potongan/Pcs, Diskon %) dan tidak meluber keluar kartu.\n• UX Harga Paket / Dus dipermudah dengan pilihan 'Isi Total 1 Paket' & 'Isi Harga per Pcs' + tombol koreksi 1-klik.\n• Notifikasi error (Toast) kini selalu tampil di atas modal + kotak error inline di form.",
+                "releaseNotes": "• Pencarian Info Barcode Mendalam (D4Vinci/Scrapling): mencari otomatis dari 10 sumber katalog ritel Indonesia & global secara paralel (Mega Swalayan, Reny Swalayanku, Go-UPC, Open Food/Beauty/Products Facts, UPCitemdb, Buycott, BarcodeSpider, & Yahoo Indonesia).\n• Auto-fill nama, merek, kategori, foto, & estimasi harga Rp langsung di PC maupun HP Android tanpa terhambat CORS.\n• Cache PostgreSQL (barcode_cache) membuat pencarian ulang barcode yang sama instan & tetap tersedia offline.",
                 "downloadUrl": download_url
             }))
         }))

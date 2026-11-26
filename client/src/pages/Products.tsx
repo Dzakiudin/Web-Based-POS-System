@@ -106,7 +106,12 @@ const Products = () => {
             const info = await lookupBarcodeInfo(cleanBarcode);
             if (info) {
                 sound.playSuccess();
-                toast.success(`Ditemukan di internet: "${info.name}"!`);
+                const srcLabel = info.cached
+                    ? 'Cache Lokal'
+                    : info.source
+                    ? info.source.replace(/^scrapling:/, 'Scrapling · ')
+                    : 'Internet';
+                toast.success(`Ditemukan (${srcLabel}): "${info.name}"!`);
 
                 // Match category name or keywords
                 let matchedCatId = '';
@@ -118,10 +123,16 @@ const Products = () => {
                             catLower.includes(c.name.toLowerCase())
                     );
                     if (!matched) {
-                        if (catLower.match(/drink|beverage|water|tea|coffee|milk|juice|air|teh|kopi|susu/)) {
-                            matched = categories.find((c) => c.name.toLowerCase().match(/minuman|coffee|tea/));
-                        } else if (catLower.match(/noodle|mie|biscuit|snack|food|makanan|rice|bread|roti/)) {
-                            matched = categories.find((c) => c.name.toLowerCase().match(/makanan|snack|pastry/));
+                        if (catLower.match(/drink|beverage|water|tea|coffee|milk|juice|air|teh|kopi|susu|minuman|rtd|isotonic/)) {
+                            matched = categories.find((c) => c.name.toLowerCase().match(/minuman|coffee|tea|drink|beverage/));
+                        } else if (catLower.match(/snack|biscuit|biskuit|wafer|chips|kripik|coklat|permen/)) {
+                            matched = categories.find((c) => c.name.toLowerCase().match(/snack|pastry|cemilan|kue|makanan/));
+                        } else if (catLower.match(/noodle|mie|food|makanan|rice|bread|roti/)) {
+                            matched = categories.find((c) => c.name.toLowerCase().match(/makanan|food|snack|pastry/));
+                        } else if (catLower.match(/bumbu|sembako|minyak|gula|kecap|saus|sambal|beras/)) {
+                            matched = categories.find((c) => c.name.toLowerCase().match(/sembako|bumbu|dapur|makanan/));
+                        } else if (catLower.match(/sabun|shampo|deterjen|tisu|perawatan|kebersihan|care|beauty|hygiene/)) {
+                            matched = categories.find((c) => c.name.toLowerCase().match(/perawatan|kebersihan|rumah|toiletries|non/));
                         }
                     }
                     if (matched) matchedCatId = String(matched.id);
@@ -459,7 +470,7 @@ const Products = () => {
                                 )}
                             </div>
                             <span style={{ fontSize: 11, color: '#71717a' }}>
-                                Scan barcode kemasan produk (Aqua, Indomie, Ultra Milk, dll) untuk mengisi nama, kategori, & harga secara otomatis.
+                                Scan atau ketik barcode kemasan produk makanan/minuman untuk pencarian mendalam otomatis (Scrapling 10 sumber katalog ritel Indonesia & global).
                             </span>
                         </VStack>
 

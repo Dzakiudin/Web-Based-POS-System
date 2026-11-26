@@ -14,3 +14,5 @@ release-build/
 logs/
 uploads/
 *.apk
+.venv-scraper/
+__pycache__/

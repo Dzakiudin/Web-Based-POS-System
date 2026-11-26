@@ -1,7 +1,10 @@
 /**
  * Preloaded catalog of popular Indonesian FMCG / retail product barcodes
- * and online lookup utility via Open Food Facts, Open Beauty Facts, and Open Products Facts APIs.
+ * and deep multi-source lookup via backend Scrapling engine (Mega Swalayan,
+ * Reny Swalayanku, Go-UPC, Open Food/Beauty/Products Facts, UPCitemdb,
+ * Buycott, BarcodeSpider, Yahoo Indonesia) with direct browser fallback.
  */
+import api from './axios';
 
 export interface BarcodeProductInfo {
     barcode: string;
@@ -11,6 +14,8 @@ export interface BarcodeProductInfo {
     suggestedPrice?: number;
     costPrice?: number;
     image?: string;
+    source?: string;
+    cached?: boolean;
 }
 
 // Popular Indonesian Retail Products Barcodes for instant zero-latency offline / instant match
@@ -346,17 +351,42 @@ export async function lookupBarcodeInfo(barcode: string): Promise<BarcodeProduct
     // 1. Direct local catalog check (0 latency match)
     if (INDONESIAN_RETAIL_CATALOG[cleanCode]) {
         const item = INDONESIAN_RETAIL_CATALOG[cleanCode];
-        return { barcode: cleanCode, ...item };
+        return { barcode: cleanCode, ...item, source: 'katalog-lokal' };
     }
 
     // Try without leading zeros or with leading zero in local catalog
     const unpadded = cleanCode.replace(/^0+/, '');
     if (unpadded && INDONESIAN_RETAIL_CATALOG[unpadded]) {
         const item = INDONESIAN_RETAIL_CATALOG[unpadded];
-        return { barcode: cleanCode, ...item };
+        return { barcode: cleanCode, ...item, source: 'katalog-lokal' };
     }
 
-    // 2. Real-time Internet Lookup
+    // 2. Backend Deep Scrapling Multi-Source Engine (10+ Indonesian & global sources + PostgreSQL cache)
+    try {
+        const res = await api.get(`/products/barcode-lookup/${encodeURIComponent(cleanCode)}`, {
+            timeout: 18000,
+        });
+        const data = res.data;
+        if (data && data.found && data.name) {
+            return {
+                barcode: data.barcode || cleanCode,
+                name: String(data.name).trim(),
+                brand: data.brand ? String(data.brand).trim() : undefined,
+                category: data.category ? String(data.category).trim() : undefined,
+                suggestedPrice:
+                    typeof data.suggestedPrice === 'number' && data.suggestedPrice > 0
+                        ? Math.round(data.suggestedPrice)
+                        : undefined,
+                image: data.image ? String(data.image) : undefined,
+                source: data.source ? String(data.source) : 'scrapling',
+                cached: Boolean(data.cached),
+            };
+        }
+    } catch {
+        // Fallback to direct client-side public APIs if backend scraper is unreachable
+    }
+
+    // 3. Direct browser fallback (Open Food / Beauty / Products Facts)
     // Prepare code variations (exact, 13-digit padded with 0, or unpadded)
     const codeVariants = [cleanCode];
     if (cleanCode.length === 12) codeVariants.push('0' + cleanCode);
