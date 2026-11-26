@@ -384,15 +384,30 @@ pub struct Discount {
     #[sqlx(rename = "productId")]
     #[serde(rename = "productId")]
     pub product_id: Option<i32>,
+    #[sqlx(rename = "categoryId")]
+    #[serde(rename = "categoryId")]
+    pub category_id: Option<i32>,
     #[sqlx(rename = "minQuantity")]
     #[serde(rename = "minQuantity")]
     pub min_quantity: i32,
+    #[sqlx(rename = "bonusQuantity")]
+    #[serde(rename = "bonusQuantity")]
+    pub bonus_quantity: i32,
     #[sqlx(rename = "pricingMode")]
     #[serde(rename = "pricingMode")]
     pub pricing_mode: String,
     #[sqlx(rename = "unitLabel")]
     #[serde(rename = "unitLabel")]
     pub unit_label: Option<String>,
+    #[sqlx(rename = "maxDiscount")]
+    #[serde(rename = "maxDiscount")]
+    pub max_discount: Option<Decimal>,
+    #[sqlx(rename = "autoApply")]
+    #[serde(rename = "autoApply")]
+    pub auto_apply: bool,
+    #[sqlx(rename = "targetTier")]
+    #[serde(rename = "targetTier")]
+    pub target_tier: Option<String>,
     #[sqlx(rename = "startDate")]
     #[serde(rename = "startDate")]
     pub start_date: NaiveDateTime,
@@ -447,6 +462,7 @@ pub struct CreateDiscountRequest {
     pub name: String,
     #[serde(rename = "type", default)]
     pub discount_type: Option<DiscountType>,
+    #[serde(default)]
     pub value: Decimal,
     #[serde(rename = "minPurchase")]
     pub min_purchase: Option<Decimal>,
@@ -462,12 +478,22 @@ pub struct CreateDiscountRequest {
     pub scope: Option<String>,
     #[serde(rename = "productId")]
     pub product_id: Option<i32>,
+    #[serde(rename = "categoryId")]
+    pub category_id: Option<i32>,
     #[serde(rename = "minQuantity")]
     pub min_quantity: Option<i32>,
+    #[serde(rename = "bonusQuantity")]
+    pub bonus_quantity: Option<i32>,
     #[serde(rename = "pricingMode")]
     pub pricing_mode: Option<String>,
     #[serde(rename = "unitLabel")]
     pub unit_label: Option<String>,
+    #[serde(rename = "maxDiscount")]
+    pub max_discount: Option<Decimal>,
+    #[serde(rename = "autoApply")]
+    pub auto_apply: Option<bool>,
+    #[serde(rename = "targetTier")]
+    pub target_tier: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone)]

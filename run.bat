@@ -5,7 +5,7 @@ title TOKO AZNUN - POS System Server ^& Cloud Tunnel
 color 0B
 
 echo ======================================================================
-echo           TOKO AZNUN - WEB-BASED POS SYSTEM (PRO MAX v2.1.0)
+echo           TOKO AZNUN - WEB-BASED POS SYSTEM (PRO MAX v2.2.0)
 echo ======================================================================
 echo.
 
@@ -14,6 +14,8 @@ echo [1/3] Memeriksa status database PostgreSQL...
 net start | findstr /i "postgresql" >nul
 if %errorlevel% neq 0 (
     echo [INFO] Menjalankan service PostgreSQL...
+    net start postgresql-x64-18 >nul 2>&1
+    net start postgresql-x64-17 >nul 2>&1
     net start postgresql-x64-16 >nul 2>&1
     net start postgresql-x64-15 >nul 2>&1
     net start postgresql >nul 2>&1

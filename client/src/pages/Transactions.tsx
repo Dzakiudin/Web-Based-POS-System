@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Search, ShoppingCart, Plus, Minus, Trash2, Tag, CheckCircle2,
-    Printer, Package, ArrowRight, Camera, Clock,
+    Printer, Package, ArrowRight, Camera, Clock, Gift, Sparkles,
     Copy, QrCode, Check, X, Delete, Banknote, ArrowRightLeft, Settings, ImageIcon
 } from 'lucide-react';
 import { Layout, LayoutContent, LayoutPanel } from '@astryxdesign/core/Layout';
@@ -31,10 +31,16 @@ import { printThermalReceipt } from '../lib/thermalPrinter';
 import PageHeader from '../components/PageHeader';
 import SafeImage from '../components/SafeImage';
 import {
+    calculateOrderPromoAmount,
     calculateWholesaleRuleDiscount,
     evaluateWholesaleForProduct,
-    isWholesaleRuleCurrentlyEligible,
     formatWholesaleSummary,
+    getBuyXGetYNudge,
+    isItemRuleCurrentlyEligible,
+    isOrderPromoEligible,
+    isOrderRuleCurrentlyEligible,
+    selectBestAutoOrderPromo,
+    tierRank,
     type DiscountRule,
 } from '../lib/wholesale';
 
@@ -126,6 +132,8 @@ interface CartItem extends Product {
     discount: number;
     appliedRuleName?: string | null;
     appliedUnitLabel?: string | null;
+    appliedPricingMode?: string | null;
+    appliedFreeUnits?: number;
 }
 
 export const Transactions = () => {
@@ -186,12 +194,19 @@ export const Transactions = () => {
     const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
 
     const [promoCode, setPromoCode] = useState('');
+    const [orderPromoRules, setOrderPromoRules] = useState<DiscountRule[]>([]);
+    const [autoPromoOptedOut, setAutoPromoOptedOut] = useState(false);
     const [promoDiscount, setPromoDiscount] = useState<{
+        id?: number;
         type: string;
         value: number;
+        maxDiscount?: number | null;
+        minPurchase?: number;
         name: string;
-        code?: string;
+        code?: string | null;
         voucherId?: number;
+        autoApply?: boolean;
+        targetTier?: string | null;
     } | null>(null);
     const [promoError, setPromoError] = useState('');
     const [successSale, setSuccessSale] = useState<any>(null);
@@ -301,19 +316,28 @@ export const Transactions = () => {
         }
     };
 
-    const getProductWholesaleRules = (productId: number, rulesList: DiscountRule[] = wholesaleRules) =>
+    const getProductWholesaleRules = (
+        product: Pick<Product, 'id' | 'category'>,
+        rulesList: DiscountRule[] = wholesaleRules
+    ) =>
         rulesList
-            .filter((r) => r.productId === productId)
+            .filter(
+                (r) =>
+                    (r.scope === 'PRODUCT_QTY' && r.productId === product.id) ||
+                    (r.scope === 'CATEGORY' && Boolean(product.category?.id) && r.categoryId === product.category?.id)
+            )
             .sort((a, b) => Number(a.minQuantity || 0) - Number(b.minQuantity || 0));
 
     const withWholesaleDiscount = (item: CartItem, rulesList: DiscountRule[] = wholesaleRules): CartItem => {
-        const rules = getProductWholesaleRules(item.id, rulesList);
+        const rules = getProductWholesaleRules(item, rulesList);
         const evalRes = evaluateWholesaleForProduct(Number(item.price), item.quantity, rules);
         return {
             ...item,
             discount: evalRes.discountAmount,
             appliedRuleName: evalRes.matchedRule?.name || null,
             appliedUnitLabel: evalRes.matchedRule?.unitLabel || null,
+            appliedPricingMode: evalRes.matchedRule?.pricingMode || null,
+            appliedFreeUnits: evalRes.freeUnits,
         };
     };
 
@@ -321,9 +345,11 @@ export const Transactions = () => {
         try {
             const r = await api.get('/discounts');
             const list = Array.isArray(r.data) ? r.data : [];
-            const eligible = list.filter(isWholesaleRuleCurrentlyEligible);
-            setWholesaleRules(eligible);
-            setCart((prev) => prev.map((it) => withWholesaleDiscount(it, eligible)));
+            const eligibleItemRules = list.filter(isItemRuleCurrentlyEligible);
+            const eligibleOrderRules = list.filter(isOrderRuleCurrentlyEligible);
+            setWholesaleRules(eligibleItemRules);
+            setOrderPromoRules(eligibleOrderRules);
+            setCart((prev) => prev.map((it) => withWholesaleDiscount(it, eligibleItemRules)));
         } catch {
             // Non-blocking if user doesn't have wholesale rules
         }
@@ -392,6 +418,7 @@ export const Transactions = () => {
         setCart([]);
         setPromoCode('');
         setPromoDiscount(null);
+        setAutoPromoOptedOut(false);
         setPromoError('');
         setSelectedCustomerId('');
     };
@@ -421,6 +448,7 @@ export const Transactions = () => {
         setCart(target.items.map((it) => withWholesaleDiscount(it)));
         setSelectedCustomerId(target.customerId);
         setPromoDiscount(target.promoDiscount);
+        setAutoPromoOptedOut(false);
         setPromoCode(target.promoCode);
         setHeldOrders((prev) => prev.filter((h) => h.id !== heldId));
         setShowHeldModal(false);
@@ -440,22 +468,34 @@ export const Transactions = () => {
         setTimeout(() => setCopiedAccount(null), 2000);
     };
 
-    const validatePromo = async () => {
-        if (!promoCode.trim()) return;
+    const validatePromo = async (overrideCode?: string) => {
+        const targetCode = (overrideCode ?? promoCode).trim();
+        if (!targetCode) return;
         setPromoError('');
         try {
             const currentNetSubtotal = cart.reduce(
                 (sum, i) => sum + Math.max(0, Number(i.price) * i.quantity - Number(i.discount || 0)),
                 0
             );
-            const r = await api.post('/discounts/validate', { code: promoCode.trim(), subtotal: currentNetSubtotal });
+            const r = await api.post('/discounts/validate', {
+                code: targetCode,
+                subtotal: currentNetSubtotal,
+                customerId: selectedCustomerId ? Number(selectedCustomerId) : null,
+            });
             const discountData = r.data.discount || r.data;
+            setPromoCode(discountData.code || targetCode);
+            setAutoPromoOptedOut(false);
             setPromoDiscount({
+                id: discountData.id,
                 type: discountData.type,
                 value: Number(discountData.value),
+                maxDiscount: discountData.maxDiscount ? Number(discountData.maxDiscount) : null,
+                minPurchase: discountData.minPurchase ? Number(discountData.minPurchase) : 0,
                 name: discountData.name,
-                code: discountData.code || promoCode.trim(),
+                code: discountData.code || targetCode,
                 voucherId: discountData.voucherId,
+                autoApply: false,
+                targetTier: discountData.targetTier || null,
             });
             toast.success(`Promo "${discountData.name}" berhasil diterapkan!`);
         } catch (e: any) {
@@ -468,6 +508,9 @@ export const Transactions = () => {
 
     const cancelPromo = () => {
         sound.playWarning();
+        if (activePromo?.autoApply) {
+            setAutoPromoOptedOut(true);
+        }
         setPromoDiscount(null);
         setPromoCode('');
         setPromoError('');
@@ -477,10 +520,46 @@ export const Transactions = () => {
     const subtotal = cart.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
     const itemDiscountTotal = cart.reduce((sum, i) => sum + Number(i.discount || 0), 0);
     const subtotalAfterItemDiscount = Math.max(0, subtotal - itemDiscountTotal);
-    const promoAmount = promoDiscount
-        ? promoDiscount.type === 'PERCENTAGE'
-            ? Math.round((subtotalAfterItemDiscount * promoDiscount.value) / 100)
-            : Math.min(subtotalAfterItemDiscount, promoDiscount.value)
+    const selectedCustomer = customers.find((c) => String(c.id) === selectedCustomerId) || null;
+    const bestAutoPromo = selectBestAutoOrderPromo(
+        orderPromoRules,
+        subtotalAfterItemDiscount,
+        selectedCustomer?.membershipTier
+    );
+    const manualPromoStillValid =
+        !promoDiscount ||
+        ((!promoDiscount.minPurchase || subtotalAfterItemDiscount >= promoDiscount.minPurchase) &&
+            (!promoDiscount.targetTier || tierRank(selectedCustomer?.membershipTier) >= tierRank(promoDiscount.targetTier)));
+    const activePromo =
+        promoDiscount && manualPromoStillValid
+            ? promoDiscount
+            : !autoPromoOptedOut && bestAutoPromo
+            ? {
+                  id: bestAutoPromo.rule.id,
+                  type: bestAutoPromo.rule.type,
+                  value: Number(bestAutoPromo.rule.value),
+                  maxDiscount: bestAutoPromo.rule.maxDiscount ? Number(bestAutoPromo.rule.maxDiscount) : null,
+                  minPurchase: bestAutoPromo.rule.minPurchase ? Number(bestAutoPromo.rule.minPurchase) : 0,
+                  name: bestAutoPromo.rule.name,
+                  code: null as string | null,
+                  voucherId: undefined,
+                  autoApply: true,
+                  targetTier: bestAutoPromo.rule.targetTier || null,
+              }
+            : null;
+    const eligibleCodedPromos = orderPromoRules.filter(
+        (r) =>
+            !r.autoApply &&
+            Boolean(r.code) &&
+            isOrderPromoEligible(r, subtotalAfterItemDiscount, selectedCustomer?.membershipTier)
+    );
+    const promoAmount = activePromo
+        ? calculateOrderPromoAmount(
+              subtotalAfterItemDiscount,
+              activePromo.type,
+              activePromo.value,
+              activePromo.maxDiscount
+          )
         : 0;
     const totalDiscount = itemDiscountTotal + promoAmount;
     const afterDiscount = Math.max(0, subtotal - totalDiscount);
@@ -552,8 +631,9 @@ export const Transactions = () => {
                 discountAmount: promoAmount,
                 finalPrice: grandTotal,
                 customerId: selectedCustomerId ? Number(selectedCustomerId) : null,
-                voucherCode: promoDiscount?.code || null,
-                voucherId: promoDiscount?.voucherId || null,
+                voucherCode: activePromo?.code || null,
+                voucherId: activePromo?.voucherId || null,
+                discountId: !activePromo?.voucherId ? activePromo?.id || null : null,
                 items: cart.map((i) => {
                     const unitPrice = Number(i.price);
                     const itemDiscount = Number(i.discount || 0);
@@ -694,7 +774,12 @@ export const Transactions = () => {
                             const lineGross = unitPrice * item.quantity;
                             const lineDiscount = Number(item.discount || 0);
                             const lineNet = Math.max(0, lineGross - lineDiscount);
-                            const prodRules = getProductWholesaleRules(item.id);
+                            const prodRules = getProductWholesaleRules(item);
+                            const buyXGetYNudge = getBuyXGetYNudge(item.quantity, prodRules);
+                            const badgeTitle =
+                                item.appliedPricingMode === 'BUY_X_GET_Y' && (item.appliedFreeUnits || 0) > 0
+                                    ? `Gratis ${item.appliedFreeUnits} pcs`
+                                    : item.appliedUnitLabel?.trim() || item.appliedRuleName || 'Grosir';
 
                             return (
                                 <div key={item.id} className="pos-cart-item-card">
@@ -718,7 +803,7 @@ export const Transactions = () => {
                                                                 whiteSpace: 'nowrap',
                                                             }}
                                                         >
-                                                            {item.appliedUnitLabel?.trim() || 'Grosir'} · Hemat Rp {lineDiscount.toLocaleString('id-ID')}
+                                                            {badgeTitle} · Hemat Rp {lineDiscount.toLocaleString('id-ID')}
                                                         </span>
                                                     )}
                                                 </div>
@@ -752,46 +837,113 @@ export const Transactions = () => {
                                                 </Text>
                                             </div>
                                         </HStack>
-                                        {prodRules.length > 0 && (
+                                        {(buyXGetYNudge || prodRules.some((r) => r.pricingMode === 'BUY_X_GET_Y' || Number(r.minQuantity || 0) > 1)) && (
                                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingTop: 2 }}>
-                                                {prodRules.map((rule) => {
-                                                    const minQty = Math.max(1, Number(rule.minQuantity || 1));
-                                                    const pkgName = rule.unitLabel?.trim() || `${minQty} pcs`;
-                                                    const isApplyMode = item.quantity < minQty;
-                                                    const targetQty = isApplyMode ? minQty : item.quantity + minQty;
-                                                    const canReach = targetQty <= item.stock;
-                                                    const pkgDisc = calculateWholesaleRuleDiscount(unitPrice, minQty, rule);
-                                                    const pkgPrice = Math.max(0, unitPrice * minQty - pkgDisc);
-                                                    return (
-                                                        <button
-                                                            key={rule.id}
-                                                            type="button"
-                                                            disabled={!canReach}
-                                                            onClick={() => setExactQuantity(item.id, targetQty)}
-                                                            style={{
-                                                                fontSize: 11,
-                                                                fontWeight: 650,
-                                                                padding: '3px 8px',
-                                                                borderRadius: 6,
-                                                                border: isApplyMode ? '1px solid #bbf7d0' : '1px solid #e4e4e7',
-                                                                backgroundColor: isApplyMode ? '#f0fdf4' : '#fafafa',
-                                                                color: !canReach ? '#a1a1aa' : isApplyMode ? '#15803d' : '#3f3f46',
-                                                                cursor: canReach ? 'pointer' : 'not-allowed',
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: 4,
-                                                            }}
-                                                            title={!canReach ? `Stok sisa ${item.stock}, tidak cukup ${targetQty}` : undefined}
-                                                        >
-                                                            <Package size={11} />
-                                                            <span>
-                                                                {isApplyMode
-                                                                    ? `Jadikan ${pkgName} (${minQty}) · Rp ${pkgPrice.toLocaleString('id-ID')}`
-                                                                    : `+1 ${pkgName} (+${minQty})`}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
+                                                {buyXGetYNudge && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={item.quantity + buyXGetYNudge.addQty > item.stock}
+                                                        onClick={() => setExactQuantity(item.id, item.quantity + buyXGetYNudge.addQty)}
+                                                        style={{
+                                                            fontSize: 11,
+                                                            fontWeight: 700,
+                                                            padding: '3px 9px',
+                                                            borderRadius: 6,
+                                                            border: '1px solid #86efac',
+                                                            backgroundColor: '#16a34a',
+                                                            color: '#ffffff',
+                                                            cursor: item.quantity + buyXGetYNudge.addQty <= item.stock ? 'pointer' : 'not-allowed',
+                                                            opacity: item.quantity + buyXGetYNudge.addQty <= item.stock ? 1 : 0.5,
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: 4,
+                                                        }}
+                                                    >
+                                                        <Gift size={11} />
+                                                        <span>
+                                                            +{buyXGetYNudge.addQty} Gratis! (Beli {buyXGetYNudge.rule.minQuantity} Gratis {buyXGetYNudge.freeQty})
+                                                        </span>
+                                                    </button>
+                                                )}
+                                                {prodRules
+                                                    .filter((rule) => rule.pricingMode === 'BUY_X_GET_Y' || Number(rule.minQuantity || 0) > 1)
+                                                    .map((rule) => {
+                                                        const minQty = Math.max(1, Number(rule.minQuantity || 1));
+                                                        if (rule.pricingMode === 'BUY_X_GET_Y') {
+                                                            const bonusQty = Math.max(1, Number(rule.bonusQuantity || 1));
+                                                            const groupSize = minQty + bonusQty;
+                                                            const remainder = item.quantity % groupSize;
+                                                            if (remainder >= minQty && buyXGetYNudge?.rule.id === rule.id) {
+                                                                return null;
+                                                            }
+                                                            const targetQty = item.quantity < groupSize ? groupSize : item.quantity + groupSize;
+                                                            const canReach = targetQty <= item.stock;
+                                                            return (
+                                                                <button
+                                                                    key={rule.id}
+                                                                    type="button"
+                                                                    disabled={!canReach}
+                                                                    onClick={() => setExactQuantity(item.id, targetQty)}
+                                                                    style={{
+                                                                        fontSize: 11,
+                                                                        fontWeight: 650,
+                                                                        padding: '3px 8px',
+                                                                        borderRadius: 6,
+                                                                        border: '1px solid #bbf7d0',
+                                                                        backgroundColor: '#f0fdf4',
+                                                                        color: canReach ? '#15803d' : '#a1a1aa',
+                                                                        cursor: canReach ? 'pointer' : 'not-allowed',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: 4,
+                                                                    }}
+                                                                >
+                                                                    <Gift size={11} />
+                                                                    <span>
+                                                                        {item.quantity < groupSize
+                                                                            ? `Ambil Beli ${minQty} Gratis ${bonusQty} (${groupSize} pcs)`
+                                                                            : `+1 Paket Beli ${minQty} Gratis ${bonusQty}`}
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        }
+
+                                                        const pkgName = rule.unitLabel?.trim() || `${minQty} pcs`;
+                                                        const isApplyMode = item.quantity < minQty;
+                                                        const targetQty = isApplyMode ? minQty : item.quantity + minQty;
+                                                        const canReach = targetQty <= item.stock;
+                                                        const pkgDisc = calculateWholesaleRuleDiscount(unitPrice, minQty, rule);
+                                                        const pkgPrice = Math.max(0, unitPrice * minQty - pkgDisc);
+                                                        return (
+                                                            <button
+                                                                key={rule.id}
+                                                                type="button"
+                                                                disabled={!canReach}
+                                                                onClick={() => setExactQuantity(item.id, targetQty)}
+                                                                style={{
+                                                                    fontSize: 11,
+                                                                    fontWeight: 650,
+                                                                    padding: '3px 8px',
+                                                                    borderRadius: 6,
+                                                                    border: isApplyMode ? '1px solid #bbf7d0' : '1px solid #e4e4e7',
+                                                                    backgroundColor: isApplyMode ? '#f0fdf4' : '#fafafa',
+                                                                    color: !canReach ? '#a1a1aa' : isApplyMode ? '#15803d' : '#3f3f46',
+                                                                    cursor: canReach ? 'pointer' : 'not-allowed',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 4,
+                                                                }}
+                                                                title={!canReach ? `Stok sisa ${item.stock}, tidak cukup ${targetQty}` : undefined}
+                                                            >
+                                                                <Package size={11} />
+                                                                <span>
+                                                                    {isApplyMode
+                                                                        ? `Jadikan ${pkgName} (${minQty}) · Rp ${pkgPrice.toLocaleString('id-ID')}`
+                                                                        : `+1 ${pkgName} (+${minQty})`}
+                                                                </span>
+                                                            </button>
+                                                        );
+                                                    })}
                                             </div>
                                         )}
                                     </VStack>
@@ -809,7 +961,7 @@ export const Transactions = () => {
             {/* Docked Cart Summary & Checkout Footer */}
             <div className="pos-cart-footer">
                 {/* Promo / Voucher */}
-                {promoDiscount ? (
+                {activePromo ? (
                     <div
                         style={{
                             display: 'flex',
@@ -835,14 +987,15 @@ export const Transactions = () => {
                                     flexShrink: 0,
                                 }}
                             >
-                                <Tag size={14} color="#16a34a" />
+                                {activePromo.autoApply ? <Sparkles size={14} color="#16a34a" /> : <Tag size={14} color="#16a34a" />}
                             </div>
                             <div style={{ minWidth: 0 }}>
                                 <div style={{ fontSize: '13px', fontWeight: 700, color: '#166534', lineHeight: 1.2 }}>
-                                    {promoDiscount.code}
+                                    {activePromo.code || (activePromo.autoApply ? 'Promo Otomatis' : 'Diskon Struk')}
                                 </div>
                                 <div style={{ fontSize: '11px', color: '#15803d', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {promoDiscount.name} ({promoDiscount.type === 'PERCENTAGE' ? `${promoDiscount.value}%` : `Rp ${Number(promoDiscount.value).toLocaleString('id-ID')}`})
+                                    {activePromo.name} ({activePromo.type === 'PERCENTAGE' ? `${activePromo.value}%` : `Rp ${Number(activePromo.value).toLocaleString('id-ID')}`}
+                                    {activePromo.maxDiscount ? `, maks Rp ${Number(activePromo.maxDiscount).toLocaleString('id-ID')}` : ''})
                                 </div>
                             </div>
                         </div>
@@ -892,8 +1045,49 @@ export const Transactions = () => {
                                     }
                                 }}
                             />
-                            <Button variant="secondary" size="sm" label="Pakai" onClick={validatePromo} />
+                            <Button variant="secondary" size="sm" label="Pakai" onClick={() => validatePromo()} />
                         </HStack>
+                        {(eligibleCodedPromos.length > 0 || (autoPromoOptedOut && bestAutoPromo)) && (
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                                {autoPromoOptedOut && bestAutoPromo && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setAutoPromoOptedOut(false)}
+                                        style={{
+                                            fontSize: 11,
+                                            fontWeight: 650,
+                                            padding: '2px 8px',
+                                            borderRadius: 999,
+                                            border: '1px solid #bbf7d0',
+                                            backgroundColor: '#f0fdf4',
+                                            color: '#15803d',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        + Aktifkan {bestAutoPromo.rule.name}
+                                    </button>
+                                )}
+                                {eligibleCodedPromos.map((cp) => (
+                                    <button
+                                        key={cp.id}
+                                        type="button"
+                                        onClick={() => validatePromo(cp.code || '')}
+                                        style={{
+                                            fontSize: 11,
+                                            fontWeight: 650,
+                                            padding: '2px 8px',
+                                            borderRadius: 999,
+                                            border: '1px solid #bfdbfe',
+                                            backgroundColor: '#eff6ff',
+                                            color: '#1d4ed8',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {cp.code} · {cp.type === 'PERCENTAGE' ? `${cp.value}%` : `Rp ${Number(cp.value).toLocaleString('id-ID')}`}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         {promoError && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#dc2626', fontSize: '11px', marginTop: '2px' }}>
                                 <X size={12} />
@@ -1137,8 +1331,14 @@ export const Transactions = () => {
                                     {filteredProducts.map((p) => {
                                         const inCart = cart.find((c) => c.id === p.id);
                                         const isOut = p.stock <= 0;
-                                        const prodRules = getProductWholesaleRules(p.id);
+                                        const prodRules = getProductWholesaleRules(p);
                                         const firstRuleSummary = prodRules.length > 0 ? formatWholesaleSummary(prodRules[0], Number(p.price)) : null;
+                                        const cardBadgeText =
+                                            prodRules[0]?.pricingMode === 'BUY_X_GET_Y'
+                                                ? `Beli ${prodRules[0].minQuantity} Gratis ${prodRules[0].bonusQuantity}`
+                                                : prodRules[0]?.scope === 'CATEGORY'
+                                                ? 'Promo'
+                                                : 'Grosir';
                                         return (
                                             <div
                                                 key={p.id}
@@ -1200,7 +1400,7 @@ export const Transactions = () => {
                                                                 }}
                                                             >
                                                                 <Tag size={9} />
-                                                                Grosir
+                                                                {cardBadgeText}
                                                             </span>
                                                         </div>
                                                     )}
@@ -1462,7 +1662,7 @@ export const Transactions = () => {
                             <div className="pos-checkout-row" style={{ color: '#059669', fontWeight: 600 }}>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                     <Tag size={12} />
-                                    <span>Voucher Promo {promoDiscount?.code ? `(${promoDiscount.code})` : ''}</span>
+                                    <span>{activePromo?.code ? `Voucher Promo (${activePromo.code})` : activePromo?.name || 'Diskon Promo'}</span>
                                 </span>
                                 <span style={{ fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums' }}>
                                     - Rp {promoAmount.toLocaleString('id-ID')}

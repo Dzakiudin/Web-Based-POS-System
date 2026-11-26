@@ -1,7 +1,8 @@
 use crate::{
     error::AppError,
+    handlers::discount::{calculate_order_promo_amount, select_best_wholesale_discount, tier_rank, WholesaleRule},
     middleware::auth::AuthUser,
-    models::{PaymentRequest, SaleItemRequest},
+    models::{Discount, DiscountType, PaymentRequest, SaleItemRequest},
     state::SharedState,
 };
 use axum::{
@@ -206,10 +207,15 @@ pub async fn create_sale(
     let mut matched_wholesale_discount_ids: Vec<i32> = Vec::new();
 
     for raw_it in raw_parsed_items {
-        // Resolve authoritative unit price directly from DB (never trust client-submitted price)
-        let db_price: Decimal = if let Some(vid) = raw_it.variant_id {
-            sqlx::query_scalar::<_, Decimal>(
-                r#"SELECT price FROM product_variants WHERE id = $1 AND "productId" = $2 AND "isActive" = true"#,
+        // Resolve authoritative unit price & category directly from DB (never trust client-submitted price)
+        let (db_price, product_category_id): (Decimal, Option<i32>) = if let Some(vid) = raw_it.variant_id {
+            let row = sqlx::query(
+                r#"
+                SELECT pv.price, p."categoryId"
+                FROM product_variants pv
+                JOIN products p ON p.id = pv."productId"
+                WHERE pv.id = $1 AND pv."productId" = $2 AND pv."isActive" = true AND p."isActive" = true
+                "#,
             )
             .bind(vid)
             .bind(raw_it.product_id)
@@ -217,10 +223,11 @@ pub async fn create_sale(
             .await?
             .ok_or_else(|| {
                 AppError::BadRequest(format!("Varian produk #{} tidak ditemukan atau nonaktif", vid))
-            })?
+            })?;
+            (row.get("price"), row.get("categoryId"))
         } else {
-            sqlx::query_scalar::<_, Decimal>(
-                r#"SELECT price FROM products WHERE id = $1 AND "isActive" = true"#,
+            let row = sqlx::query(
+                r#"SELECT price, "categoryId" FROM products WHERE id = $1 AND "isActive" = true"#,
             )
             .bind(raw_it.product_id)
             .fetch_optional(&mut *tx)
@@ -230,37 +237,55 @@ pub async fn create_sale(
                     "Produk #{} tidak ditemukan atau sudah dinonaktifkan",
                     raw_it.product_id
                 ))
-            })?
+            })?;
+            (row.get("price"), row.get("categoryId"))
         };
 
-        // Resolve authoritative wholesale / qty-based discount rules for this product
-        let (wholesale_discount, matched_rule_id) = if raw_it.variant_id.is_none() {
-            let wholesale_rules = sqlx::query_as::<_, crate::handlers::discount::WholesaleRule>(
+        // Resolve authoritative qty/bundle/buy-x-get-y/category rules (variants still inherit category promos)
+        let wholesale_rules = if raw_it.variant_id.is_none() {
+            sqlx::query_as::<_, WholesaleRule>(
                 r#"
-                SELECT id, name, "minQuantity", "pricingMode", value, "unitLabel"
+                SELECT id, name, "minQuantity", COALESCE("bonusQuantity", 0) AS "bonusQuantity",
+                       "pricingMode", value, "unitLabel"
                 FROM discounts
-                WHERE scope = 'PRODUCT_QTY'
-                  AND "productId" = $1
+                WHERE (
+                        (scope = 'PRODUCT_QTY' AND "productId" = $1)
+                     OR ($2::int IS NOT NULL AND scope = 'CATEGORY' AND "categoryId" = $2)
+                      )
                   AND "isActive" = true
                   AND ("endDate" IS NULL OR "endDate" >= NOW())
                   AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
                 "#,
             )
             .bind(raw_it.product_id)
+            .bind(product_category_id)
             .fetch_all(&mut *tx)
-            .await?;
-
-            crate::handlers::discount::select_best_wholesale_discount(
-                db_price,
-                raw_it.quantity,
-                &wholesale_rules,
+            .await?
+        } else if let Some(cat_id) = product_category_id {
+            sqlx::query_as::<_, WholesaleRule>(
+                r#"
+                SELECT id, name, "minQuantity", COALESCE("bonusQuantity", 0) AS "bonusQuantity",
+                       "pricingMode", value, "unitLabel"
+                FROM discounts
+                WHERE scope = 'CATEGORY'
+                  AND "categoryId" = $1
+                  AND "isActive" = true
+                  AND ("endDate" IS NULL OR "endDate" >= NOW())
+                  AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
+                "#,
             )
+            .bind(cat_id)
+            .fetch_all(&mut *tx)
+            .await?
         } else {
-            (Decimal::ZERO, None)
+            Vec::new()
         };
 
+        let (wholesale_discount, matched_rule_id) =
+            select_best_wholesale_discount(db_price, raw_it.quantity, &wholesale_rules);
+
         if let Some(rule_id) = matched_rule_id {
-            if wholesale_discount > Decimal::ZERO {
+            if wholesale_discount > Decimal::ZERO && !matched_wholesale_discount_ids.contains(&rule_id) {
                 matched_wholesale_discount_ids.push(rule_id);
             }
         }
@@ -289,10 +314,210 @@ pub async fn create_sale(
     }
 
     let calculated_total: Decimal = items.iter().map(|i| i.subtotal).sum();
-    let discount_amount = raw_val
+    let voucher_id = raw_val.get("voucherId").and_then(|v| v.as_i64()).map(|x| x as i32);
+    let voucher_code = raw_val
+        .get("voucherCode")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let promo_discount_id = raw_val.get("discountId").and_then(|v| v.as_i64()).map(|x| x as i32);
+    let raw_client_discount = raw_val
         .get("discountAmount")
         .and_then(parse_decimal)
         .unwrap_or(Decimal::ZERO);
+
+    let customer_tier: Option<String> = if let Some(cid) = customer_id {
+        sqlx::query_scalar::<_, String>(
+            r#"SELECT "membershipTier"::text FROM customers WHERE id = $1"#,
+        )
+        .bind(cid)
+        .fetch_optional(&mut *tx)
+        .await?
+    } else {
+        None
+    };
+
+    enum OrderPromoRedemption {
+        None,
+        VoucherById(i32),
+        VoucherByCode(String),
+        DiscountById(i32),
+    }
+
+    #[derive(sqlx::FromRow)]
+    struct VoucherOrderRow {
+        id: i32,
+        is_used: bool,
+        expires_at: Option<chrono::NaiveDateTime>,
+        discount_type: DiscountType,
+        discount_value: Decimal,
+        min_purchase: Decimal,
+        max_discount: Option<Decimal>,
+        target_tier: Option<String>,
+        is_active: bool,
+    }
+
+    let now = chrono::Local::now().naive_local();
+    let validate_voucher_row = |v: &VoucherOrderRow| -> Result<Decimal, AppError> {
+        if v.is_used {
+            return Err(AppError::BadRequest(
+                "Voucher sudah terpakai".to_string(),
+            ));
+        }
+        if let Some(exp) = v.expires_at {
+            if exp < now {
+                return Err(AppError::BadRequest(
+                    "Voucher telah kedaluwarsa".to_string(),
+                ));
+            }
+        }
+        if !v.is_active {
+            return Err(AppError::BadRequest(
+                "Diskon untuk voucher ini sedang dinonaktifkan".to_string(),
+            ));
+        }
+        if calculated_total < v.min_purchase {
+            return Err(AppError::BadRequest(format!(
+                "Minimal pembelian Rp {} untuk menggunakan voucher ini",
+                v.min_purchase
+            )));
+        }
+        if let Some(ref req_tier) = v.target_tier {
+            let cust_rank = customer_tier.as_deref().map(tier_rank).unwrap_or(0);
+            if cust_rank < tier_rank(req_tier) {
+                return Err(AppError::BadRequest(format!(
+                    "Voucher ini khusus untuk pelanggan Member minimal {}",
+                    req_tier
+                )));
+            }
+        }
+        Ok(calculate_order_promo_amount(
+            calculated_total,
+            v.discount_type,
+            v.discount_value,
+            v.max_discount,
+        ))
+    };
+
+    let validate_discount_row = |d: &Discount| -> Result<Decimal, AppError> {
+        if !d.is_active {
+            return Err(AppError::BadRequest("Promo transaksi sedang nonaktif".to_string()));
+        }
+        if let Some(end) = d.end_date {
+            if end < now {
+                return Err(AppError::BadRequest("Promo transaksi sudah berakhir".to_string()));
+            }
+        }
+        if let Some(max) = d.max_uses {
+            if d.used_count >= max {
+                return Err(AppError::BadRequest(
+                    "Batas pemakaian promo transaksi sudah habis".to_string(),
+                ));
+            }
+        }
+        if calculated_total < d.min_purchase {
+            return Err(AppError::BadRequest(format!(
+                "Minimal pembelian Rp {} untuk menggunakan promo '{}'",
+                d.min_purchase, d.name
+            )));
+        }
+        if let Some(ref req_tier) = d.target_tier {
+            let cust_rank = customer_tier.as_deref().map(tier_rank).unwrap_or(0);
+            if cust_rank < tier_rank(req_tier) {
+                return Err(AppError::BadRequest(format!(
+                    "Promo '{}' khusus untuk pelanggan Member minimal {}",
+                    d.name, req_tier
+                )));
+            }
+        }
+        Ok(calculate_order_promo_amount(
+            calculated_total,
+            d.discount_type,
+            d.value,
+            d.max_discount,
+        ))
+    };
+
+    let (discount_amount, promo_redemption) = if let Some(vid) = voucher_id {
+        let v = sqlx::query_as::<_, VoucherOrderRow>(
+            r#"
+            SELECT v.id, v."isUsed" as is_used, v."expiresAt" as expires_at,
+                   d.type as discount_type, d.value as discount_value, d."minPurchase" as min_purchase,
+                   d."maxDiscount" as max_discount, d."targetTier" as target_tier, d."isActive" as is_active
+            FROM vouchers v
+            JOIN discounts d ON v."discountId" = d.id
+            WHERE v.id = $1
+            LIMIT 1
+            "#,
+        )
+        .bind(vid)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::BadRequest("Voucher tidak ditemukan".to_string()))?;
+
+        let amt = validate_voucher_row(&v)?;
+        (amt, OrderPromoRedemption::VoucherById(v.id))
+    } else if let Some(ref vcode) = voucher_code {
+        let maybe_v = sqlx::query_as::<_, VoucherOrderRow>(
+            r#"
+            SELECT v.id, v."isUsed" as is_used, v."expiresAt" as expires_at,
+                   d.type as discount_type, d.value as discount_value, d."minPurchase" as min_purchase,
+                   d."maxDiscount" as max_discount, d."targetTier" as target_tier, d."isActive" as is_active
+            FROM vouchers v
+            JOIN discounts d ON v."discountId" = d.id
+            WHERE UPPER(v.code) = UPPER($1)
+            LIMIT 1
+            "#,
+        )
+        .bind(vcode)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        if let Some(v) = maybe_v {
+            let amt = validate_voucher_row(&v)?;
+            (amt, OrderPromoRedemption::VoucherByCode(vcode.clone()))
+        } else {
+            let d = sqlx::query_as::<_, Discount>(
+                r#"
+                SELECT id, name, type, value, "minPurchase", code, scope, "productId", "categoryId",
+                       "minQuantity", "bonusQuantity", "pricingMode", "unitLabel",
+                       "maxDiscount", "autoApply", "targetTier", "startDate", "endDate",
+                       "isActive", "maxUses", "usedCount", "createdAt", "updatedAt"
+                FROM discounts
+                WHERE UPPER(code) = UPPER($1) AND scope = 'ORDER'
+                LIMIT 1
+                "#,
+            )
+            .bind(vcode)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or_else(|| AppError::BadRequest("Kode promo atau voucher tidak valid".to_string()))?;
+
+            let amt = validate_discount_row(&d)?;
+            (amt, OrderPromoRedemption::DiscountById(d.id))
+        }
+    } else if let Some(did) = promo_discount_id {
+        let d = sqlx::query_as::<_, Discount>(
+            r#"
+            SELECT id, name, type, value, "minPurchase", code, scope, "productId", "categoryId",
+                   "minQuantity", "bonusQuantity", "pricingMode", "unitLabel",
+                   "maxDiscount", "autoApply", "targetTier", "startDate", "endDate",
+                   "isActive", "maxUses", "usedCount", "createdAt", "updatedAt"
+            FROM discounts
+            WHERE id = $1 AND scope = 'ORDER'
+            LIMIT 1
+            "#,
+        )
+        .bind(did)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::BadRequest("Promo transaksi tidak ditemukan".to_string()))?;
+
+        let amt = validate_discount_row(&d)?;
+        (amt, OrderPromoRedemption::DiscountById(d.id))
+    } else {
+        (raw_client_discount, OrderPromoRedemption::None)
+    };
 
     if discount_amount < Decimal::ZERO || discount_amount > calculated_total {
         return Err(AppError::BadRequest(
@@ -548,48 +773,16 @@ pub async fn create_sale(
     }
 
     // 5. Atomically redeem Voucher or increment Promo Discount usage inside transaction
-    let voucher_id = raw_val.get("voucherId").and_then(|v| v.as_i64()).map(|x| x as i32);
-    let voucher_code = raw_val
-        .get("voucherCode")
-        .and_then(|v| v.as_str())
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty());
-
-    if let Some(vid) = voucher_id {
-        let res = sqlx::query(
-            r#"
-            UPDATE vouchers
-            SET "isUsed" = true, "usedAt" = NOW()
-            WHERE id = $1 AND "isUsed" = false AND "expiresAt" > NOW()
-            "#,
-        )
-        .bind(vid)
-        .execute(&mut *tx)
-        .await?;
-
-        if res.rows_affected() == 0 {
-            return Err(AppError::BadRequest(
-                "Voucher sudah terpakai atau telah kedaluwarsa".to_string(),
-            ));
-        }
-    } else if let Some(vcode) = voucher_code {
-        // Check if code belongs to a single-use voucher first
-        let is_voucher_exists = sqlx::query_scalar::<_, i32>(
-            r#"SELECT id FROM vouchers WHERE UPPER(code) = UPPER($1) LIMIT 1"#,
-        )
-        .bind(vcode)
-        .fetch_optional(&mut *tx)
-        .await?;
-
-        if is_voucher_exists.is_some() {
+    match promo_redemption {
+        OrderPromoRedemption::VoucherById(vid) => {
             let res = sqlx::query(
                 r#"
                 UPDATE vouchers
                 SET "isUsed" = true, "usedAt" = NOW()
-                WHERE UPPER(code) = UPPER($1) AND "isUsed" = false AND "expiresAt" > NOW()
+                WHERE id = $1 AND "isUsed" = false AND ("expiresAt" IS NULL OR "expiresAt" > NOW())
                 "#,
             )
-            .bind(vcode)
+            .bind(vid)
             .execute(&mut *tx)
             .await?;
 
@@ -598,40 +791,50 @@ pub async fn create_sale(
                     "Voucher sudah terpakai atau telah kedaluwarsa".to_string(),
                 ));
             }
-        } else {
-            // Check if code belongs to a promo discount and enforce maxUses atomically
-            let is_discount_exists = sqlx::query_scalar::<_, i32>(
-                r#"SELECT id FROM discounts WHERE UPPER(code) = UPPER($1) LIMIT 1"#,
+        }
+        OrderPromoRedemption::VoucherByCode(vcode) => {
+            let res = sqlx::query(
+                r#"
+                UPDATE vouchers
+                SET "isUsed" = true, "usedAt" = NOW()
+                WHERE UPPER(code) = UPPER($1) AND "isUsed" = false AND ("expiresAt" IS NULL OR "expiresAt" > NOW())
+                "#,
             )
-            .bind(vcode)
-            .fetch_optional(&mut *tx)
+            .bind(&vcode)
+            .execute(&mut *tx)
             .await?;
 
-            if is_discount_exists.is_some() {
-                let res = sqlx::query(
-                    r#"
-                    UPDATE discounts
-                    SET "usedCount" = "usedCount" + 1, "updatedAt" = NOW()
-                    WHERE UPPER(code) = UPPER($1)
-                      AND "isActive" = true
-                      AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
-                      AND ("endDate" IS NULL OR "endDate" >= NOW())
-                    "#,
-                )
-                .bind(vcode)
-                .execute(&mut *tx)
-                .await?;
-
-                if res.rows_affected() == 0 {
-                    return Err(AppError::BadRequest(
-                        "Promo sudah mencapai batas pemakaian atau tidak aktif".to_string(),
-                    ));
-                }
+            if res.rows_affected() == 0 {
+                return Err(AppError::BadRequest(
+                    "Voucher sudah terpakai atau telah kedaluwarsa".to_string(),
+                ));
             }
         }
+        OrderPromoRedemption::DiscountById(did) => {
+            let res = sqlx::query(
+                r#"
+                UPDATE discounts
+                SET "usedCount" = "usedCount" + 1, "updatedAt" = NOW()
+                WHERE id = $1
+                  AND "isActive" = true
+                  AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
+                  AND ("endDate" IS NULL OR "endDate" >= NOW())
+                "#,
+            )
+            .bind(did)
+            .execute(&mut *tx)
+            .await?;
+
+            if res.rows_affected() == 0 {
+                return Err(AppError::BadRequest(
+                    "Promo sudah mencapai batas pemakaian atau tidak aktif".to_string(),
+                ));
+            }
+        }
+        OrderPromoRedemption::None => {}
     }
 
-    // 5b. Increment usage counter for matched wholesale quantity rules atomically
+    // 5b. Increment usage counter for matched item/category discount rules atomically
     for rule_id in matched_wholesale_discount_ids {
         let res = sqlx::query(
             r#"
@@ -649,7 +852,7 @@ pub async fn create_sale(
 
         if res.rows_affected() == 0 {
             return Err(AppError::BadRequest(
-                "Batas pemakaian promo grosir baru saja habis".to_string(),
+                "Batas pemakaian promo grosir/item baru saja habis".to_string(),
             ));
         }
     }

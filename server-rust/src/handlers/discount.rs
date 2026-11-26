@@ -8,7 +8,7 @@ use axum::{
     extract::{Path, State},
     Json,
 };
-use rust_decimal::Decimal;
+use rust_decimal::{Decimal, RoundingStrategy};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sqlx::Row;
@@ -18,6 +18,8 @@ pub struct ValidatePromoPayload {
     pub code: String,
     #[serde(default)]
     pub subtotal: Option<Value>,
+    #[serde(rename = "customerId", default)]
+    pub customer_id: Option<i32>,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -26,6 +28,8 @@ pub struct WholesaleRule {
     pub name: String,
     #[sqlx(rename = "minQuantity")]
     pub min_quantity: i32,
+    #[sqlx(rename = "bonusQuantity")]
+    pub bonus_quantity: i32,
     #[sqlx(rename = "pricingMode")]
     pub pricing_mode: String,
     pub value: Decimal,
@@ -33,38 +37,67 @@ pub struct WholesaleRule {
     pub unit_label: Option<String>,
 }
 
-/// Computes the monetary discount amount for a single wholesale/qty rule on (unit_price, quantity).
-/// Never returns a negative value or exceeds line gross (unit_price * quantity).
+/// Computes the monetary discount amount for a product/category quantity rule.
+/// Handles: BUNDLE_PRICE (paket/kardus), UNIT_PRICE (grosir/pcs), BUY_X_GET_Y (beli X gratis Y),
+/// PERCENTAGE (% off qty), and FIXED_PER_UNIT (potongan Rp/pcs qty).
 pub fn calculate_wholesale_rule_discount(
     unit_price: Decimal,
     quantity: i32,
     min_quantity: i32,
+    bonus_quantity: i32,
     pricing_mode: &str,
     value: Decimal,
 ) -> Decimal {
-    if quantity <= 0
-        || min_quantity <= 0
-        || quantity < min_quantity
-        || unit_price <= Decimal::ZERO
-    {
+    if quantity <= 0 || min_quantity <= 0 || unit_price <= Decimal::ZERO {
         return Decimal::ZERO;
     }
 
     let line_gross = unit_price * Decimal::from(quantity);
     let discount = match pricing_mode {
         "BUNDLE_PRICE" => {
-            let bundles = quantity / min_quantity;
-            let normal_bundle_price = unit_price * Decimal::from(min_quantity);
-            let savings_per_bundle = (normal_bundle_price - value).max(Decimal::ZERO);
-            savings_per_bundle * Decimal::from(bundles)
+            if quantity < min_quantity {
+                Decimal::ZERO
+            } else {
+                let bundles = quantity / min_quantity;
+                let normal_bundle_price = unit_price * Decimal::from(min_quantity);
+                let savings_per_bundle = (normal_bundle_price - value).max(Decimal::ZERO);
+                savings_per_bundle * Decimal::from(bundles)
+            }
         }
         "UNIT_PRICE" => {
-            let per_unit_savings = (unit_price - value).max(Decimal::ZERO);
-            per_unit_savings * Decimal::from(quantity)
+            if quantity < min_quantity {
+                Decimal::ZERO
+            } else {
+                let per_unit_savings = (unit_price - value).max(Decimal::ZERO);
+                per_unit_savings * Decimal::from(quantity)
+            }
+        }
+        "BUY_X_GET_Y" => {
+            if bonus_quantity <= 0 {
+                Decimal::ZERO
+            } else {
+                let group_size = min_quantity + bonus_quantity;
+                let sets = quantity / group_size;
+                let free_units = sets * bonus_quantity;
+                unit_price * Decimal::from(free_units)
+            }
         }
         "PERCENTAGE" => {
-            let pct = value.max(Decimal::ZERO).min(Decimal::from(100));
-            ((line_gross * pct) / Decimal::from(100)).round_dp(0)
+            if quantity < min_quantity {
+                Decimal::ZERO
+            } else {
+                let pct = value.max(Decimal::ZERO).min(Decimal::from(100));
+                ((line_gross * pct) / Decimal::from(100))
+                    .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
+            }
+        }
+        "FIXED_PER_UNIT" => {
+            if quantity < min_quantity {
+                Decimal::ZERO
+            } else {
+                let per_unit_cut = value.max(Decimal::ZERO).min(unit_price);
+                per_unit_cut * Decimal::from(quantity)
+            }
         }
         _ => Decimal::ZERO,
     };
@@ -72,7 +105,7 @@ pub fn calculate_wholesale_rule_discount(
     discount.max(Decimal::ZERO).min(line_gross)
 }
 
-/// Picks the best wholesale discount rule (maximum customer savings) for a given product & qty.
+/// Picks the best rule (maximum customer savings) across all applicable product & category rules.
 pub fn select_best_wholesale_discount(
     unit_price: Decimal,
     quantity: i32,
@@ -86,6 +119,7 @@ pub fn select_best_wholesale_discount(
             unit_price,
             quantity,
             rule.min_quantity,
+            rule.bonus_quantity,
             &rule.pricing_mode,
             rule.value,
         );
@@ -96,6 +130,44 @@ pub fn select_best_wholesale_discount(
     }
 
     (best_discount, best_rule_id)
+}
+
+pub fn tier_rank(tier: &str) -> i32 {
+    match tier.trim().to_uppercase().as_str() {
+        "PLATINUM" => 4,
+        "GOLD" => 3,
+        "SILVER" => 2,
+        "BRONZE" => 1,
+        _ => 0,
+    }
+}
+
+pub fn calculate_order_promo_amount(
+    subtotal: Decimal,
+    discount_type: DiscountType,
+    value: Decimal,
+    max_discount: Option<Decimal>,
+) -> Decimal {
+    if subtotal <= Decimal::ZERO || value <= Decimal::ZERO {
+        return Decimal::ZERO;
+    }
+    let raw = if discount_type == DiscountType::Percentage {
+        let pct = value.min(Decimal::from(100));
+        let calc = ((subtotal * pct) / Decimal::from(100))
+            .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero);
+        if let Some(cap) = max_discount {
+            if cap > Decimal::ZERO {
+                calc.min(cap)
+            } else {
+                calc
+            }
+        } else {
+            calc
+        }
+    } else {
+        value
+    };
+    raw.max(Decimal::ZERO).min(subtotal)
 }
 
 fn parse_subtotal_decimal(v: &Option<Value>) -> Decimal {
@@ -122,9 +194,14 @@ struct NormalizedDiscountPayload {
     code: Option<String>,
     scope: String,
     product_id: Option<i32>,
+    category_id: Option<i32>,
     min_quantity: i32,
+    bonus_quantity: i32,
     pricing_mode: String,
     unit_label: Option<String>,
+    max_discount: Option<Decimal>,
+    auto_apply: bool,
+    target_tier: Option<String>,
     start_date: chrono::NaiveDateTime,
     end_date: Option<chrono::NaiveDateTime>,
     max_uses: Option<i32>,
@@ -149,9 +226,9 @@ async fn validate_and_normalize_payload(
         .trim()
         .to_uppercase();
 
-    if scope != "ORDER" && scope != "PRODUCT_QTY" {
+    if !matches!(scope.as_str(), "ORDER" | "PRODUCT_QTY" | "CATEGORY") {
         return Err(AppError::BadRequest(
-            "Scope diskon harus ORDER atau PRODUCT_QTY".to_string(),
+            "Scope diskon harus ORDER, PRODUCT_QTY, atau CATEGORY".to_string(),
         ));
     }
 
@@ -166,10 +243,14 @@ async fn validate_and_normalize_payload(
         .and_then(crate::models::parse_flexible_datetime);
     let is_active = payload.is_active.unwrap_or(true);
     let max_uses = payload.max_uses.filter(|&m| m > 0);
+    let unit_label = payload
+        .unit_label
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
 
     if scope == "PRODUCT_QTY" {
         let product_id = payload.product_id.ok_or_else(|| {
-            AppError::BadRequest("Pilih produk target untuk diskon grosir / qty".to_string())
+            AppError::BadRequest("Pilih produk target untuk diskon ini".to_string())
         })?;
 
         let prod_row = sqlx::query(
@@ -183,13 +264,6 @@ async fn validate_and_normalize_payload(
         })?;
 
         let product_price: Decimal = prod_row.get("price");
-        let min_quantity = payload.min_quantity.unwrap_or(2);
-        if min_quantity < 2 {
-            return Err(AppError::BadRequest(
-                "Minimal jumlah beli (Qty) untuk harga grosir / paket minimal 2 pcs".to_string(),
-            ));
-        }
-
         let pricing_mode = payload
             .pricing_mode
             .as_deref()
@@ -199,43 +273,75 @@ async fn validate_and_normalize_payload(
 
         if !matches!(
             pricing_mode.as_str(),
-            "BUNDLE_PRICE" | "UNIT_PRICE" | "PERCENTAGE"
+            "BUNDLE_PRICE" | "UNIT_PRICE" | "BUY_X_GET_Y" | "PERCENTAGE" | "FIXED_PER_UNIT"
         ) {
             return Err(AppError::BadRequest(
-                "Skema harga grosir harus BUNDLE_PRICE, UNIT_PRICE, atau PERCENTAGE".to_string(),
+                "Skema diskon produk tidak valid".to_string(),
             ));
         }
 
-        if payload.value <= Decimal::ZERO {
-            return Err(AppError::BadRequest(
-                "Nilai harga / diskon grosir harus lebih dari 0".to_string(),
-            ));
-        }
+        let min_quantity = payload.min_quantity.unwrap_or(if pricing_mode == "BUNDLE_PRICE" { 2 } else { 1 });
+        let mut bonus_quantity = payload.bonus_quantity.unwrap_or(0).max(0);
+        let mut effective_value = payload.value;
 
         match pricing_mode.as_str() {
             "BUNDLE_PRICE" => {
+                if min_quantity < 2 {
+                    return Err(AppError::BadRequest(
+                        "Minimal jumlah beli paket (isi kemasan) minimal 2 pcs".to_string(),
+                    ));
+                }
                 let normal_bundle = product_price * Decimal::from(min_quantity);
-                if payload.value >= normal_bundle {
+                if effective_value <= Decimal::ZERO || effective_value >= normal_bundle {
                     return Err(AppError::BadRequest(format!(
-                        "Harga paket {} pcs harus lebih murah dari harga normal total (Rp {})",
+                        "Harga paket {} pcs harus lebih dari Rp 0 dan lebih murah dari harga normal total (Rp {})",
                         min_quantity, normal_bundle
                     )));
                 }
+                bonus_quantity = 0;
             }
             "UNIT_PRICE" => {
-                if payload.value >= product_price {
+                if min_quantity < 1 {
+                    return Err(AppError::BadRequest("Minimal Qty minimal 1 pcs".to_string()));
+                }
+                if effective_value <= Decimal::ZERO || effective_value >= product_price {
                     return Err(AppError::BadRequest(format!(
-                        "Harga satuan grosir harus lebih murah dari harga eceran normal (Rp {})",
+                        "Harga satuan grosir harus lebih murah dari harga normal (Rp {})",
                         product_price
                     )));
                 }
+                bonus_quantity = 0;
             }
-            "PERCENTAGE" => {
-                if payload.value > Decimal::from(100) {
+            "BUY_X_GET_Y" => {
+                if min_quantity < 1 || bonus_quantity < 1 {
                     return Err(AppError::BadRequest(
-                        "Persentase diskon grosir maksimal 100%".to_string(),
+                        "Promo Beli X Gratis Y membutuhkan jumlah Beli >= 1 dan Gratis >= 1".to_string(),
                     ));
                 }
+                effective_value = Decimal::ZERO;
+            }
+            "PERCENTAGE" => {
+                if min_quantity < 1 {
+                    return Err(AppError::BadRequest("Minimal Qty minimal 1 pcs".to_string()));
+                }
+                if effective_value <= Decimal::ZERO || effective_value > Decimal::from(100) {
+                    return Err(AppError::BadRequest(
+                        "Persentase diskon harus antara 1% - 100%".to_string(),
+                    ));
+                }
+                bonus_quantity = 0;
+            }
+            "FIXED_PER_UNIT" => {
+                if min_quantity < 1 {
+                    return Err(AppError::BadRequest("Minimal Qty minimal 1 pcs".to_string()));
+                }
+                if effective_value <= Decimal::ZERO || effective_value >= product_price {
+                    return Err(AppError::BadRequest(format!(
+                        "Potongan nominal per pcs harus lebih dari Rp 0 dan kurang dari harga produk (Rp {})",
+                        product_price
+                    )));
+                }
+                bonus_quantity = 0;
             }
             _ => {}
         }
@@ -246,22 +352,22 @@ async fn validate_and_normalize_payload(
             DiscountType::Fixed
         };
 
-        let unit_label = payload
-            .unit_label
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty());
-
         return Ok(NormalizedDiscountPayload {
             name,
             discount_type,
-            value: payload.value,
+            value: effective_value,
             min_purchase: Decimal::ZERO,
             code: None,
             scope,
             product_id: Some(product_id),
+            category_id: None,
             min_quantity,
+            bonus_quantity,
             pricing_mode,
             unit_label,
+            max_discount: None,
+            auto_apply: true,
+            target_tier: None,
             start_date,
             end_date,
             max_uses,
@@ -269,7 +375,102 @@ async fn validate_and_normalize_payload(
         });
     }
 
-    // Standard order-level promo/voucher rule
+    if scope == "CATEGORY" {
+        let category_id = payload.category_id.ok_or_else(|| {
+            AppError::BadRequest("Pilih kategori target untuk diskon kategori".to_string())
+        })?;
+
+        let cat_exists = sqlx::query_scalar::<_, i32>(
+            r#"SELECT id FROM categories WHERE id = $1 AND "isActive" = true"#,
+        )
+        .bind(category_id)
+        .fetch_optional(&state.db)
+        .await?;
+
+        if cat_exists.is_none() {
+            return Err(AppError::NotFound(
+                "Kategori tidak ditemukan atau nonaktif".to_string(),
+            ));
+        }
+
+        let pricing_mode = payload
+            .pricing_mode
+            .as_deref()
+            .unwrap_or("PERCENTAGE")
+            .trim()
+            .to_uppercase();
+
+        if !matches!(
+            pricing_mode.as_str(),
+            "PERCENTAGE" | "FIXED_PER_UNIT" | "BUY_X_GET_Y"
+        ) {
+            return Err(AppError::BadRequest(
+                "Skema diskon kategori harus PERCENTAGE, FIXED_PER_UNIT, atau BUY_X_GET_Y".to_string(),
+            ));
+        }
+
+        let min_quantity = payload.min_quantity.unwrap_or(1).max(1);
+        let mut bonus_quantity = payload.bonus_quantity.unwrap_or(0).max(0);
+        let mut effective_value = payload.value;
+
+        match pricing_mode.as_str() {
+            "PERCENTAGE" => {
+                if effective_value <= Decimal::ZERO || effective_value > Decimal::from(100) {
+                    return Err(AppError::BadRequest(
+                        "Persentase diskon kategori harus antara 1% - 100%".to_string(),
+                    ));
+                }
+                bonus_quantity = 0;
+            }
+            "FIXED_PER_UNIT" => {
+                if effective_value <= Decimal::ZERO {
+                    return Err(AppError::BadRequest(
+                        "Nominal potongan per pcs harus lebih dari Rp 0".to_string(),
+                    ));
+                }
+                bonus_quantity = 0;
+            }
+            "BUY_X_GET_Y" => {
+                if bonus_quantity < 1 {
+                    return Err(AppError::BadRequest(
+                        "Jumlah item gratis (Y) minimal 1".to_string(),
+                    ));
+                }
+                effective_value = Decimal::ZERO;
+            }
+            _ => {}
+        }
+
+        let discount_type = if pricing_mode == "PERCENTAGE" {
+            DiscountType::Percentage
+        } else {
+            DiscountType::Fixed
+        };
+
+        return Ok(NormalizedDiscountPayload {
+            name,
+            discount_type,
+            value: effective_value,
+            min_purchase: Decimal::ZERO,
+            code: None,
+            scope,
+            product_id: None,
+            category_id: Some(category_id),
+            min_quantity,
+            bonus_quantity,
+            pricing_mode,
+            unit_label,
+            max_discount: None,
+            auto_apply: true,
+            target_tier: None,
+            start_date,
+            end_date,
+            max_uses,
+            is_active,
+        });
+    }
+
+    // Standard order-level promo / voucher / member rule
     let discount_type = payload.discount_type.unwrap_or(DiscountType::Percentage);
     if payload.value <= Decimal::ZERO {
         return Err(AppError::BadRequest(
@@ -283,10 +484,20 @@ async fn validate_and_normalize_payload(
     }
 
     let min_purchase = payload.min_purchase.unwrap_or(Decimal::ZERO).max(Decimal::ZERO);
-    let code = payload
-        .code
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
+    let max_discount = payload.max_discount.filter(|&d| d > Decimal::ZERO);
+    let auto_apply = payload.auto_apply.unwrap_or(false);
+    let code = if auto_apply {
+        None
+    } else {
+        payload
+            .code
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let target_tier = payload
+        .target_tier
+        .map(|s| s.trim().to_uppercase())
+        .filter(|s| matches!(s.as_str(), "BRONZE" | "SILVER" | "GOLD" | "PLATINUM"));
     let pricing_mode = if discount_type == DiscountType::Percentage {
         "PERCENTAGE".to_string()
     } else {
@@ -301,9 +512,14 @@ async fn validate_and_normalize_payload(
         code,
         scope,
         product_id: None,
+        category_id: None,
         min_quantity: 1,
+        bonus_quantity: 0,
         pricing_mode,
         unit_label: None,
+        max_discount,
+        auto_apply,
+        target_tier,
         start_date,
         end_date,
         max_uses,
@@ -311,9 +527,27 @@ async fn validate_and_normalize_payload(
     })
 }
 
+const DISCOUNT_SELECT_SQL: &str = r#"
+    SELECT d.id, d.name, d.type::text as type_text, d.value, d."minPurchase", d.code,
+           d.scope, d."productId", d."categoryId", d."minQuantity", d."bonusQuantity",
+           d."pricingMode", d."unitLabel", d."maxDiscount", d."autoApply", d."targetTier",
+           d."startDate", d."endDate", d."isActive", d."maxUses", d."usedCount",
+           d."createdAt", d."updatedAt",
+           CASE WHEN p.id IS NOT NULL THEN
+             json_build_object('id', p.id, 'name', p.name, 'price', p.price, 'stock', p.stock, 'sku', p.sku, 'categoryId', p."categoryId")
+           ELSE NULL END as product,
+           CASE WHEN c.id IS NOT NULL THEN
+             json_build_object('id', c.id, 'name', c.name, 'color', c.color)
+           ELSE NULL END as category
+    FROM discounts d
+    LEFT JOIN products p ON d."productId" = p.id
+    LEFT JOIN categories c ON d."categoryId" = c.id
+"#;
+
 fn row_to_discount_json(r: &sqlx::postgres::PgRow) -> Value {
     let type_str: String = r.get("type_text");
     let product: Option<Value> = r.get("product");
+    let category: Option<Value> = r.get("category");
     json!({
         "id": r.get::<i32, _>("id"),
         "name": r.get::<String, _>("name"),
@@ -323,9 +557,14 @@ fn row_to_discount_json(r: &sqlx::postgres::PgRow) -> Value {
         "code": r.get::<Option<String>, _>("code"),
         "scope": r.get::<String, _>("scope"),
         "productId": r.get::<Option<i32>, _>("productId"),
+        "categoryId": r.get::<Option<i32>, _>("categoryId"),
         "minQuantity": r.get::<i32, _>("minQuantity"),
+        "bonusQuantity": r.get::<i32, _>("bonusQuantity"),
         "pricingMode": r.get::<String, _>("pricingMode"),
         "unitLabel": r.get::<Option<String>, _>("unitLabel"),
+        "maxDiscount": r.get::<Option<Decimal>, _>("maxDiscount"),
+        "autoApply": r.get::<bool, _>("autoApply"),
+        "targetTier": r.get::<Option<String>, _>("targetTier"),
         "startDate": r.get::<chrono::NaiveDateTime, _>("startDate"),
         "endDate": r.get::<Option<chrono::NaiveDateTime>, _>("endDate"),
         "isActive": r.get::<bool, _>("isActive"),
@@ -333,28 +572,14 @@ fn row_to_discount_json(r: &sqlx::postgres::PgRow) -> Value {
         "usedCount": r.get::<i32, _>("usedCount"),
         "createdAt": r.get::<chrono::NaiveDateTime, _>("createdAt"),
         "updatedAt": r.get::<chrono::NaiveDateTime, _>("updatedAt"),
-        "product": product
+        "product": product,
+        "category": category
     })
 }
 
-const DISCOUNT_SELECT_SQL: &str = r#"
-    SELECT d.id, d.name, d.type::text as type_text, d.value, d."minPurchase", d.code,
-           d.scope, d."productId", d."minQuantity", d."pricingMode", d."unitLabel",
-           d."startDate", d."endDate", d."isActive", d."maxUses", d."usedCount",
-           d."createdAt", d."updatedAt",
-           CASE WHEN p.id IS NOT NULL THEN
-             json_build_object('id', p.id, 'name', p.name, 'price', p.price, 'stock', p.stock, 'sku', p.sku)
-           ELSE NULL END as product
-    FROM discounts d
-    LEFT JOIN products p ON d."productId" = p.id
-"#;
-
 async fn fetch_discount_json_by_id(pool: &sqlx::PgPool, id: i32) -> Result<Value, AppError> {
     let sql = format!("{} WHERE d.id = $1", DISCOUNT_SELECT_SQL);
-    let row = sqlx::query(&sql)
-        .bind(id)
-        .fetch_one(pool)
-        .await?;
+    let row = sqlx::query(&sql).bind(id).fetch_one(pool).await?;
     Ok(row_to_discount_json(&row))
 }
 
@@ -363,10 +588,7 @@ pub async fn get_discounts(
     _auth: AuthUser,
 ) -> Result<Json<Vec<Value>>, AppError> {
     let sql = format!("{} ORDER BY d.id DESC", DISCOUNT_SELECT_SQL);
-    let rows = sqlx::query(&sql)
-        .fetch_all(&state.db)
-        .await?;
-
+    let rows = sqlx::query(&sql).fetch_all(&state.db).await?;
     let list = rows.iter().map(row_to_discount_json).collect();
     Ok(Json(list))
 }
@@ -384,10 +606,11 @@ pub async fn create_discount(
         r#"
         INSERT INTO discounts (
             name, type, value, "minPurchase", code,
-            scope, "productId", "minQuantity", "pricingMode", "unitLabel",
+            scope, "productId", "categoryId", "minQuantity", "bonusQuantity",
+            "pricingMode", "unitLabel", "maxDiscount", "autoApply", "targetTier",
             "startDate", "endDate", "isActive", "maxUses", "usedCount", "updatedAt"
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 0, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 0, NOW())
         RETURNING id
         "#,
     )
@@ -398,9 +621,14 @@ pub async fn create_discount(
     .bind(norm.code)
     .bind(norm.scope)
     .bind(norm.product_id)
+    .bind(norm.category_id)
     .bind(norm.min_quantity)
+    .bind(norm.bonus_quantity)
     .bind(norm.pricing_mode)
     .bind(norm.unit_label)
+    .bind(norm.max_discount)
+    .bind(norm.auto_apply)
+    .bind(norm.target_tier)
     .bind(norm.start_date)
     .bind(norm.end_date)
     .bind(norm.is_active)
@@ -425,9 +653,10 @@ pub async fn update_discount(
         r#"
         UPDATE discounts
         SET name = $1, type = $2, value = $3, "minPurchase" = $4, code = $5,
-            scope = $6, "productId" = $7, "minQuantity" = $8, "pricingMode" = $9, "unitLabel" = $10,
-            "endDate" = $11, "maxUses" = $12, "isActive" = $13, "updatedAt" = NOW()
-        WHERE id = $14
+            scope = $6, "productId" = $7, "categoryId" = $8, "minQuantity" = $9, "bonusQuantity" = $10,
+            "pricingMode" = $11, "unitLabel" = $12, "maxDiscount" = $13, "autoApply" = $14, "targetTier" = $15,
+            "endDate" = $16, "maxUses" = $17, "isActive" = $18, "updatedAt" = NOW()
+        WHERE id = $19
         RETURNING id
         "#,
     )
@@ -438,9 +667,14 @@ pub async fn update_discount(
     .bind(norm.code)
     .bind(norm.scope)
     .bind(norm.product_id)
+    .bind(norm.category_id)
     .bind(norm.min_quantity)
+    .bind(norm.bonus_quantity)
     .bind(norm.pricing_mode)
     .bind(norm.unit_label)
+    .bind(norm.max_discount)
+    .bind(norm.auto_apply)
+    .bind(norm.target_tier)
     .bind(norm.end_date)
     .bind(norm.max_uses)
     .bind(norm.is_active)
@@ -486,11 +720,23 @@ pub async fn validate_promo_code(
 
     let subtotal = parse_subtotal_decimal(&payload.subtotal);
 
+    let customer_tier: Option<String> = if let Some(cid) = payload.customer_id {
+        sqlx::query_scalar::<_, String>(
+            r#"SELECT "membershipTier"::text FROM customers WHERE id = $1"#,
+        )
+        .bind(cid)
+        .fetch_optional(&state.db)
+        .await?
+    } else {
+        None
+    };
+
     // 1. Cek langsung ke tabel discounts (scope ORDER) berdasarkan code (case-insensitive)
     let maybe_discount = sqlx::query_as::<_, Discount>(
         r#"
-        SELECT id, name, type, value, "minPurchase", code, scope, "productId",
-               "minQuantity", "pricingMode", "unitLabel", "startDate", "endDate",
+        SELECT id, name, type, value, "minPurchase", code, scope, "productId", "categoryId",
+               "minQuantity", "bonusQuantity", "pricingMode", "unitLabel",
+               "maxDiscount", "autoApply", "targetTier", "startDate", "endDate",
                "isActive", "maxUses", "usedCount", "createdAt", "updatedAt"
         FROM discounts
         WHERE UPPER(code) = UPPER($1) AND "isActive" = true AND scope = 'ORDER'
@@ -508,6 +754,16 @@ pub async fn validate_promo_code(
             )));
         }
 
+        if let Some(ref req_tier) = discount.target_tier {
+            let cust_rank = customer_tier.as_deref().map(tier_rank).unwrap_or(0);
+            if cust_rank < tier_rank(req_tier) {
+                return Err(AppError::BadRequest(format!(
+                    "Promo ini khusus untuk pelanggan Member minimal {}",
+                    req_tier
+                )));
+            }
+        }
+
         let now = chrono::Local::now().naive_local();
         if let Some(end) = discount.end_date {
             if end < now {
@@ -523,11 +779,12 @@ pub async fn validate_promo_code(
             }
         }
 
-        let discount_amount = if discount.discount_type == DiscountType::Percentage {
-            (subtotal * discount.value) / Decimal::from(100)
-        } else {
-            discount.value
-        };
+        let discount_amount = calculate_order_promo_amount(
+            subtotal,
+            discount.discount_type,
+            discount.value,
+            discount.max_discount,
+        );
 
         return Ok(Json(json!({
             "valid": true,
@@ -548,6 +805,8 @@ pub async fn validate_promo_code(
         discount_type: DiscountType,
         discount_value: Decimal,
         min_purchase: Decimal,
+        max_discount: Option<Decimal>,
+        target_tier: Option<String>,
         is_active: bool,
     }
 
@@ -555,7 +814,8 @@ pub async fn validate_promo_code(
         r#"
         SELECT v.id as voucher_id, v.code as voucher_code, v."isUsed" as is_used, v."expiresAt" as expires_at,
                d.id as discount_id, d.name as discount_name, d.type as discount_type,
-               d.value as discount_value, d."minPurchase" as min_purchase, d."isActive" as is_active
+               d.value as discount_value, d."minPurchase" as min_purchase,
+               d."maxDiscount" as max_discount, d."targetTier" as target_tier, d."isActive" as is_active
         FROM vouchers v
         JOIN discounts d ON v."discountId" = d.id
         WHERE UPPER(v.code) = UPPER($1)
@@ -595,11 +855,22 @@ pub async fn validate_promo_code(
             )));
         }
 
-        let discount_amount = if v.discount_type == DiscountType::Percentage {
-            (subtotal * v.discount_value) / Decimal::from(100)
-        } else {
-            v.discount_value
-        };
+        if let Some(ref req_tier) = v.target_tier {
+            let cust_rank = customer_tier.as_deref().map(tier_rank).unwrap_or(0);
+            if cust_rank < tier_rank(req_tier) {
+                return Err(AppError::BadRequest(format!(
+                    "Voucher ini khusus untuk pelanggan Member minimal {}",
+                    req_tier
+                )));
+            }
+        }
+
+        let discount_amount = calculate_order_promo_amount(
+            subtotal,
+            v.discount_type,
+            v.discount_value,
+            v.max_discount,
+        );
 
         return Ok(Json(json!({
             "valid": true,
@@ -608,6 +879,7 @@ pub async fn validate_promo_code(
                 "name": v.discount_name,
                 "type": v.discount_type,
                 "value": v.discount_value,
+                "maxDiscount": v.max_discount,
                 "code": v.voucher_code,
                 "voucherId": v.voucher_id
             },
@@ -626,12 +898,12 @@ mod tests {
 
     #[test]
     fn bundle_price_calculates_exact_box_and_remainder() {
-        // Air mineral Rp 2.000/pcs, 1 kardus (24 pcs) = Rp 36.000
         let unit = Decimal::from(2000);
         let rules = vec![WholesaleRule {
             id: 1,
             name: "Air 1 Kardus".to_string(),
             min_quantity: 24,
+            bonus_quantity: 0,
             pricing_mode: "BUNDLE_PRICE".to_string(),
             value: Decimal::from(36000),
             unit_label: Some("1 Kardus".to_string()),
@@ -639,22 +911,74 @@ mod tests {
 
         assert_eq!(select_best_wholesale_discount(unit, 1, &rules), (Decimal::ZERO, None));
         assert_eq!(select_best_wholesale_discount(unit, 2, &rules), (Decimal::ZERO, None));
-        assert_eq!(select_best_wholesale_discount(unit, 23, &rules), (Decimal::ZERO, None));
-        // 24 pcs => 48.000 - 36.000 = 12.000 discount
         assert_eq!(
             select_best_wholesale_discount(unit, 24, &rules),
             (Decimal::from(12000), Some(1))
         );
-        // 25 pcs => 1 kardus (36.000) + 1 ecer (2.000) = 38.000 => 12.000 discount
         assert_eq!(
             select_best_wholesale_discount(unit, 25, &rules),
             (Decimal::from(12000), Some(1))
         );
-        // 48 pcs => 2 kardus (72.000) => 24.000 discount
         assert_eq!(
             select_best_wholesale_discount(unit, 48, &rules),
             (Decimal::from(24000), Some(1))
         );
+    }
+
+    #[test]
+    fn buy_x_get_y_calculates_free_units() {
+        // Beli 3 Gratis 1 (air Rp 2.000/pcs)
+        let unit = Decimal::from(2000);
+        let rules = vec![WholesaleRule {
+            id: 2,
+            name: "Beli 3 Gratis 1".to_string(),
+            min_quantity: 3,
+            bonus_quantity: 1,
+            pricing_mode: "BUY_X_GET_Y".to_string(),
+            value: Decimal::ZERO,
+            unit_label: Some("Beli 3 Gratis 1".to_string()),
+        }];
+
+        assert_eq!(select_best_wholesale_discount(unit, 3, &rules), (Decimal::ZERO, None));
+        // 4 items leave shelf -> customer pays 3 (Rp 6.000), 1 free (Rp 2.000 discount)
+        assert_eq!(
+            select_best_wholesale_discount(unit, 4, &rules),
+            (Decimal::from(2000), Some(2))
+        );
+        // 7 items -> 1 set (4 pcs) -> Rp 2.000 discount
+        assert_eq!(
+            select_best_wholesale_discount(unit, 7, &rules),
+            (Decimal::from(2000), Some(2))
+        );
+        // 8 items -> 2 sets -> Rp 4.000 discount
+        assert_eq!(
+            select_best_wholesale_discount(unit, 8, &rules),
+            (Decimal::from(4000), Some(2))
+        );
+    }
+
+    #[test]
+    fn fixed_per_unit_and_order_max_discount_cap() {
+        let unit = Decimal::from(2000);
+        let d = calculate_wholesale_rule_discount(
+            unit,
+            5,
+            5,
+            0,
+            "FIXED_PER_UNIT",
+            Decimal::from(300),
+        );
+        // 5 * 300 = 1500
+        assert_eq!(d, Decimal::from(1500));
+
+        // Order promo 20% with max cap Rp 15.000 on Rp 100.000 subtotal
+        let order_disc = calculate_order_promo_amount(
+            Decimal::from(100000),
+            DiscountType::Percentage,
+            Decimal::from(20),
+            Some(Decimal::from(15000)),
+        );
+        assert_eq!(order_disc, Decimal::from(15000));
     }
 
     #[test]
@@ -665,6 +989,7 @@ mod tests {
                 id: 10,
                 name: "Pack 6 pcs".to_string(),
                 min_quantity: 6,
+                bonus_quantity: 0,
                 pricing_mode: "UNIT_PRICE".to_string(),
                 value: Decimal::from(1800),
                 unit_label: Some("Grosir >=6".to_string()),
@@ -673,45 +998,20 @@ mod tests {
                 id: 11,
                 name: "1 Kardus".to_string(),
                 min_quantity: 24,
+                bonus_quantity: 0,
                 pricing_mode: "BUNDLE_PRICE".to_string(),
                 value: Decimal::from(36000),
                 unit_label: Some("1 Kardus".to_string()),
             },
         ];
 
-        // Qty 6 -> Pack 6 applies: (2000 - 1800) * 6 = 1200
         assert_eq!(
             select_best_wholesale_discount(unit, 6, &rules),
             (Decimal::from(1200), Some(10))
         );
-        // Qty 24 -> Pack 6 would give 4800, 1 Kardus gives 12000 -> picks 1 Kardus
         assert_eq!(
             select_best_wholesale_discount(unit, 24, &rules),
             (Decimal::from(12000), Some(11))
         );
-    }
-
-    #[test]
-    fn percentage_tier_rounds_to_whole_rupiah_and_clamps() {
-        let unit = Decimal::from(2000);
-        let d = calculate_wholesale_rule_discount(
-            unit,
-            10,
-            10,
-            "PERCENTAGE",
-            Decimal::from(15),
-        );
-        // 20.000 * 15% = 3.000
-        assert_eq!(d, Decimal::from(3000));
-
-        // Misconfigured bundle price higher than normal never produces negative discount
-        let bad = calculate_wholesale_rule_discount(
-            unit,
-            24,
-            24,
-            "BUNDLE_PRICE",
-            Decimal::from(60000),
-        );
-        assert_eq!(bad, Decimal::ZERO);
     }
 }

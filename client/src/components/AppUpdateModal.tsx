@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowUpCircle, CheckCircle2, RefreshCw, Download, AlertCircle, Sparkles } from 'lucide-react';
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -12,7 +12,8 @@ import { Divider } from '@astryxdesign/core/Divider';
 import Modal from './Modal';
 import api from '../lib/axios';
 
-export const CURRENT_CLIENT_VERSION = '2.0.2';
+export const CURRENT_CLIENT_VERSION = '2.2.0';
+const GITHUB_LATEST_RELEASE_API = 'https://api.github.com/repos/Dzakiudin/Web-Based-POS-System/releases/latest';
 
 export interface VersionInfo {
     version: string;
@@ -60,8 +61,56 @@ export const triggerAppUpdateCheck = () => {
     window.dispatchEvent(new CustomEvent('check-app-update'));
 };
 
+interface GitHubReleaseAsset {
+    name?: string;
+    browser_download_url?: string;
+}
+
+interface GitHubReleasePayload {
+    tag_name?: string;
+    published_at?: string;
+    body?: string;
+    assets?: GitHubReleaseAsset[];
+}
+
+const fetchGitHubLatestRelease = async (): Promise<VersionInfo | null> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    try {
+        const resp = await fetch(GITHUB_LATEST_RELEASE_API, {
+            headers: { Accept: 'application/vnd.github+json' },
+            signal: controller.signal,
+        });
+        if (!resp.ok) return null;
+        const data = (await resp.json()) as GitHubReleasePayload;
+        const version = (data.tag_name || '').replace(/^v/i, '').trim();
+        if (!version) return null;
+
+        const apkAssets = (data.assets || []).filter((a) => a.name?.toLowerCase().endsWith('.apk') && a.browser_download_url);
+        const preferredApk =
+            apkAssets.find((a) => a.name?.toLowerCase().startsWith('toko-aznun')) ||
+            apkAssets.find((a) => a.name?.toLowerCase().startsWith('pos-system')) ||
+            apkAssets[0];
+
+        if (!preferredApk?.browser_download_url) return null;
+        return {
+            version,
+            releaseDate: data.published_at ? data.published_at.slice(0, 10) : undefined,
+            releaseNotes:
+                data.body?.trim() ||
+                `Pembaruan aplikasi TOKO AZNUN v${version} tersedia di GitHub Releases.`,
+            downloadUrl: preferredApk.browser_download_url,
+        };
+    } catch {
+        return null;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+};
+
 export const AppUpdateModal: React.FC = () => {
     const isNative = Capacitor.isNativePlatform();
+    const installedVersionRef = useRef<string>(CURRENT_CLIENT_VERSION);
     const [installedVersion, setInstalledVersion] = useState<string>(CURRENT_CLIENT_VERSION);
     const [updateInfo, setUpdateInfo] = useState<VersionInfo | null>(null);
     const [isOutdated, setIsOutdated] = useState<boolean>(false);
@@ -70,69 +119,84 @@ export const AppUpdateModal: React.FC = () => {
     const [downloadProgress, setDownloadProgress] = useState<string>('');
     const [installError, setInstallError] = useState<string>('');
 
-    // Deteksi versi terpasang di awal
-    useEffect(() => {
-        const detectInstalledVersion = async () => {
-            if (isNative) {
-                try {
-                    const info = await AppInstaller.getAppInfo();
-                    if (info && info.versionName) {
-                        setInstalledVersion(info.versionName);
-                        return info.versionName;
+    const resolveInstalledVersion = useCallback(async (): Promise<string> => {
+        if (isNative) {
+            try {
+                const info = await AppInstaller.getAppInfo();
+                if (info && info.versionName) {
+                    installedVersionRef.current = info.versionName;
+                    setInstalledVersion(info.versionName);
+                    return info.versionName;
+                }
+            } catch (e) {
+                console.warn('Gagal membaca info native package:', e);
+            }
+        }
+        installedVersionRef.current = CURRENT_CLIENT_VERSION;
+        setInstalledVersion(CURRENT_CLIENT_VERSION);
+        return CURRENT_CLIENT_VERSION;
+    }, [isNative]);
+
+    const checkUpdate = useCallback(
+        async (isManual = false) => {
+            try {
+                const currentVer = await resolveInstalledVersion();
+
+                const [serverResult, githubResult] = await Promise.allSettled([
+                    api.get('/app/version').then((r) => r.data as VersionInfo),
+                    isNative ? fetchGitHubLatestRelease() : Promise.resolve(null),
+                ]);
+
+                const serverInfo =
+                    serverResult.status === 'fulfilled' && serverResult.value?.version ? serverResult.value : null;
+                const githubInfo = githubResult.status === 'fulfilled' ? githubResult.value : null;
+
+                let latestInfo: VersionInfo | null = serverInfo;
+                if (isNative && githubInfo) {
+                    if (!latestInfo || compareVersions(githubInfo.version, latestInfo.version) > 0) {
+                        latestInfo = githubInfo;
                     }
-                } catch (e) {
-                    console.warn('Gagal membaca info native package:', e);
+                }
+
+                if (latestInfo?.version) {
+                    setUpdateInfo(latestInfo);
+
+                    const outdated = isVersionOutdated(currentVer, latestInfo.version);
+                    setIsOutdated(outdated);
+
+                    if (outdated) {
+                        const dismissed = sessionStorage.getItem('dismissed_version');
+                        if (isManual || dismissed !== latestInfo.version) {
+                            setIsOpen(true);
+                        }
+                    } else if (isManual) {
+                        setIsOpen(true);
+                    }
+                }
+            } catch (e) {
+                console.warn('Gagal memeriksa pembaruan aplikasi', e);
+                if (isManual) {
+                    alert('Tidak dapat memeriksa pembaruan saat ini. Periksa koneksi internet/server Anda.');
                 }
             }
-            return CURRENT_CLIENT_VERSION;
-        };
+        },
+        [isNative, resolveInstalledVersion]
+    );
 
-        detectInstalledVersion().then((ver) => {
-            // Pengecekan otomatis di latar belakang saat aplikasi pertama kali dibuka
-            const timer = setTimeout(() => {
-                checkUpdate(false, ver);
-            }, 2500);
-            return () => clearTimeout(timer);
-        });
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            checkUpdate(false);
+        }, 2500);
 
-        // Event listener saat user memicu 'Cek Pembaruan' secara manual
         const handleManualCheck = () => {
             checkUpdate(true);
         };
         window.addEventListener('check-app-update', handleManualCheck);
-        return () => window.removeEventListener('check-app-update', handleManualCheck);
-    }, [isNative]);
-
-    const checkUpdate = async (isManual = false, overrideCurrentVer?: string) => {
-        try {
-            const currentVer = overrideCurrentVer || installedVersion;
-            const res = await api.get('/app/version');
-            if (res.data && res.data.version) {
-                const info: VersionInfo = res.data;
-                setUpdateInfo(info);
-
-                // Jalankan validator semver
-                const outdated = isVersionOutdated(currentVer, info.version);
-                setIsOutdated(outdated);
-
-                if (outdated) {
-                    // KASUS 1: Versi OUTDATE -> Tawarkan update
-                    const dismissed = sessionStorage.getItem('dismissed_version');
-                    if (isManual || dismissed !== info.version) {
-                        setIsOpen(true);
-                    }
-                } else if (isManual) {
-                    // KASUS 2: Versi TIDAK OUTDATE (Sudah Versi Terbaru) -> Berikan info pembaruan TANPA tawaran unduh
-                    setIsOpen(true);
-                }
-            }
-        } catch (e) {
-            console.warn('Gagal memeriksa pembaruan aplikasi', e);
-            if (isManual) {
-                alert('Tidak dapat memeriksa pembaruan saat ini. Periksa koneksi server Anda.');
-            }
-        }
-    };
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('check-app-update', handleManualCheck);
+        };
+    }, [checkUpdate]);
 
     const handleDismiss = () => {
         if (updateInfo && isOutdated) {
@@ -178,9 +242,10 @@ export const AppUpdateModal: React.FC = () => {
 
             setIsDownloading(false);
             setDownloadProgress('');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Gagal unduh / pasang APK otomatis:', err);
-            setInstallError(err.message || 'Gagal mengunduh atau memasang APK otomatis');
+            const msg = err instanceof Error ? err.message : 'Gagal mengunduh atau memasang APK otomatis';
+            setInstallError(msg);
             setIsDownloading(false);
         }
     };
@@ -245,7 +310,7 @@ export const AppUpdateModal: React.FC = () => {
                 {isOutdated && (
                     <HStack justify="between" align="center">
                         <Text size="sm" weight="semibold">
-                            Versi Tersedia di Server:
+                            Versi Terbaru Tersedia:
                         </Text>
                         <Badge variant="success" label={`v${updateInfo.version}`} />
                     </HStack>

@@ -30,7 +30,7 @@ interface Voucher {
     customer: { id: number; name: string } | null;
     discount: { id: number; name: string; type: string; value: string } | null;
 }
-interface Discount { id: number; name: string; type: string; value: string; scope?: string; }
+interface Discount { id: number; name: string; type: string; value: string; scope?: string; autoApply?: boolean; }
 interface Customer { id: number; name: string; }
 
 const Vouchers = () => {
@@ -61,7 +61,7 @@ const Vouchers = () => {
         try {
             const r = await api.get('/discounts');
             const list = Array.isArray(r.data) ? r.data : [];
-            setDiscounts(list.filter((d: Discount) => !d.scope || d.scope === 'ORDER'));
+            setDiscounts(list.filter((d: Discount) => (!d.scope || d.scope === 'ORDER') && !d.autoApply));
         } catch (e: any) {
             toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat aturan diskon');
         }

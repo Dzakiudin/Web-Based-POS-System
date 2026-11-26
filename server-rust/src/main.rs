@@ -201,13 +201,19 @@ async fn ensure_db_schema_and_indexes(pool: &sqlx::PgPool) {
         r#"CREATE INDEX IF NOT EXISTS idx_audit_logs_action_entity ON audit_logs (action, entity)"#,
         r#"CREATE INDEX IF NOT EXISTS idx_products_active_cat ON products ("isActive", "categoryId")"#,
         r#"CREATE INDEX IF NOT EXISTS idx_cash_sessions_status ON cash_sessions (status, "openedAt" DESC)"#,
-        // Wholesale / quantity-based discount rules extension on discounts table
+        // Wholesale, Buy X Get Y, Category, Member & Order discount rules extension
         r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'ORDER'"#,
         r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "productId" INT REFERENCES products(id) ON DELETE CASCADE"#,
+        r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "categoryId" INT REFERENCES categories(id) ON DELETE CASCADE"#,
         r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "minQuantity" INT NOT NULL DEFAULT 1"#,
+        r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "bonusQuantity" INT NOT NULL DEFAULT 0"#,
         r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "pricingMode" TEXT NOT NULL DEFAULT 'ORDER'"#,
         r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "unitLabel" TEXT"#,
+        r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "maxDiscount" NUMERIC(12,2)"#,
+        r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "autoApply" BOOLEAN NOT NULL DEFAULT false"#,
+        r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "targetTier" TEXT"#,
         r#"CREATE INDEX IF NOT EXISTS idx_discounts_scope_product ON discounts (scope, "productId", "isActive")"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_discounts_scope_category ON discounts (scope, "categoryId", "isActive")"#,
     ];
 
     for sql in statements {
@@ -430,15 +436,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             delete(handlers::settings::delete_setting_image),
         );
 
+    let app_version = env!("CARGO_PKG_VERSION");
+
     // Combine all API routers
     let api_routes = Router::new()
-        .route("/health", get(|| async { axum::Json(serde_json::json!({ "status": "ok", "app": "POS System Pro Max", "version": "2.0.2" })) }))
-        .route("/app/version", get(|| async {
+        .route("/health", get(move || async move { axum::Json(serde_json::json!({ "status": "ok", "app": "POS System Pro Max", "version": app_version })) }))
+        .route("/app/version", get(move || async move {
+            let download_url = format!(
+                "https://github.com/Dzakiudin/Web-Based-POS-System/releases/download/v{}/toko-aznun-v{}.apk",
+                app_version, app_version
+            );
             axum::Json(serde_json::json!({
-                "version": "2.0.2",
-                "releaseDate": "2026-11-20",
-                "releaseNotes": "Perbaikan cetak struk thermal, download PDF & ekspor CSV di Android, serta sistem notifikasi update otomatis.",
-                "downloadUrl": "https://github.com/Dzakiudin/Web-Based-POS-System/releases/download/v2.0.0/pos-system-v2.0.0.apk"
+                "version": app_version,
+                "releaseDate": "2026-11-26",
+                "releaseNotes": "• Semua Jenis Diskon Lengkap: Harga Grosir/Kardus, Beli X Gratis Y (mis. Beli 3 Gratis 1), Potongan per Pcs/Kategori, Promo Member & Promo Otomatis di Kasir.\n• Tombol cepat paket grosir/bonus gratis di keranjang kasir + input Qty langsung.\n• Deteksi versi terbaru otomatis lewat GitHub Release.",
+                "downloadUrl": download_url
             }))
         }))
         .nest("/auth", auth_routes)
@@ -469,9 +481,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let url = format!("http://localhost:{}", port);
-    tracing::info!("🚀 POS Pro Max Server v2.0.2 (Rust) running on {}", url);
+    tracing::info!("🚀 POS Pro Max Server v{} (Rust) running on {}", app_version, url);
     println!("\n=======================================================");
-    println!("  ⚡ POS System Pro Max v2.0.2 (Native Release)");
+    println!("  ⚡ POS System Pro Max v{} (Native Release)", app_version);
     println!("  Aplikasi kasir & ritel siap digunakan.");
     println!("  Akses sistem di browser: {}", url);
     println!("=======================================================\n");
