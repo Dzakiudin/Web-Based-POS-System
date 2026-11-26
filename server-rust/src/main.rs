@@ -449,7 +449,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             axum::Json(serde_json::json!({
                 "version": app_version,
                 "releaseDate": "2026-11-26",
-                "releaseNotes": "• Semua Jenis Diskon Lengkap: Harga Grosir/Kardus, Beli X Gratis Y (mis. Beli 3 Gratis 1), Potongan per Pcs/Kategori, Promo Member & Promo Otomatis di Kasir.\n• Tombol cepat paket grosir/bonus gratis di keranjang kasir + input Qty langsung.\n• Deteksi versi terbaru otomatis lewat GitHub Release.",
+                "releaseNotes": "• Semua Jenis Diskon Lengkap: Harga Grosir/Kardus, Beli X Gratis Y, Potongan per Pcs/Kategori, Promo Member & Promo Otomatis di Kasir.\n• Signing Key APK Permanen: Update dalam aplikasi versi selanjutnya bisa langsung timpa tanpa uninstall.\n• Deteksi versi terbaru otomatis lewat GitHub Release.",
                 "downloadUrl": download_url
             }))
         }))

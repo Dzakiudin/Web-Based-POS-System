@@ -3,7 +3,6 @@ name: Build Android APK
 on:
   push:
     branches: [ main ]
-    tags: [ 'v*' ]
   workflow_dispatch:
 
 permissions:
@@ -52,17 +51,47 @@ jobs:
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
 
-      - name: Build Android Debug APK
+      - name: Decode persistent Android signing keystore
+        id: keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "ERROR: ANDROID_KEYSTORE_BASE64 secret is missing!" >&2
+            exit 1
+          fi
+          KS_PATH="$RUNNER_TEMP/toko-aznun-release.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > "$KS_PATH"
+          chmod 600 "$KS_PATH"
+          ls -lh "$KS_PATH"
+          echo "keystore_path=$KS_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Build Signed Release APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ steps.keystore.outputs.keystore_path }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cd client/android
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleRelease --stacktrace
+
+      - name: Verify APK Signature
+        run: |
+          APK_PATH="client/android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK_PATH" ]; then
+            echo "Signed app-release.apk not found!" >&2
+            exit 1
+          fi
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
+          "$APKSIGNER" verify --print-certs "$APK_PATH"
 
       - name: Upload APK to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: toko-aznun-apk-v${{ steps.app_ver.outputs.version }}
-          path: client/android/app/build/outputs/apk/debug/app-debug.apk
+          path: client/android/app/build/outputs/apk/release/app-release.apk
 
       - name: Publish APK to GitHub Release v${{ steps.app_ver.outputs.version }}
         env:
@@ -70,13 +99,14 @@ jobs:
           VERSION: ${{ steps.app_ver.outputs.version }}
           TAG: ${{ steps.app_ver.outputs.tag }}
         run: |
-          cp client/android/app/build/outputs/apk/debug/app-debug.apk "pos-system-v${VERSION}.apk"
-          cp client/android/app/build/outputs/apk/debug/app-debug.apk "toko-aznun-v${VERSION}.apk"
+          APK_PATH="client/android/app/build/outputs/apk/release/app-release.apk"
+          cp "$APK_PATH" "pos-system-v${VERSION}.apk"
+          cp "$APK_PATH" "toko-aznun-v${VERSION}.apk"
           if gh release view "${TAG}" >/dev/null 2>&1; then
             gh release upload "${TAG}" "pos-system-v${VERSION}.apk" "toko-aznun-v${VERSION}.apk" --clobber
           else
             gh release create "${TAG}" "pos-system-v${VERSION}.apk" "toko-aznun-v${VERSION}.apk" \
               --title "TOKO AZNUN POS Pro Max ${TAG}" \
-              --notes "Rilis otomatis TOKO AZNUN ${TAG}" \
+              --notes "Rilis otomatis TOKO AZNUN ${TAG} (Signed APK)" \
               --latest
           fi
