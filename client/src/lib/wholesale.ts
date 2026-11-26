@@ -328,9 +328,12 @@ export function formatWholesaleSummary(rule: DiscountRule, normalUnitPrice?: num
     if (rule.pricingMode === 'BUY_X_GET_Y') {
         const paidTotal = (normalUnitPrice || 0) * minQty;
         const freeValue = (normalUnitPrice || 0) * bonusQty;
+        const baseLabel = `Beli ${minQty} Gratis ${bonusQty}`;
+        const customUnit = rule.unitLabel?.trim();
+        const showExtraUnit = Boolean(customUnit && customUnit.toLowerCase() !== baseLabel.toLowerCase());
         return {
-            packageLabel: `Beli ${minQty} Gratis ${bonusQty}`,
-            priceDisplay: `Beli ${minQty} Gratis ${bonusQty}${rule.unitLabel?.trim() ? ` (${rule.unitLabel.trim()})` : ''}`,
+            packageLabel: baseLabel,
+            priceDisplay: `${baseLabel}${showExtraUnit ? ` (${customUnit})` : ''}`,
             savingsHint:
                 normalUnitPrice && normalUnitPrice > 0 && bonusQty > 0
                     ? `Beli ${minQty} = Rp ${paidTotal.toLocaleString('id-ID')} · Bawa ${minQty + bonusQty} pcs Tetap Rp ${paidTotal.toLocaleString('id-ID')} (Gratis Rp ${freeValue.toLocaleString('id-ID')})`

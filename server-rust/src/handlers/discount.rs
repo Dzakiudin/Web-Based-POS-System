@@ -293,9 +293,15 @@ async fn validate_and_normalize_payload(
                     ));
                 }
                 let normal_bundle = product_price * Decimal::from(min_quantity);
-                if effective_value <= Decimal::ZERO || effective_value >= normal_bundle {
+                if effective_value <= product_price {
                     return Err(AppError::BadRequest(format!(
-                        "Harga paket {} pcs harus lebih dari Rp 0 dan lebih murah dari harga normal total (Rp {})",
+                        "Harga TOTAL paket {} pcs (Rp {}) harus lebih mahal dari harga 1 pcs (Rp {}). Jika maksud Anda harga satuan per pcs, pilih skema 'Harga Grosir / Pcs'.",
+                        min_quantity, effective_value, product_price
+                    )));
+                }
+                if effective_value >= normal_bundle {
+                    return Err(AppError::BadRequest(format!(
+                        "Harga TOTAL paket {} pcs harus lebih murah dari harga normal total (Rp {})",
                         min_quantity, normal_bundle
                     )));
                 }

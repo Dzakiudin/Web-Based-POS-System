@@ -100,6 +100,8 @@ const Discounts = () => {
     const [showModal, setShowModal] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
     const [nameEditedManually, setNameEditedManually] = useState(false);
+    const [bundleInputMode, setBundleInputMode] = useState<'TOTAL' | 'PER_PCS'>('TOTAL');
+    const [submitError, setSubmitError] = useState<string | null>(null);
     const [form, setForm] = useState(INITIAL_FORM);
 
     const fetchDiscounts = useCallback(async () => {
@@ -147,8 +149,17 @@ const Discounts = () => {
             if (mode === 'BUY_X_GET_Y') {
                 return `${prod.name} Beli ${minQty} Gratis ${bonusQty}`;
             }
-            const unitPart = unitLabel.trim() || `Min. ${minQty} pcs`;
-            return `Grosir ${prod.name} (${unitPart})`;
+            if (mode === 'BUNDLE_PRICE') {
+                const unitPart = unitLabel.trim() || `${minQty} pcs`;
+                return `Paket ${prod.name} (${unitPart})`;
+            }
+            if (mode === 'FIXED_PER_UNIT') {
+                return `Potongan ${prod.name} (Min. ${minQty} pcs)`;
+            }
+            if (mode === 'PERCENTAGE') {
+                return `Diskon ${prod.name}${val > 0 ? ` ${val}%` : ''} (Min. ${minQty} pcs)`;
+            }
+            return `Grosir ${prod.name} (Min. ${minQty} pcs)`;
         }
         if (scope === 'CATEGORY' && cat) {
             if (mode === 'BUY_X_GET_Y') {
@@ -179,8 +190,11 @@ const Discounts = () => {
 
             if (form.pricingMode === 'BUNDLE_PRICE') {
                 const normalBundle = selectedProductPrice * form.minQuantity;
+                if (form.value <= selectedProductPrice) {
+                    return `Harga TOTAL paket ${form.minQuantity} pcs (Rp ${form.value.toLocaleString('id-ID')}) tidak boleh lebih murah atau sama dengan harga 1 pcs (Rp ${selectedProductPrice.toLocaleString('id-ID')}). Jika maksud Anda harga satuan per pcs, pilih skema "Harga Grosir / Pcs".`;
+                }
                 if (form.value >= normalBundle) {
-                    return `Harga paket ${form.minQuantity} pcs harus lebih murah dari harga normal (Rp ${normalBundle.toLocaleString('id-ID')}).`;
+                    return `Harga TOTAL paket ${form.minQuantity} pcs harus lebih murah dari harga normal total (Rp ${normalBundle.toLocaleString('id-ID')}).`;
                 }
             } else if (form.pricingMode === 'UNIT_PRICE') {
                 if (form.value >= selectedProductPrice) {
@@ -218,9 +232,11 @@ const Discounts = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSubmitError(null);
 
         const validationErr = validateRuleInput();
         if (validationErr) {
+            setSubmitError(validationErr);
             toast.error(validationErr);
             return;
         }
@@ -311,13 +327,17 @@ const Discounts = () => {
             resetForm();
             fetchDiscounts();
         } catch (err: unknown) {
-            toast.error(getErrorMessage(err, 'Gagal menyimpan aturan diskon'));
+            const msg = getErrorMessage(err, 'Gagal menyimpan aturan diskon');
+            setSubmitError(msg);
+            toast.error(msg);
         }
     };
 
     const handleEdit = (d: DiscountRule) => {
         setEditId(d.id);
         setNameEditedManually(true);
+        setBundleInputMode('TOTAL');
+        setSubmitError(null);
         const scope: DiscountScope =
             d.scope === 'PRODUCT_QTY' || d.scope === 'CATEGORY' ? d.scope : 'ORDER';
         const validModes: ItemPricingMode[] = ['BUNDLE_PRICE', 'UNIT_PRICE', 'BUY_X_GET_Y', 'FIXED_PER_UNIT', 'PERCENTAGE'];
@@ -367,6 +387,8 @@ const Discounts = () => {
     const resetForm = (defaultScope: DiscountScope = 'PRODUCT_QTY') => {
         setNameEditedManually(false);
         setEditId(null);
+        setBundleInputMode('TOTAL');
+        setSubmitError(null);
         setForm({
             ...INITIAL_FORM,
             scope: defaultScope,
@@ -502,10 +524,15 @@ const Discounts = () => {
                         const prodPrice = d.product ? Number(d.product.price) : undefined;
                         const itemSummary = isItemRule ? formatWholesaleSummary(d, prodPrice) : null;
 
+                        const productBadgeMap: Record<string, string> = {
+                            BUNDLE_PRICE: 'Harga Paket / Dus',
+                            UNIT_PRICE: 'Harga Grosir',
+                            BUY_X_GET_Y: 'Beli X Gratis Y',
+                            FIXED_PER_UNIT: 'Potongan Rp / Pcs',
+                            PERCENTAGE: 'Diskon % Qty',
+                        };
                         const scopeLabel = isProductRule
-                            ? d.pricingMode === 'BUY_X_GET_Y'
-                                ? 'Beli X Gratis Y'
-                                : 'Harga Grosir'
+                            ? (productBadgeMap[d.pricingMode || ''] || 'Harga Grosir')
                             : isCategoryRule
                             ? 'Promo Kategori'
                             : d.autoApply
@@ -737,16 +764,33 @@ const Discounts = () => {
                                                     key={opt.value}
                                                     type="button"
                                                     onClick={() => {
-                                                        const nextMin = opt.value === 'BUY_X_GET_Y' ? 3 : opt.value === 'BUNDLE_PRICE' || opt.value === 'UNIT_PRICE' ? Math.max(2, form.minQuantity) : form.minQuantity;
-                                                        const nextLabel = opt.value === 'BUY_X_GET_Y' ? `Beli ${nextMin} Gratis ${form.bonusQuantity}` : form.unitLabel;
+                                                        const nextMin =
+                                                            opt.value === 'BUY_X_GET_Y'
+                                                                ? 3
+                                                                : opt.value === 'BUNDLE_PRICE' || opt.value === 'UNIT_PRICE'
+                                                                ? Math.max(2, form.minQuantity)
+                                                                : Math.max(1, form.minQuantity);
+                                                        const nextLabel =
+                                                            opt.value === 'BUY_X_GET_Y'
+                                                                ? `Beli ${nextMin} Gratis ${form.bonusQuantity}`
+                                                                : opt.value === 'BUNDLE_PRICE'
+                                                                ? form.unitLabel.trim() || '1 Kardus'
+                                                                : '';
+                                                        const switchingPctBoundary =
+                                                            (form.pricingMode === 'PERCENTAGE') !== (opt.value === 'PERCENTAGE') ||
+                                                            opt.value === 'BUY_X_GET_Y' ||
+                                                            form.pricingMode === 'BUY_X_GET_Y' ||
+                                                            (form.pricingMode === 'BUNDLE_PRICE') !== (opt.value === 'BUNDLE_PRICE');
+                                                        const nextValue = switchingPctBoundary ? 0 : form.value;
                                                         setForm((prev) => ({
                                                             ...prev,
                                                             pricingMode: opt.value,
                                                             minQuantity: nextMin,
                                                             unitLabel: nextLabel,
+                                                            value: nextValue,
                                                             name: nameEditedManually
                                                                 ? prev.name
-                                                                : buildAutoRuleName('PRODUCT_QTY', opt.value, selectedProduct, null, nextLabel, nextMin, prev.bonusQuantity, prev.value),
+                                                                : buildAutoRuleName('PRODUCT_QTY', opt.value, selectedProduct, null, nextLabel, nextMin, prev.bonusQuantity, nextValue),
                                                         }));
                                                     }}
                                                     style={{
@@ -850,12 +894,99 @@ const Discounts = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <Grid columns={isMobile ? 1 : 2} gap={3}>
+                                        {form.pricingMode === 'BUNDLE_PRICE' ? (
+                                            <Grid columns={isMobile ? 1 : 2} gap={3}>
+                                                <NumberInput
+                                                    label="Isi 1 Paket (pcs)"
+                                                    value={form.minQuantity}
+                                                    onChange={(v) => {
+                                                        const nextQty = Math.max(2, v || 2);
+                                                        setSubmitError(null);
+                                                        setForm((prev) => {
+                                                            const nextValue =
+                                                                bundleInputMode === 'PER_PCS' && prev.minQuantity > 0
+                                                                    ? Math.round(prev.value / prev.minQuantity) * nextQty
+                                                                    : prev.value;
+                                                            return {
+                                                                ...prev,
+                                                                minQuantity: nextQty,
+                                                                value: nextValue,
+                                                                name: nameEditedManually
+                                                                    ? prev.name
+                                                                    : buildAutoRuleName('PRODUCT_QTY', prev.pricingMode, selectedProduct, null, prev.unitLabel, nextQty, prev.bonusQuantity, nextValue),
+                                                            };
+                                                        });
+                                                    }}
+                                                    min={2}
+                                                    isIntegerOnly
+                                                    isRequired
+                                                />
+                                                <VStack gap={1}>
+                                                    <TextInput
+                                                        label="Label Kemasan (Opsional)"
+                                                        placeholder="Contoh: 1 Kardus / 1 Lusin"
+                                                        value={form.unitLabel}
+                                                        onChange={(v) => {
+                                                            setForm((prev) => ({
+                                                                ...prev,
+                                                                unitLabel: v,
+                                                                name: nameEditedManually
+                                                                    ? prev.name
+                                                                    : buildAutoRuleName('PRODUCT_QTY', prev.pricingMode, selectedProduct, null, v, prev.minQuantity, prev.bonusQuantity, prev.value),
+                                                            }));
+                                                        }}
+                                                    />
+                                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                                                        {[
+                                                            { label: '1 Kardus (24)', unit: '1 Kardus', qty: 24 },
+                                                            { label: '1 Lusin (12)', unit: '1 Lusin', qty: 12 },
+                                                            { label: '1 Pak (6)', unit: '1 Pak', qty: 6 },
+                                                        ].map((preset) => (
+                                                            <button
+                                                                key={preset.label}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSubmitError(null);
+                                                                    setForm((prev) => {
+                                                                        const nextValue =
+                                                                            bundleInputMode === 'PER_PCS' && prev.minQuantity > 0
+                                                                                ? Math.round(prev.value / prev.minQuantity) * preset.qty
+                                                                                : prev.value;
+                                                                        return {
+                                                                            ...prev,
+                                                                            unitLabel: preset.unit,
+                                                                            minQuantity: preset.qty,
+                                                                            value: nextValue,
+                                                                            name: nameEditedManually
+                                                                                ? prev.name
+                                                                                : buildAutoRuleName('PRODUCT_QTY', prev.pricingMode, selectedProduct, null, preset.unit, preset.qty, prev.bonusQuantity, nextValue),
+                                                                        };
+                                                                    });
+                                                                }}
+                                                                style={{
+                                                                    fontSize: 11,
+                                                                    fontWeight: 600,
+                                                                    padding: '2px 8px',
+                                                                    borderRadius: 999,
+                                                                    border: '1px solid #e4e4e7',
+                                                                    backgroundColor: form.unitLabel === preset.unit && form.minQuantity === preset.qty ? '#18181b' : '#fafafa',
+                                                                    color: form.unitLabel === preset.unit && form.minQuantity === preset.qty ? '#ffffff' : '#52525b',
+                                                                    cursor: 'pointer',
+                                                                }}
+                                                            >
+                                                                {preset.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </VStack>
+                                            </Grid>
+                                        ) : (
                                             <NumberInput
-                                                label="Isi / Min. Beli (pcs)"
+                                                label="Minimal Jumlah Beli (pcs)"
                                                 value={form.minQuantity}
                                                 onChange={(v) => {
-                                                    const nextQty = Math.max(1, v || 1);
+                                                    const minFloor = form.pricingMode === 'UNIT_PRICE' ? 2 : 1;
+                                                    const nextQty = Math.max(minFloor, v || minFloor);
                                                     setForm((prev) => ({
                                                         ...prev,
                                                         minQuantity: nextQty,
@@ -864,89 +995,147 @@ const Discounts = () => {
                                                             : buildAutoRuleName('PRODUCT_QTY', prev.pricingMode, selectedProduct, null, prev.unitLabel, nextQty, prev.bonusQuantity, prev.value),
                                                     }));
                                                 }}
-                                                min={form.pricingMode === 'BUNDLE_PRICE' || form.pricingMode === 'UNIT_PRICE' ? 2 : 1}
+                                                min={form.pricingMode === 'UNIT_PRICE' ? 2 : 1}
                                                 isIntegerOnly
                                                 isRequired
                                             />
-                                            <VStack gap={1}>
-                                                <TextInput
-                                                    label="Label Kemasan (Opsional)"
-                                                    placeholder="Contoh: 1 Kardus / 1 Lusin"
-                                                    value={form.unitLabel}
-                                                    onChange={(v) => {
-                                                        setForm((prev) => ({
-                                                            ...prev,
-                                                            unitLabel: v,
-                                                            name: nameEditedManually
-                                                                ? prev.name
-                                                                : buildAutoRuleName('PRODUCT_QTY', prev.pricingMode, selectedProduct, null, v, prev.minQuantity, prev.bonusQuantity, prev.value),
-                                                        }));
-                                                    }}
-                                                />
-                                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-                                                    {[
-                                                        { label: '1 Kardus (24)', unit: '1 Kardus', qty: 24 },
-                                                        { label: '1 Lusin (12)', unit: '1 Lusin', qty: 12 },
-                                                        { label: '1 Pak (6)', unit: '1 Pak', qty: 6 },
-                                                    ].map((preset) => (
-                                                        <button
-                                                            key={preset.label}
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setForm((prev) => ({
-                                                                    ...prev,
-                                                                    unitLabel: preset.unit,
-                                                                    minQuantity: preset.qty,
-                                                                    name: nameEditedManually
-                                                                        ? prev.name
-                                                                        : buildAutoRuleName('PRODUCT_QTY', prev.pricingMode, selectedProduct, null, preset.unit, preset.qty, prev.bonusQuantity, prev.value),
-                                                                }));
-                                                            }}
-                                                            style={{
-                                                                fontSize: 11,
-                                                                fontWeight: 600,
-                                                                padding: '2px 8px',
-                                                                borderRadius: 999,
-                                                                border: '1px solid #e4e4e7',
-                                                                backgroundColor: form.unitLabel === preset.unit && form.minQuantity === preset.qty ? '#18181b' : '#fafafa',
-                                                                color: form.unitLabel === preset.unit && form.minQuantity === preset.qty ? '#ffffff' : '#52525b',
-                                                                cursor: 'pointer',
-                                                            }}
-                                                        >
-                                                            {preset.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </VStack>
-                                        </Grid>
+                                        )}
 
                                         {form.pricingMode === 'PERCENTAGE' ? (
                                             <NumberInput
                                                 label={`Diskon jika beli ≥ ${form.minQuantity} pcs (%)`}
                                                 value={form.value}
-                                                onChange={(v) => setForm({ ...form, value: v || 0 })}
+                                                onChange={(v) => {
+                                                    const nextVal = v || 0;
+                                                    setSubmitError(null);
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        value: nextVal,
+                                                        name: nameEditedManually
+                                                            ? prev.name
+                                                            : buildAutoRuleName('PRODUCT_QTY', 'PERCENTAGE', selectedProduct, null, prev.unitLabel, prev.minQuantity, prev.bonusQuantity, nextVal),
+                                                    }));
+                                                }}
                                                 min={1}
                                                 max={100}
                                                 isRequired
                                             />
+                                        ) : form.pricingMode === 'BUNDLE_PRICE' ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                {selectedProductPrice > 0 && (
+                                                    <div
+                                                        style={{
+                                                            display: 'flex',
+                                                            flexWrap: 'wrap',
+                                                            justifyContent: 'space-between',
+                                                            gap: 6,
+                                                            padding: '7px 10px',
+                                                            borderRadius: 8,
+                                                            backgroundColor: '#f4f4f5',
+                                                            fontSize: 11.5,
+                                                            color: '#3f3f46',
+                                                            fontVariantNumeric: 'tabular-nums',
+                                                        }}
+                                                    >
+                                                        <span>
+                                                            Eceran 1 pcs: <strong>Rp {selectedProductPrice.toLocaleString('id-ID')}</strong>
+                                                        </span>
+                                                        <span>
+                                                            Normal {form.minQuantity} pcs: <strong>Rp {(selectedProductPrice * form.minQuantity).toLocaleString('id-ID')}</strong>
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+                                                    {[
+                                                        { id: 'TOTAL' as const, label: `Isi Total ${form.unitLabel.trim() || `${form.minQuantity} pcs`}` },
+                                                        { id: 'PER_PCS' as const, label: 'Isi Harga per Pcs' },
+                                                    ].map((tab) => {
+                                                        const active = bundleInputMode === tab.id;
+                                                        return (
+                                                            <button
+                                                                key={tab.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setBundleInputMode(tab.id);
+                                                                    setSubmitError(null);
+                                                                }}
+                                                                style={{
+                                                                    padding: '6px 8px',
+                                                                    borderRadius: 7,
+                                                                    border: active ? '1.5px solid #18181b' : '1px solid #e4e4e7',
+                                                                    backgroundColor: active ? '#18181b' : '#ffffff',
+                                                                    color: active ? '#ffffff' : '#52525b',
+                                                                    fontSize: 11.5,
+                                                                    fontWeight: active ? 700 : 600,
+                                                                    cursor: 'pointer',
+                                                                    whiteSpace: 'nowrap',
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis',
+                                                                }}
+                                                            >
+                                                                {tab.label}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {bundleInputMode === 'PER_PCS' ? (
+                                                    <CurrencyInput
+                                                        label={`Harga per Pcs dalam ${form.unitLabel.trim() || `${form.minQuantity} pcs`}`}
+                                                        description={
+                                                            selectedProductPrice > 0
+                                                                ? `Isi harga lebih murah dari eceran Rp ${selectedProductPrice.toLocaleString('id-ID')}/pcs. Sistem otomatis mengalikan × ${form.minQuantity} pcs sebagai harga 1 paket.`
+                                                                : `Sistem otomatis mengalikan harga per pcs × ${form.minQuantity} pcs sebagai harga total paket.`
+                                                        }
+                                                        value={form.minQuantity > 0 ? Math.round(form.value / form.minQuantity) : 0}
+                                                        onChange={(perPcs) => {
+                                                            setSubmitError(null);
+                                                            setForm((prev) => ({
+                                                                ...prev,
+                                                                value: perPcs * Math.max(1, prev.minQuantity),
+                                                            }));
+                                                        }}
+                                                        isRequired
+                                                    />
+                                                ) : (
+                                                    <CurrencyInput
+                                                        label={`Harga TOTAL 1 Paket (${form.minQuantity} pcs)`}
+                                                        description={
+                                                            selectedProductPrice > 0
+                                                                ? `Harus di atas Rp ${selectedProductPrice.toLocaleString('id-ID')} dan di bawah normal Rp ${(selectedProductPrice * form.minQuantity).toLocaleString('id-ID')}. Atau klik "Isi Harga per Pcs" di atas.`
+                                                                : 'Masukkan harga total untuk 1 paket penuh. Sisa eceran tetap dihitung harga normal.'
+                                                        }
+                                                        value={form.value}
+                                                        onChange={(v) => {
+                                                            setSubmitError(null);
+                                                            setForm({ ...form, value: v });
+                                                        }}
+                                                        isRequired
+                                                    />
+                                                )}
+                                            </div>
                                         ) : (
                                             <CurrencyInput
                                                 label={
-                                                    form.pricingMode === 'BUNDLE_PRICE'
-                                                        ? `Harga 1 Paket / ${form.unitLabel.trim() || `${form.minQuantity} pcs`}`
-                                                        : form.pricingMode === 'UNIT_PRICE'
-                                                        ? `Harga Grosir / Pcs (min. ${form.minQuantity} pcs)`
-                                                        : `Potongan / Pcs (min. ${form.minQuantity} pcs)`
+                                                    form.pricingMode === 'UNIT_PRICE'
+                                                        ? `Harga Baru PER PCS (min. ${form.minQuantity} pcs)`
+                                                        : `Besar POTONGAN per Pcs (min. ${form.minQuantity} pcs)`
                                                 }
                                                 description={
-                                                    form.pricingMode === 'BUNDLE_PRICE'
-                                                        ? 'Berlaku per kelipatan paket. Sisa eceran tetap dihitung harga normal.'
-                                                        : form.pricingMode === 'UNIT_PRICE'
-                                                        ? 'Semua item otomatis berubah jadi harga satuan grosir ini jika Qty mencukupi.'
-                                                        : 'Setiap unit dikurangi nominal potongan tetap ini jika Qty mencukupi.'
+                                                    form.pricingMode === 'UNIT_PRICE'
+                                                        ? selectedProductPrice > 0
+                                                            ? `Harga normal Rp ${selectedProductPrice.toLocaleString('id-ID')}/pcs. Masukkan harga satuan baru per pcs jika beli ≥ ${form.minQuantity} pcs.`
+                                                            : 'Semua item otomatis berubah jadi harga satuan grosir ini jika Qty mencukupi.'
+                                                        : selectedProductPrice > 0
+                                                        ? `Nominal yang DIKURANGKAN dari Rp ${selectedProductPrice.toLocaleString('id-ID')}/pcs (bukan harga akhir). Contoh: isi 2.000 agar harga jadi Rp ${Math.max(0, selectedProductPrice - 2000).toLocaleString('id-ID')}/pcs.`
+                                                        : 'Nominal potongan tetap yang dikurangkan dari harga satuan per pcs (bukan harga akhir).'
                                                 }
                                                 value={form.value}
-                                                onChange={(v) => setForm({ ...form, value: v })}
+                                                onChange={(v) => {
+                                                    setSubmitError(null);
+                                                    setForm({ ...form, value: v });
+                                                }}
                                                 isRequired
                                             />
                                         )}
@@ -971,7 +1160,36 @@ const Discounts = () => {
                                             <span>{previewError ? 'Periksa Aturan Diskon' : 'Simulasi Harga di Kasir'}</span>
                                         </div>
                                         {previewError ? (
-                                            <span style={{ color: '#b91c1c' }}>{previewError}</span>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                <span style={{ color: '#b91c1c' }}>{previewError}</span>
+                                                {form.pricingMode === 'BUNDLE_PRICE' &&
+                                                    form.value > 0 &&
+                                                    form.value < selectedProductPrice &&
+                                                    form.minQuantity >= 2 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const convertedTotal = form.value * form.minQuantity;
+                                                                setBundleInputMode('PER_PCS');
+                                                                setSubmitError(null);
+                                                                setForm((prev) => ({ ...prev, value: convertedTotal }));
+                                                            }}
+                                                            style={{
+                                                                alignSelf: 'flex-start',
+                                                                padding: '6px 10px',
+                                                                borderRadius: 7,
+                                                                border: '1px solid #16a34a',
+                                                                backgroundColor: '#f0fdf4',
+                                                                color: '#15803d',
+                                                                fontSize: 11.5,
+                                                                fontWeight: 700,
+                                                                cursor: 'pointer',
+                                                            }}
+                                                        >
+                                                            Maksud Anda Rp {form.value.toLocaleString('id-ID')}/pcs? → Pakai Total Rp {(form.value * form.minQuantity).toLocaleString('id-ID')}
+                                                        </button>
+                                                    )}
+                                            </div>
                                         ) : isBuyXGetY ? (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, color: '#3f3f46', fontVariantNumeric: 'tabular-nums' }}>
                                                 <span>• Beli {previewMinQty} pcs : <strong>Rp {(selectedProductPrice * previewMinQty).toLocaleString('id-ID')}</strong></span>
@@ -998,11 +1216,31 @@ const Discounts = () => {
                                                         Rp {previewNormalTotal.toLocaleString('id-ID')}
                                                     </span>
                                                     <strong>Rp {previewFinalTotal.toLocaleString('id-ID')}</strong>{' '}
-                                                    {previewDiscountForTarget > 0 && `(Hemat Rp ${previewDiscountForTarget.toLocaleString('id-ID')})`}
+                                                    {previewDiscountForTarget > 0 &&
+                                                        `(Hemat Rp ${previewDiscountForTarget.toLocaleString('id-ID')} · ~Rp ${Math.round(previewFinalTotal / Math.max(1, previewBundleQty)).toLocaleString('id-ID')}/pcs)`}
                                                 </span>
                                                 <span style={{ fontSize: 11, color: '#71717a' }}>
                                                     • Beli {previewExtraQty} pcs : Rp {previewExtraTotal.toLocaleString('id-ID')}
                                                 </span>
+                                                {previewNormalTotal > 0 && previewDiscountForTarget / previewNormalTotal > 0.5 && (
+                                                    <div
+                                                        style={{
+                                                            marginTop: 4,
+                                                            padding: '6px 8px',
+                                                            borderRadius: 6,
+                                                            backgroundColor: '#fffbeb',
+                                                            border: '1px solid #fcd34d',
+                                                            color: '#92400e',
+                                                            fontSize: 11,
+                                                            lineHeight: 1.4,
+                                                        }}
+                                                    >
+                                                        <strong>Perhatian:</strong> Diskon mencapai{' '}
+                                                        <strong>{Math.round((previewDiscountForTarget / previewNormalTotal) * 100)}%</strong>{' '}
+                                                        (harga efektif jadi ~Rp {Math.round(previewFinalTotal / Math.max(1, previewBundleQty)).toLocaleString('id-ID')}/pcs).
+                                                        Pastikan angka yang diisi tidak tertukar antara nominal potongan dan harga akhir.
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -1069,13 +1307,15 @@ const Discounts = () => {
                                                     onClick={() => {
                                                         const nextMode = opt.value as ItemPricingMode;
                                                         const nextMin = nextMode === 'BUY_X_GET_Y' ? 3 : 1;
+                                                        const nextVal = nextMode !== form.pricingMode ? 0 : form.value;
                                                         setForm((prev) => ({
                                                             ...prev,
                                                             pricingMode: nextMode,
                                                             minQuantity: nextMin,
+                                                            value: nextVal,
                                                             name: nameEditedManually
                                                                 ? prev.name
-                                                                : buildAutoRuleName('CATEGORY', nextMode, null, selectedCategory, prev.unitLabel, nextMin, prev.bonusQuantity, prev.value),
+                                                                : buildAutoRuleName('CATEGORY', nextMode, null, selectedCategory, prev.unitLabel, nextMin, prev.bonusQuantity, nextVal),
                                                         }));
                                                     }}
                                                     style={{
@@ -1316,6 +1556,25 @@ const Discounts = () => {
                         </Grid>
 
                         <Switch label="Status Aktif" value={form.isActive} onChange={(checked) => setForm({ ...form, isActive: checked })} />
+                        {submitError && (
+                            <div
+                                style={{
+                                    padding: '9px 12px',
+                                    borderRadius: 9,
+                                    backgroundColor: '#fef2f2',
+                                    border: '1px solid #fca5a5',
+                                    color: '#b91c1c',
+                                    fontSize: 12,
+                                    lineHeight: 1.45,
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: 8,
+                                }}
+                            >
+                                <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                                <span>{submitError}</span>
+                            </div>
+                        )}
                         <Divider />
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', width: '100%', paddingBottom: isMobile ? 4 : 0 }}>
                             <Button

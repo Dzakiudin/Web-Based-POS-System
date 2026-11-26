@@ -10,6 +10,23 @@ const escapeHtml = (input: unknown): string => {
         .replace(/'/g, '&#39;');
 };
 
+export const getReceiptDiscountLabel = (pricingMode?: string | null): string => {
+    switch (pricingMode) {
+        case 'BUNDLE_PRICE':
+            return 'Diskon Paket';
+        case 'UNIT_PRICE':
+            return 'Diskon Grosir';
+        case 'BUY_X_GET_Y':
+            return 'Beli X Gratis Y';
+        case 'FIXED_PER_UNIT':
+            return 'Potongan/Pcs';
+        case 'PERCENTAGE':
+            return 'Diskon %';
+        default:
+            return 'Diskon Produk';
+    }
+};
+
 /**
  * Thermal Receipt Printer Utility
  * Menggunakan hidden iframe terisolasi agar saat window.print() dipanggil:
@@ -57,6 +74,7 @@ export const printThermalReceipt = (sale: any, customSettings?: StoreSettings) =
               price: Number(it.price),
               discount: Number(it.discount ?? it.discountAmount ?? 0),
               subtotal: Number(it.subtotal ?? (Number(it.price) * Number(it.quantity) - Number(it.discount ?? it.discountAmount ?? 0))),
+              pricingMode: it.appliedPricingMode || it.pricingMode || null,
           }))
         : sale.details
         ? sale.details.map((d: any) => ({
@@ -65,6 +83,7 @@ export const printThermalReceipt = (sale: any, customSettings?: StoreSettings) =
               price: Number(d.unitPrice || d.price || (Number(d.subtotal) / Math.max(1, Number(d.quantity)))),
               discount: Number(d.discountAmount ?? d.discount ?? 0),
               subtotal: Number(d.subtotal),
+              pricingMode: d.pricingMode || d.appliedPricingMode || null,
           }))
         : [];
 
@@ -135,7 +154,7 @@ export const printThermalReceipt = (sale: any, customSettings?: StoreSettings) =
         </div>
         ${Number(it.discount || 0) > 0 ? `
           <div class="row" style="font-size: ${is58mm ? '10px' : '11px'};">
-            <span>Diskon Grosir:</span>
+            <span>${escapeHtml(getReceiptDiscountLabel(it.pricingMode))}:</span>
             <span>-Rp ${Number(it.discount).toLocaleString('id-ID')}</span>
           </div>
         ` : ''}
@@ -150,7 +169,7 @@ export const printThermalReceipt = (sale: any, customSettings?: StoreSettings) =
     </div>
     ${itemsDiscountSum > 0 ? `
       <div class="row">
-        <span>Hemat Grosir:</span>
+        <span>Diskon Produk:</span>
         <span>-Rp ${itemsDiscountSum.toLocaleString('id-ID')}</span>
       </div>
     ` : ''}

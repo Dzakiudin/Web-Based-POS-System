@@ -13,7 +13,7 @@ use axum::{
     Router,
 };
 use rust_embed::RustEmbed;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::{postgres::PgPoolOptions, Executor};
 use std::{
     net::SocketAddr,
     path::{Component, Path},
@@ -214,6 +214,7 @@ async fn ensure_db_schema_and_indexes(pool: &sqlx::PgPool) {
         r#"ALTER TABLE discounts ADD COLUMN IF NOT EXISTS "targetTier" TEXT"#,
         r#"CREATE INDEX IF NOT EXISTS idx_discounts_scope_product ON discounts (scope, "productId", "isActive")"#,
         r#"CREATE INDEX IF NOT EXISTS idx_discounts_scope_category ON discounts (scope, "categoryId", "isActive")"#,
+        r#"ALTER TABLE sale_details ADD COLUMN IF NOT EXISTS "pricingMode" TEXT"#,
     ];
 
     for sql in statements {
@@ -284,12 +285,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()
         .unwrap_or(5000);
 
-    tracing::info!("Connecting to PostgreSQL database...");
+    let pg_tz_sql = if let Ok(tz) = std::env::var("APP_TIMEZONE") {
+        let trimmed = tz.trim();
+        if !trimmed.is_empty()
+            && trimmed
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '_' | '+' | '-' | ':'))
+        {
+            format!("SET TIME ZONE '{}'", trimmed)
+        } else {
+            let offset_secs = chrono::Local::now().offset().local_minus_utc();
+            let sign = if offset_secs >= 0 { '+' } else { '-' };
+            let abs_secs = offset_secs.abs();
+            format!(
+                "SET TIME ZONE INTERVAL '{}{:02}:{:02}' HOUR TO MINUTE",
+                sign,
+                abs_secs / 3600,
+                (abs_secs % 3600) / 60
+            )
+        }
+    } else {
+        let offset_secs = chrono::Local::now().offset().local_minus_utc();
+        let sign = if offset_secs >= 0 { '+' } else { '-' };
+        let abs_secs = offset_secs.abs();
+        format!(
+            "SET TIME ZONE INTERVAL '{}{:02}:{:02}' HOUR TO MINUTE",
+            sign,
+            abs_secs / 3600,
+            (abs_secs % 3600) / 60
+        )
+    };
+    let pg_tz_sql_clone = pg_tz_sql.clone();
+
+    tracing::info!("Connecting to PostgreSQL database ({})...", pg_tz_sql);
     let pool = PgPoolOptions::new()
         .max_connections(20)
         .min_connections(2)
         .acquire_timeout(std::time::Duration::from_secs(5))
         .idle_timeout(std::time::Duration::from_secs(300))
+        .after_connect(move |conn, _meta| {
+            let tz_sql = pg_tz_sql_clone.clone();
+            Box::pin(async move {
+                conn.execute(tz_sql.as_str()).await?;
+                Ok(())
+            })
+        })
         .connect(&database_url)
         .await?;
     tracing::info!("Connected to PostgreSQL database successfully.");
@@ -449,7 +489,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             axum::Json(serde_json::json!({
                 "version": app_version,
                 "releaseDate": "2026-11-26",
-                "releaseNotes": "• Perapihan Tampilan Mobile: filter & tab aturan diskon tanpa terpotong (...), form 1 kolom penuh yang rapi, pemilih tanggal kalender sentuh, kartu produk kasir 1 baris sejajar, & badge hemat di keranjang.\n• Mencakup seluruh tipe diskon (Paket/Kardus, Beli X Gratis Y, Potongan/Pcs, Kategori, Member, Promo Otomatis) beserta proteksi audit keamanan.\n• Update otomatis langsung menimpa APK v2.2.1+ tanpa perlu uninstall.",
+                "releaseNotes": "• Perbaikan Zona Waktu Transaksi (WIB +07:00) & Grafik Tren Pendapatan agar transaksi tampil sesuai jam lokal.\n• Label diskon di Kartu Aturan, Keranjang Kasir, Rincian Riwayat, & Struk Thermal kini spesifik sesuai jenisnya (Paket, Grosir, Beli X Gratis Y, Potongan/Pcs, Diskon %) dan tidak meluber keluar kartu.\n• UX Harga Paket / Dus dipermudah dengan pilihan 'Isi Total 1 Paket' & 'Isi Harga per Pcs' + tombol koreksi 1-klik.\n• Notifikasi error (Toast) kini selalu tampil di atas modal + kotak error inline di form.",
                 "downloadUrl": download_url
             }))
         }))

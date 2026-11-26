@@ -200,6 +200,7 @@ pub async fn create_sale(
         quantity: i32,
         unit_price: Decimal,
         discount_amount: Decimal,
+        pricing_mode: Option<String>,
         subtotal: Decimal,
     }
 
@@ -311,12 +312,24 @@ pub async fn create_sale(
             ));
         }
 
+        let matched_pricing_mode = if wholesale_discount > Decimal::ZERO {
+            matched_rule_id.and_then(|rid| {
+                wholesale_rules
+                    .iter()
+                    .find(|r| r.id == rid)
+                    .map(|r| r.pricing_mode.clone())
+            })
+        } else {
+            None
+        };
+
         items.push(ItemData {
             product_id: raw_it.product_id,
             variant_id: raw_it.variant_id,
             quantity: raw_it.quantity,
             unit_price: db_price,
             discount_amount: effective_item_discount,
+            pricing_mode: matched_pricing_mode,
             subtotal: line_gross - effective_item_discount,
         });
     }
@@ -667,7 +680,7 @@ pub async fn create_sale(
             status, notes, "customerId", "userId", "cashSessionId", "createdAt", "updatedAt"
         )
         VALUES ($1, NOW(), $2, $3, $4, 'COMPLETED', $5, $6, $7, $8, NOW(), NOW())
-        RETURNING id, "receiptNumber", "totalPrice", "discountAmount", "finalPrice", status, "createdAt"
+        RETURNING id, "receiptNumber", date, "totalPrice", "discountAmount", "finalPrice", status, "createdAt"
         "#
     )
     .bind(&receipt_number)
@@ -682,13 +695,14 @@ pub async fn create_sale(
     .await?;
 
     let sale_id: i32 = sale_row.get("id");
+    let sale_date: chrono::NaiveDateTime = sale_row.get("date");
 
     // 2. Insert Sale Details & Deduct Stock
     for item in &items {
         sqlx::query(
             r#"
-            INSERT INTO sale_details ("saleId", "productId", "variantId", quantity, "unitPrice", "discountAmount", subtotal)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO sale_details ("saleId", "productId", "variantId", quantity, "unitPrice", "discountAmount", "pricingMode", subtotal)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             "#
         )
         .bind(sale_id)
@@ -697,6 +711,7 @@ pub async fn create_sale(
         .bind(item.quantity)
         .bind(item.unit_price)
         .bind(item.discount_amount)
+        .bind(&item.pricing_mode)
         .bind(item.subtotal)
         .execute(&mut *tx)
         .await?;
@@ -890,6 +905,7 @@ pub async fn create_sale(
     Ok(Json(json!({
         "id": sale_id,
         "receiptNumber": receipt_number,
+        "date": sale_date,
         "totalPrice": calculated_total,
         "discountAmount": discount_amount,
         "taxRate": tax_rate,
@@ -997,7 +1013,7 @@ pub async fn get_sale(
     // Details with product
     let details_rows = sqlx::query(
         r#"
-        SELECT sd.id, sd."productId", sd."variantId", sd.quantity, sd."unitPrice", sd."discountAmount", sd.subtotal,
+        SELECT sd.id, sd."productId", sd."variantId", sd.quantity, sd."unitPrice", sd."discountAmount", sd."pricingMode", sd.subtotal,
                json_build_object('id', p.id, 'name', p.name, 'sku', p.sku, 'price', p.price) as product,
                CASE WHEN v.id IS NOT NULL THEN
                  json_build_object('id', v.id, 'name', v.name, 'price', v.price)
@@ -1021,6 +1037,7 @@ pub async fn get_sale(
             "quantity": d.get::<i32, _>("quantity"),
             "unitPrice": d.get::<Decimal, _>("unitPrice"),
             "discountAmount": d.get::<Decimal, _>("discountAmount"),
+            "pricingMode": d.get::<Option<String>, _>("pricingMode"),
             "subtotal": d.get::<Decimal, _>("subtotal"),
             "product": d.get::<Value, _>("product"),
             "variant": d.get::<Option<Value>, _>("variant"),

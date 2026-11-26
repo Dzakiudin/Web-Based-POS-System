@@ -27,7 +27,7 @@ import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { useStoreSettings } from '../context/StoreSettingsContext';
 import useHardwareScanner from '../hooks/useHardwareScanner';
-import { printThermalReceipt } from '../lib/thermalPrinter';
+import { getReceiptDiscountLabel, printThermalReceipt } from '../lib/thermalPrinter';
 import PageHeader from '../components/PageHeader';
 import SafeImage from '../components/SafeImage';
 import {
@@ -801,6 +801,10 @@ export const Transactions = () => {
                                                                 backgroundColor: '#dcfce7',
                                                                 color: '#15803d',
                                                                 whiteSpace: 'nowrap',
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                                maxWidth: '100%',
+                                                                display: 'inline-block',
                                                             }}
                                                         >
                                                             {badgeTitle} · Hemat Rp {lineDiscount.toLocaleString('id-ID')}
@@ -913,12 +917,20 @@ export const Transactions = () => {
                                                             );
                                                         }
 
-                                                        const pkgName = rule.unitLabel?.trim() || `${minQty} pcs`;
+                                                        const customLabel = rule.unitLabel?.trim() || '';
                                                         const isApplyMode = item.quantity < minQty;
                                                         const targetQty = isApplyMode ? minQty : item.quantity + minQty;
                                                         const canReach = targetQty <= item.stock;
                                                         const pkgDisc = calculateWholesaleRuleDiscount(unitPrice, minQty, rule);
                                                         const pkgPrice = Math.max(0, unitPrice * minQty - pkgDisc);
+                                                        const addBtnLabel = !customLabel
+                                                            ? `+${minQty} pcs`
+                                                            : /^\d/.test(customLabel)
+                                                            ? `+${customLabel} (+${minQty} pcs)`
+                                                            : `+1 ${customLabel} (+${minQty} pcs)`;
+                                                        const applyBtnLabel = !customLabel
+                                                            ? `Jadikan ${minQty} pcs · Rp ${pkgPrice.toLocaleString('id-ID')}`
+                                                            : `Jadikan ${customLabel} (${minQty} pcs) · Rp ${pkgPrice.toLocaleString('id-ID')}`;
                                                         return (
                                                             <button
                                                                 key={rule.id}
@@ -941,11 +953,7 @@ export const Transactions = () => {
                                                                 title={!canReach ? `Stok sisa ${item.stock}, tidak cukup ${targetQty}` : undefined}
                                                             >
                                                                 <Package size={11} />
-                                                                <span>
-                                                                    {isApplyMode
-                                                                        ? `Jadikan ${pkgName} (${minQty}) · Rp ${pkgPrice.toLocaleString('id-ID')}`
-                                                                        : `+1 ${pkgName} (+${minQty})`}
-                                                                </span>
+                                                                <span>{isApplyMode ? applyBtnLabel : addBtnLabel}</span>
                                                             </button>
                                                         );
                                                     })}
@@ -1150,7 +1158,7 @@ export const Transactions = () => {
                     </HStack>
                     {itemDiscountTotal > 0 && (
                         <HStack justify="between">
-                            <Text size="sm" color="secondary">Hemat Grosir / Paket</Text>
+                            <Text size="sm" color="secondary">Diskon Produk</Text>
                             <span className="pos-table-num-cell" style={{ color: '#059669', fontSize: 13.5, fontWeight: 600 }}>- Rp {itemDiscountTotal.toLocaleString('id-ID')}</span>
                         </HStack>
                     )}
@@ -2346,7 +2354,7 @@ export const Transactions = () => {
                     </div>
                     <div style={{ marginBottom: 6 }}>
                         <div>No. Struk : {successSale.receiptNumber || '-'}</div>
-                        <div>Waktu     : {new Date().toLocaleString('id-ID')}</div>
+                        <div>Waktu     : {successSale.date ? new Date(successSale.date).toLocaleString('id-ID') : new Date().toLocaleString('id-ID')}</div>
                         <div>Kasir     : Kasir Utama</div>
                         <div>Metode    : {successSale.method || 'TUNAI'}</div>
                         {successSale.reference && <div>Ref       : {successSale.reference}</div>}
@@ -2365,7 +2373,7 @@ export const Transactions = () => {
                                     </div>
                                     {itemDisc > 0 && (
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>Diskon Grosir:</span>
+                                            <span>{getReceiptDiscountLabel(it.appliedPricingMode || it.pricingMode)}:</span>
                                             <span>-Rp {itemDisc.toLocaleString('id-ID')}</span>
                                         </div>
                                     )}
@@ -2386,7 +2394,7 @@ export const Transactions = () => {
                                     </div>
                                     {itemsDiscSum > 0 && (
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>Hemat Grosir:</span>
+                                            <span>Diskon Produk:</span>
                                             <span>-Rp {itemsDiscSum.toLocaleString('id-ID')}</span>
                                         </div>
                                     )}

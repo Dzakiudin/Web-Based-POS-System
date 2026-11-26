@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Eye, Ban, RotateCcw, ReceiptText, Search, RefreshCw, Printer, Clock, User, Tag, Banknote, QrCode, CreditCard, ArrowRightLeft, Receipt } from 'lucide-react';
-import { printThermalReceipt } from '../lib/thermalPrinter';
+import { getReceiptDiscountLabel, printThermalReceipt } from '../lib/thermalPrinter';
 import { VStack } from '@astryxdesign/core/VStack';
 import { HStack } from '@astryxdesign/core/HStack';
 import { Card } from '@astryxdesign/core/Card';
@@ -487,7 +487,7 @@ const TransactionHistory = () => {
                                                         </span>
                                                         {itemDisc > 0 && (
                                                             <span style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', marginTop: 2 }}>
-                                                                -Rp {itemDisc.toLocaleString('id-ID')}
+                                                                {d.pricingMode ? `${getReceiptDiscountLabel(d.pricingMode)} · ` : ''}-Rp {itemDisc.toLocaleString('id-ID')}
                                                             </span>
                                                         )}
                                                     </div>
@@ -554,7 +554,7 @@ const TransactionHistory = () => {
                                                                 </div>
                                                                 {itemDisc > 0 && (
                                                                     <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>
-                                                                        -Rp {itemDisc.toLocaleString('id-ID')}
+                                                                        {d.pricingMode ? `${getReceiptDiscountLabel(d.pricingMode)} · ` : ''}-Rp {itemDisc.toLocaleString('id-ID')}
                                                                     </div>
                                                                 )}
                                                             </td>
@@ -585,12 +585,12 @@ const TransactionHistory = () => {
                                     </span>
                                 </div>
 
-                                {/* Hemat Grosir / Produk */}
+                                {/* Diskon Produk */}
                                 {itemsDiscountTotal > 0 && (
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: '#059669', fontWeight: 600 }}>
                                             <Tag size={13} />
-                                            <span>Hemat Grosir / Produk</span>
+                                            <span>Diskon Produk</span>
                                         </span>
                                         <span style={{ fontFamily: 'Inter, monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 14, color: '#059669' }}>
                                             - Rp {itemsDiscountTotal.toLocaleString('id-ID')}

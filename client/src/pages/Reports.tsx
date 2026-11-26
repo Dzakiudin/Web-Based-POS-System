@@ -199,12 +199,15 @@ const Reports = () => {
     const [peakHours, setPeakHours] = useState<PeakHour[]>([]);
     const [exportType, setExportType] = useState<ExportReportType>('sales');
 
+    const toLocalYmd = (dt: Date) =>
+        `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+
     const [startDate, setStartDate] = useState(() => {
         const d = new Date();
         d.setMonth(d.getMonth() - 1);
-        return d.toISOString().slice(0, 10);
+        return toLocalYmd(d);
     });
-    const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+    const [endDate, setEndDate] = useState(() => toLocalYmd(new Date()));
 
     useEffect(() => {
         Promise.all([

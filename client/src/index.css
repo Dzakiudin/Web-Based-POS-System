@@ -1208,6 +1208,22 @@ tbody tr:hover [class*="TableCell"] {
   gap: 12px;
 }
 
+.pos-toast-popover,
+.pos-toast-popover:popover-open {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  inset: unset;
+  top: max(16px, env(safe-area-inset-top));
+  right: 16px;
+  overflow: visible;
+}
+
+.pos-toast-popover::backdrop {
+  display: none;
+}
+
 
 
 

@@ -147,7 +147,9 @@ const Dashboard = () => {
                 }
             });
 
-            const startHour = 8;
+            // Start from the earliest hour that has a transaction, or 8 if none before 8
+            const usedHours = Object.keys(hourly).map(Number);
+            const startHour = usedHours.length > 0 ? Math.min(8, Math.min(...usedHours)) : 8;
             const endHour = Math.max(21, now.getHours());
             const points: { date: string; amount: number }[] = [];
             for (let h = startHour; h <= endHour; h++) {
@@ -159,11 +161,14 @@ const Dashboard = () => {
             return points;
         }
 
+        const toLocalYmd = (dt: Date) =>
+            `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+
         const daysCount = chartFilter === 'week' ? 7 : 30;
         const daily: Record<string, number> = {};
         completedSales.forEach((s) => {
             const d = new Date(s.date);
-            const key = d.toISOString().slice(0, 10);
+            const key = toLocalYmd(d);
             daily[key] = (daily[key] || 0) + parseFloat(s.finalPrice || s.totalPrice || '0');
         });
 
@@ -171,10 +176,10 @@ const Dashboard = () => {
         for (let i = daysCount - 1; i >= 0; i--) {
             const d = new Date(now);
             d.setDate(now.getDate() - i);
-            const iso = d.toISOString().slice(0, 10);
+            const localKey = toLocalYmd(d);
             points.push({
                 date: d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }),
-                amount: daily[iso] || 0,
+                amount: daily[localKey] || 0,
             });
         }
         return points;
