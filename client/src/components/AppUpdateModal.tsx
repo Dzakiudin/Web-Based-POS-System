@@ -12,7 +12,7 @@ import { Divider } from '@astryxdesign/core/Divider';
 import Modal from './Modal';
 import api from '../lib/axios';
 
-export const CURRENT_CLIENT_VERSION = '2.2.1';
+export const CURRENT_CLIENT_VERSION = '2.2.2';
 const GITHUB_LATEST_RELEASE_API = 'https://api.github.com/repos/Dzakiudin/Web-Based-POS-System/releases/latest';
 
 export interface VersionInfo {

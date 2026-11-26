@@ -1002,7 +1002,16 @@ const Discounts = () => {
                                         <NumberInput
                                             label="Beli Sebanyak (X pcs) *"
                                             value={form.minQuantity}
-                                            onChange={(v) => setForm({ ...form, minQuantity: Math.max(1, v || 1) })}
+                                            onChange={(v) => {
+                                                const nextX = Math.max(1, v || 1);
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    minQuantity: nextX,
+                                                    name: nameEditedManually
+                                                        ? prev.name
+                                                        : buildAutoRuleName('CATEGORY', 'BUY_X_GET_Y', null, selectedCategory, prev.unitLabel, nextX, prev.bonusQuantity, 0),
+                                                }));
+                                            }}
                                             min={1}
                                             isIntegerOnly
                                             isRequired
@@ -1010,7 +1019,16 @@ const Discounts = () => {
                                         <NumberInput
                                             label="Gratis Sebanyak (Y pcs) *"
                                             value={form.bonusQuantity}
-                                            onChange={(v) => setForm({ ...form, bonusQuantity: Math.max(1, v || 1) })}
+                                            onChange={(v) => {
+                                                const nextY = Math.max(1, v || 1);
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    bonusQuantity: nextY,
+                                                    name: nameEditedManually
+                                                        ? prev.name
+                                                        : buildAutoRuleName('CATEGORY', 'BUY_X_GET_Y', null, selectedCategory, prev.unitLabel, prev.minQuantity, nextY, 0),
+                                                }));
+                                            }}
                                             min={1}
                                             isIntegerOnly
                                             isRequired
@@ -1022,14 +1040,31 @@ const Discounts = () => {
                                             <CurrencyInput
                                                 label="Potongan per Pcs (Rp) *"
                                                 value={form.value}
-                                                onChange={(v) => setForm({ ...form, value: v })}
+                                                onChange={(v) => {
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        value: v,
+                                                        name: nameEditedManually
+                                                            ? prev.name
+                                                            : buildAutoRuleName('CATEGORY', 'FIXED_PER_UNIT', null, selectedCategory, prev.unitLabel, prev.minQuantity, prev.bonusQuantity, v),
+                                                    }));
+                                                }}
                                                 isRequired
                                             />
                                         ) : (
                                             <NumberInput
                                                 label="Persentase Diskon (%) *"
                                                 value={form.value}
-                                                onChange={(v) => setForm({ ...form, value: v || 0 })}
+                                                onChange={(v) => {
+                                                    const nextVal = v || 0;
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        value: nextVal,
+                                                        name: nameEditedManually
+                                                            ? prev.name
+                                                            : buildAutoRuleName('CATEGORY', 'PERCENTAGE', null, selectedCategory, prev.unitLabel, prev.minQuantity, prev.bonusQuantity, nextVal),
+                                                    }));
+                                                }}
                                                 min={1}
                                                 max={100}
                                                 isRequired

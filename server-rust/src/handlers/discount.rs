@@ -211,6 +211,7 @@ struct NormalizedDiscountPayload {
 async fn validate_and_normalize_payload(
     state: &SharedState,
     payload: CreateDiscountRequest,
+    exclude_id: Option<i32>,
 ) -> Result<NormalizedDiscountPayload, AppError> {
     let name = payload.name.trim().to_string();
     if name.is_empty() {
@@ -491,9 +492,29 @@ async fn validate_and_normalize_payload(
     } else {
         payload
             .code
-            .map(|s| s.trim().to_string())
+            .map(|s| s.trim().to_uppercase())
             .filter(|s| !s.is_empty())
     };
+    if let Some(ref clean_code) = code {
+        let dup_id = sqlx::query_scalar::<_, i32>(
+            r#"
+            SELECT id FROM discounts
+            WHERE UPPER(code) = UPPER($1) AND ($2::int IS NULL OR id <> $2)
+            LIMIT 1
+            "#,
+        )
+        .bind(clean_code)
+        .bind(exclude_id)
+        .fetch_optional(&state.db)
+        .await?;
+
+        if dup_id.is_some() {
+            return Err(AppError::BadRequest(format!(
+                "Kode promo '{}' sudah digunakan oleh aturan diskon lain",
+                clean_code
+            )));
+        }
+    }
     let target_tier = payload
         .target_tier
         .map(|s| s.trim().to_uppercase())
@@ -600,7 +621,7 @@ pub async fn create_discount(
 ) -> Result<Json<Value>, AppError> {
     auth.require_permission(&["discount.manage"])?;
 
-    let norm = validate_and_normalize_payload(&state, payload).await?;
+    let norm = validate_and_normalize_payload(&state, payload, None).await?;
 
     let inserted_id: i32 = sqlx::query_scalar(
         r#"
@@ -647,7 +668,7 @@ pub async fn update_discount(
 ) -> Result<Json<Value>, AppError> {
     auth.require_permission(&["discount.manage"])?;
 
-    let norm = validate_and_normalize_payload(&state, payload).await?;
+    let norm = validate_and_normalize_payload(&state, payload, Some(id)).await?;
 
     let updated_id = sqlx::query_scalar::<_, i32>(
         r#"
@@ -739,7 +760,7 @@ pub async fn validate_promo_code(
                "maxDiscount", "autoApply", "targetTier", "startDate", "endDate",
                "isActive", "maxUses", "usedCount", "createdAt", "updatedAt"
         FROM discounts
-        WHERE UPPER(code) = UPPER($1) AND "isActive" = true AND scope = 'ORDER'
+        WHERE UPPER(code) = UPPER($1) AND scope = 'ORDER'
         "#,
     )
     .bind(code)
@@ -747,6 +768,11 @@ pub async fn validate_promo_code(
     .await?;
 
     if let Some(discount) = maybe_discount {
+        if !discount.is_active {
+            return Err(AppError::BadRequest(
+                "Promo ini sedang dinonaktifkan".to_string(),
+            ));
+        }
         if subtotal < discount.min_purchase {
             return Err(AppError::BadRequest(format!(
                 "Minimal pembelian Rp {} untuk menggunakan promo ini",
@@ -879,7 +905,9 @@ pub async fn validate_promo_code(
                 "name": v.discount_name,
                 "type": v.discount_type,
                 "value": v.discount_value,
+                "minPurchase": v.min_purchase,
                 "maxDiscount": v.max_discount,
+                "targetTier": v.target_tier,
                 "code": v.voucher_code,
                 "voucherId": v.voucher_id
             },

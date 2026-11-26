@@ -10,7 +10,7 @@ use axum::{
     Json,
 };
 use rand::Rng;
-use rust_decimal::Decimal;
+use rust_decimal::{Decimal, RoundingStrategy};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sqlx::Row;
@@ -253,7 +253,7 @@ pub async fn create_sale(
                      OR ($2::int IS NOT NULL AND scope = 'CATEGORY' AND "categoryId" = $2)
                       )
                   AND "isActive" = true
-                  AND ("endDate" IS NULL OR "endDate" >= NOW())
+                  AND ("endDate" IS NULL OR "endDate" >= LOCALTIMESTAMP)
                   AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
                 "#,
             )
@@ -270,7 +270,7 @@ pub async fn create_sale(
                 WHERE scope = 'CATEGORY'
                   AND "categoryId" = $1
                   AND "isActive" = true
-                  AND ("endDate" IS NULL OR "endDate" >= NOW())
+                  AND ("endDate" IS NULL OR "endDate" >= LOCALTIMESTAMP)
                   AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
                 "#,
             )
@@ -291,11 +291,19 @@ pub async fn create_sale(
         }
 
         let line_gross = db_price * Decimal::from(raw_it.quantity);
-        let effective_item_discount = if wholesale_discount > Decimal::ZERO {
-            wholesale_discount
-        } else {
-            raw_it.discount_amount
-        };
+        if wholesale_discount == Decimal::ZERO && raw_it.discount_amount > Decimal::ZERO {
+            return Err(AppError::BadRequest(
+                "Diskon produk/grosir pada keranjang sudah berakhir, nonaktif, atau batas pemakaiannya habis. Silakan muat ulang keranjang."
+                    .to_string(),
+            ));
+        }
+        if raw_it.discount_amount > Decimal::ZERO && (wholesale_discount - raw_it.discount_amount).abs() > Decimal::from(5) {
+            return Err(AppError::BadRequest(
+                "Aturan diskon produk berubah. Silakan perbarui keranjang sebelum checkout."
+                    .to_string(),
+            ));
+        }
+        let effective_item_discount = wholesale_discount;
 
         if effective_item_discount > line_gross {
             return Err(AppError::BadRequest(
@@ -515,8 +523,13 @@ pub async fn create_sale(
 
         let amt = validate_discount_row(&d)?;
         (amt, OrderPromoRedemption::DiscountById(d.id))
+    } else if raw_client_discount > Decimal::ZERO {
+        return Err(AppError::BadRequest(
+            "Diskon transaksi tidak valid atau tidak terdaftar di aturan promo/voucher."
+                .to_string(),
+        ));
     } else {
-        (raw_client_discount, OrderPromoRedemption::None)
+        (Decimal::ZERO, OrderPromoRedemption::None)
     };
 
     if discount_amount < Decimal::ZERO || discount_amount > calculated_total {
@@ -527,12 +540,14 @@ pub async fn create_sale(
 
     let after_discount = calculated_total - discount_amount;
     let tax_amount = if tax_rate > Decimal::ZERO {
-        ((after_discount * tax_rate) / Decimal::from(100)).round_dp(0)
+        ((after_discount * tax_rate) / Decimal::from(100))
+            .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
     } else {
         Decimal::ZERO
     };
     let service_charge_amount = if service_charge_rate > Decimal::ZERO {
-        ((after_discount * service_charge_rate) / Decimal::from(100)).round_dp(0)
+        ((after_discount * service_charge_rate) / Decimal::from(100))
+            .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
     } else {
         Decimal::ZERO
     };
@@ -818,7 +833,7 @@ pub async fn create_sale(
                 WHERE id = $1
                   AND "isActive" = true
                   AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
-                  AND ("endDate" IS NULL OR "endDate" >= NOW())
+                  AND ("endDate" IS NULL OR "endDate" >= LOCALTIMESTAMP)
                 "#,
             )
             .bind(did)
@@ -843,7 +858,7 @@ pub async fn create_sale(
             WHERE id = $1
               AND "isActive" = true
               AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
-              AND ("endDate" IS NULL OR "endDate" >= NOW())
+              AND ("endDate" IS NULL OR "endDate" >= LOCALTIMESTAMP)
             "#,
         )
         .bind(rule_id)

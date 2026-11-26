@@ -449,7 +449,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             axum::Json(serde_json::json!({
                 "version": app_version,
                 "releaseDate": "2026-11-26",
-                "releaseNotes": "• Semua Jenis Diskon Lengkap: Harga Grosir/Kardus, Beli X Gratis Y, Potongan per Pcs/Kategori, Promo Member & Promo Otomatis di Kasir.\n• Signing Key APK Permanen: Update dalam aplikasi versi selanjutnya bisa langsung timpa tanpa uninstall.\n• Deteksi versi terbaru otomatis lewat GitHub Release.",
+                "releaseNotes": "• Perbaikan Keamanan & Audit Diskon: tolak diskon grosir/item yang sudah habis/nonaktif saat checkout, cegah kode promo duplikat, samakan pembulatan pajak & promo, serta validasi min. belanja/tier voucher di kasir.\n• Mendukung semua tipe diskon (Paket/Kardus, Beli X Gratis Y, Potongan/Pcs, Kategori, Member, Promo Otomatis).\n• Auto-update APK Android langsung menimpa versi sebelumnya tanpa uninstall (dari v2.2.1+).",
                 "downloadUrl": download_url
             }))
         }))

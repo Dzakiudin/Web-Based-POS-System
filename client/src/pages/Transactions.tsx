@@ -844,6 +844,11 @@ export const Transactions = () => {
                                                         type="button"
                                                         disabled={item.quantity + buyXGetYNudge.addQty > item.stock}
                                                         onClick={() => setExactQuantity(item.id, item.quantity + buyXGetYNudge.addQty)}
+                                                        title={
+                                                            item.quantity + buyXGetYNudge.addQty > item.stock
+                                                                ? `Stok hanya ${item.stock} pcs (butuh ${item.quantity + buyXGetYNudge.addQty})`
+                                                                : undefined
+                                                        }
                                                         style={{
                                                             fontSize: 11,
                                                             fontWeight: 700,
@@ -1095,6 +1100,46 @@ export const Transactions = () => {
                             </div>
                         )}
                     </>
+                )}
+
+                {promoDiscount && !manualPromoStillValid && cart.length > 0 && (
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 8,
+                            padding: '6px 10px',
+                            borderRadius: 8,
+                            backgroundColor: '#fffbeb',
+                            border: '1px solid #fde68a',
+                            color: '#92400e',
+                            fontSize: 11,
+                        }}
+                    >
+                        <span>
+                            Promo <strong>{promoDiscount.code || promoDiscount.name}</strong> nonaktif sementara (
+                            {promoDiscount.minPurchase && subtotalAfterItemDiscount < promoDiscount.minPurchase
+                                ? `min. belanja Rp ${Number(promoDiscount.minPurchase).toLocaleString('id-ID')}`
+                                : `khusus Member ${promoDiscount.targetTier}+`}
+                            ).
+                        </span>
+                        <button
+                            type="button"
+                            onClick={cancelPromo}
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#b45309',
+                                fontWeight: 700,
+                                fontSize: 11,
+                                cursor: 'pointer',
+                                flexShrink: 0,
+                            }}
+                        >
+                            Lepas
+                        </button>
+                    </div>
                 )}
 
                 {/* Totals */}
