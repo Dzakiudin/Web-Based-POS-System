@@ -11,6 +11,8 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { NumberInput } from '@astryxdesign/core/NumberInput';
 import { Selector } from '@astryxdesign/core/Selector';
+import { DateInput } from '@astryxdesign/core/DateInput';
+import type { ISODateString } from '@astryxdesign/core/Calendar';
 import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl';
 import { Switch } from '@astryxdesign/core/Switch';
 import { Badge } from '@astryxdesign/core/Badge';
@@ -435,20 +437,60 @@ const Discounts = () => {
                 }
             />
 
-            <div style={{ width: isMobile ? '100%' : 580, maxWidth: '100%' }}>
-                <SegmentedControl
-                    label="Filter jenis diskon"
-                    value={scopeFilter}
-                    onChange={setScopeFilter}
-                    size="sm"
-                    layout="fill"
+            {isMobile ? (
+                <div
+                    style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 6,
+                        width: '100%',
+                    }}
                 >
-                    <SegmentedControlItem value="ALL" label={`Semua (${discounts.length})`} />
-                    <SegmentedControlItem value="PRODUCT_QTY" label={`Produk / Grosir (${wholesaleCount})`} />
-                    <SegmentedControlItem value="CATEGORY" label={`Kategori (${categoryCount})`} />
-                    <SegmentedControlItem value="ORDER" label={`Promo Struk (${orderCount})`} />
-                </SegmentedControl>
-            </div>
+                    {[
+                        { value: 'ALL', label: `Semua (${discounts.length})` },
+                        { value: 'PRODUCT_QTY', label: `Grosir / Produk (${wholesaleCount})` },
+                        { value: 'CATEGORY', label: `Kategori (${categoryCount})` },
+                        { value: 'ORDER', label: `Promo Struk (${orderCount})` },
+                    ].map((tab) => {
+                        const active = scopeFilter === tab.value;
+                        return (
+                            <button
+                                key={tab.value}
+                                type="button"
+                                onClick={() => setScopeFilter(tab.value)}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: 999,
+                                    border: active ? '1px solid #18181b' : '1px solid #e4e4e7',
+                                    backgroundColor: active ? '#18181b' : '#ffffff',
+                                    color: active ? '#ffffff' : '#52525b',
+                                    fontSize: 12.5,
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                {tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div style={{ width: 580, maxWidth: '100%' }}>
+                    <SegmentedControl
+                        label="Filter jenis diskon"
+                        value={scopeFilter}
+                        onChange={setScopeFilter}
+                        size="sm"
+                        layout="fill"
+                    >
+                        <SegmentedControlItem value="ALL" label={`Semua (${discounts.length})`} />
+                        <SegmentedControlItem value="PRODUCT_QTY" label={`Produk / Grosir (${wholesaleCount})`} />
+                        <SegmentedControlItem value="CATEGORY" label={`Kategori (${categoryCount})`} />
+                        <SegmentedControlItem value="ORDER" label={`Promo Struk (${orderCount})`} />
+                    </SegmentedControl>
+                </div>
+            )}
 
             {filteredDiscounts.length > 0 ? (
                 <Grid columns={{ minWidth: 280, max: 3 }} gap={3}>
@@ -580,34 +622,67 @@ const Discounts = () => {
             >
                 <form onSubmit={handleSubmit}>
                     <VStack gap={4}>
-                        <SegmentedControl
-                            label="Jenis Aturan Diskon"
-                            value={form.scope}
-                            onChange={(v) => {
-                                const nextScope = v as DiscountScope;
-                                setNameEditedManually(false);
-                                setForm((prev) => ({
-                                    ...prev,
-                                    scope: nextScope,
-                                    type: nextScope === 'ORDER' ? 'PERCENTAGE' : 'FIXED',
-                                    pricingMode:
-                                        nextScope === 'CATEGORY'
-                                            ? 'PERCENTAGE'
-                                            : nextScope === 'PRODUCT_QTY'
-                                            ? 'BUNDLE_PRICE'
-                                            : prev.pricingMode,
-                                    minQuantity: nextScope === 'CATEGORY' ? 1 : nextScope === 'PRODUCT_QTY' ? 24 : prev.minQuantity,
-                                    unitLabel: nextScope === 'PRODUCT_QTY' ? '1 Kardus' : '',
-                                    value: 0,
-                                    name: '',
-                                }));
-                            }}
-                            layout="fill"
-                        >
-                            <SegmentedControlItem value="PRODUCT_QTY" label="Per Produk / Grosir" />
-                            <SegmentedControlItem value="CATEGORY" label="Per Kategori" />
-                            <SegmentedControlItem value="ORDER" label="Promo Struk / Member" />
-                        </SegmentedControl>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+                            <Text size="sm" weight="medium">Jenis Aturan Diskon</Text>
+                            <div
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                                    gap: 4,
+                                    padding: 4,
+                                    borderRadius: 10,
+                                    backgroundColor: '#f4f4f5',
+                                }}
+                            >
+                                {[
+                                    { value: 'PRODUCT_QTY' as DiscountScope, label: isMobile ? 'Per Produk' : 'Per Produk / Grosir' },
+                                    { value: 'CATEGORY' as DiscountScope, label: isMobile ? 'Kategori' : 'Per Kategori' },
+                                    { value: 'ORDER' as DiscountScope, label: isMobile ? 'Promo Struk' : 'Promo Struk / Member' },
+                                ].map((tab) => {
+                                    const active = form.scope === tab.value;
+                                    return (
+                                        <button
+                                            key={tab.value}
+                                            type="button"
+                                            onClick={() => {
+                                                const nextScope = tab.value;
+                                                setNameEditedManually(false);
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    scope: nextScope,
+                                                    type: nextScope === 'ORDER' ? 'PERCENTAGE' : 'FIXED',
+                                                    pricingMode:
+                                                        nextScope === 'CATEGORY'
+                                                            ? 'PERCENTAGE'
+                                                            : nextScope === 'PRODUCT_QTY'
+                                                            ? 'BUNDLE_PRICE'
+                                                            : prev.pricingMode,
+                                                    minQuantity: nextScope === 'CATEGORY' ? 1 : nextScope === 'PRODUCT_QTY' ? 24 : prev.minQuantity,
+                                                    unitLabel: nextScope === 'PRODUCT_QTY' ? '1 Kardus' : '',
+                                                    value: 0,
+                                                    name: '',
+                                                }));
+                                            }}
+                                            style={{
+                                                padding: isMobile ? '7px 4px' : '7px 8px',
+                                                borderRadius: 7,
+                                                border: 'none',
+                                                backgroundColor: active ? '#ffffff' : 'transparent',
+                                                color: active ? '#18181b' : '#52525b',
+                                                boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                                                fontSize: isMobile ? 12 : 13,
+                                                fontWeight: active ? 650 : 500,
+                                                cursor: 'pointer',
+                                                whiteSpace: 'nowrap',
+                                                textAlign: 'center',
+                                            }}
+                                        >
+                                            {tab.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
 
                         {form.scope === 'PRODUCT_QTY' && (
                             <>
@@ -632,7 +707,7 @@ const Discounts = () => {
                                 </div>
 
                                 <Selector
-                                    label="Produk Target *"
+                                    label="Produk Target"
                                     placeholder="Cari dan pilih produk..."
                                     options={products.map((p) => ({
                                         value: String(p.id),
@@ -655,7 +730,7 @@ const Discounts = () => {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                     <Text size="sm" weight="medium">Skema Diskon Produk</Text>
                                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
-                                        {PRODUCT_MODE_OPTIONS.map((opt) => {
+                                        {PRODUCT_MODE_OPTIONS.map((opt, idx) => {
                                             const active = form.pricingMode === opt.value;
                                             return (
                                                 <button
@@ -675,6 +750,7 @@ const Discounts = () => {
                                                         }));
                                                     }}
                                                     style={{
+                                                        gridColumn: isMobile && idx === PRODUCT_MODE_OPTIONS.length - 1 ? '1 / -1' : undefined,
                                                         textAlign: 'left',
                                                         padding: '8px 10px',
                                                         borderRadius: 8,
@@ -694,9 +770,9 @@ const Discounts = () => {
 
                                 {form.pricingMode === 'BUY_X_GET_Y' ? (
                                     <>
-                                        <Grid columns={{ minWidth: 160, max: 2 }} gap={3}>
+                                        <Grid columns={2} gap={3}>
                                             <NumberInput
-                                                label="Beli Sebanyak (X pcs) *"
+                                                label="Beli (X pcs)"
                                                 value={form.minQuantity}
                                                 onChange={(v) => {
                                                     const nextX = Math.max(1, v || 1);
@@ -715,7 +791,7 @@ const Discounts = () => {
                                                 isRequired
                                             />
                                             <NumberInput
-                                                label="Gratis Sebanyak (Y pcs) *"
+                                                label="Gratis (Y pcs)"
                                                 value={form.bonusQuantity}
                                                 onChange={(v) => {
                                                     const nextY = Math.max(1, v || 1);
@@ -774,9 +850,9 @@ const Discounts = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <Grid columns={{ minWidth: 160, max: 2 }} gap={3}>
+                                        <Grid columns={isMobile ? 1 : 2} gap={3}>
                                             <NumberInput
-                                                label="Isi / Min. Jumlah Beli (pcs) *"
+                                                label="Isi / Min. Beli (pcs)"
                                                 value={form.minQuantity}
                                                 onChange={(v) => {
                                                     const nextQty = Math.max(1, v || 1);
@@ -846,7 +922,7 @@ const Discounts = () => {
 
                                         {form.pricingMode === 'PERCENTAGE' ? (
                                             <NumberInput
-                                                label={`Persentase Diskon jika beli ≥ ${form.minQuantity} pcs (%) *`}
+                                                label={`Diskon jika beli ≥ ${form.minQuantity} pcs (%)`}
                                                 value={form.value}
                                                 onChange={(v) => setForm({ ...form, value: v || 0 })}
                                                 min={1}
@@ -857,10 +933,10 @@ const Discounts = () => {
                                             <CurrencyInput
                                                 label={
                                                     form.pricingMode === 'BUNDLE_PRICE'
-                                                        ? `Harga 1 Paket / ${form.unitLabel.trim() || `${form.minQuantity} pcs`} *`
+                                                        ? `Harga 1 Paket / ${form.unitLabel.trim() || `${form.minQuantity} pcs`}`
                                                         : form.pricingMode === 'UNIT_PRICE'
-                                                        ? `Harga Grosir per Pcs (jika beli ≥ ${form.minQuantity} pcs) *`
-                                                        : `Potongan Harga per Pcs (jika beli ≥ ${form.minQuantity} pcs) *`
+                                                        ? `Harga Grosir / Pcs (min. ${form.minQuantity} pcs)`
+                                                        : `Potongan / Pcs (min. ${form.minQuantity} pcs)`
                                                 }
                                                 description={
                                                     form.pricingMode === 'BUNDLE_PRICE'
@@ -957,7 +1033,7 @@ const Discounts = () => {
                                 </div>
 
                                 <Selector
-                                    label="Kategori Target *"
+                                    label="Kategori Target"
                                     placeholder="Pilih kategori produk..."
                                     options={categories.map((c) => ({ value: String(c.id), label: c.name }))}
                                     value={form.categoryId}
@@ -974,33 +1050,58 @@ const Discounts = () => {
                                     hasSearch
                                 />
 
-                                <SegmentedControl
-                                    label="Skema Diskon Kategori"
-                                    value={form.pricingMode === 'FIXED_PER_UNIT' || form.pricingMode === 'BUY_X_GET_Y' ? form.pricingMode : 'PERCENTAGE'}
-                                    onChange={(v) => {
-                                        const nextMode = v as ItemPricingMode;
-                                        const nextMin = nextMode === 'BUY_X_GET_Y' ? 3 : 1;
-                                        setForm((prev) => ({
-                                            ...prev,
-                                            pricingMode: nextMode,
-                                            minQuantity: nextMin,
-                                            name: nameEditedManually
-                                                ? prev.name
-                                                : buildAutoRuleName('CATEGORY', nextMode, null, selectedCategory, prev.unitLabel, nextMin, prev.bonusQuantity, prev.value),
-                                        }));
-                                    }}
-                                    layout="fill"
-                                    size="sm"
-                                >
-                                    {CATEGORY_MODE_OPTIONS.map((opt) => (
-                                        <SegmentedControlItem key={opt.value} value={opt.value} label={opt.label} />
-                                    ))}
-                                </SegmentedControl>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <Text size="sm" weight="medium">Skema Diskon Kategori</Text>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+                                        {CATEGORY_MODE_OPTIONS.map((opt) => {
+                                            const active =
+                                                (form.pricingMode === 'FIXED_PER_UNIT' || form.pricingMode === 'BUY_X_GET_Y'
+                                                    ? form.pricingMode
+                                                    : 'PERCENTAGE') === opt.value;
+                                            const shortLbl =
+                                                opt.value === 'FIXED_PER_UNIT' && isMobile
+                                                    ? 'Potongan Rp'
+                                                    : opt.label;
+                                            return (
+                                                <button
+                                                    key={opt.value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const nextMode = opt.value as ItemPricingMode;
+                                                        const nextMin = nextMode === 'BUY_X_GET_Y' ? 3 : 1;
+                                                        setForm((prev) => ({
+                                                            ...prev,
+                                                            pricingMode: nextMode,
+                                                            minQuantity: nextMin,
+                                                            name: nameEditedManually
+                                                                ? prev.name
+                                                                : buildAutoRuleName('CATEGORY', nextMode, null, selectedCategory, prev.unitLabel, nextMin, prev.bonusQuantity, prev.value),
+                                                        }));
+                                                    }}
+                                                    style={{
+                                                        padding: isMobile ? '8px 4px' : '8px 10px',
+                                                        borderRadius: 8,
+                                                        border: active ? '1.5px solid #18181b' : '1px solid #e4e4e7',
+                                                        backgroundColor: active ? '#18181b' : '#ffffff',
+                                                        color: active ? '#ffffff' : '#18181b',
+                                                        fontSize: isMobile ? 11.5 : 12.5,
+                                                        fontWeight: active ? 700 : 500,
+                                                        cursor: 'pointer',
+                                                        textAlign: 'center',
+                                                        whiteSpace: 'nowrap',
+                                                    }}
+                                                >
+                                                    {shortLbl}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
 
                                 {form.pricingMode === 'BUY_X_GET_Y' ? (
-                                    <Grid columns={{ minWidth: 160, max: 2 }} gap={3}>
+                                    <Grid columns={2} gap={3}>
                                         <NumberInput
-                                            label="Beli Sebanyak (X pcs) *"
+                                            label="Beli (X pcs)"
                                             value={form.minQuantity}
                                             onChange={(v) => {
                                                 const nextX = Math.max(1, v || 1);
@@ -1017,7 +1118,7 @@ const Discounts = () => {
                                             isRequired
                                         />
                                         <NumberInput
-                                            label="Gratis Sebanyak (Y pcs) *"
+                                            label="Gratis (Y pcs)"
                                             value={form.bonusQuantity}
                                             onChange={(v) => {
                                                 const nextY = Math.max(1, v || 1);
@@ -1035,10 +1136,10 @@ const Discounts = () => {
                                         />
                                     </Grid>
                                 ) : (
-                                    <Grid columns={{ minWidth: 160, max: 2 }} gap={3}>
+                                    <Grid columns={isMobile ? 1 : 2} gap={3}>
                                         {form.pricingMode === 'FIXED_PER_UNIT' ? (
                                             <CurrencyInput
-                                                label="Potongan per Pcs (Rp) *"
+                                                label="Potongan per Pcs (Rp)"
                                                 value={form.value}
                                                 onChange={(v) => {
                                                     setForm((prev) => ({
@@ -1053,7 +1154,7 @@ const Discounts = () => {
                                             />
                                         ) : (
                                             <NumberInput
-                                                label="Persentase Diskon (%) *"
+                                                label="Persentase Diskon (%)"
                                                 value={form.value}
                                                 onChange={(v) => {
                                                     const nextVal = v || 0;
@@ -1094,10 +1195,10 @@ const Discounts = () => {
                                     <SegmentedControlItem value="FIXED" label="Nominal (Rp)" />
                                 </SegmentedControl>
 
-                                <Grid columns={{ minWidth: 160, max: 2 }} gap={3}>
+                                <Grid columns={isMobile ? 1 : 2} gap={3}>
                                     {form.type === 'PERCENTAGE' ? (
                                         <NumberInput
-                                            label="Nilai Diskon (%) *"
+                                            label="Nilai Diskon (%)"
                                             value={form.value}
                                             onChange={(v) => setForm({ ...form, value: v || 0 })}
                                             min={1}
@@ -1106,7 +1207,7 @@ const Discounts = () => {
                                         />
                                     ) : (
                                         <CurrencyInput
-                                            label="Nilai Diskon (Rp) *"
+                                            label="Nilai Diskon (Rp)"
                                             value={form.value}
                                             onChange={(v) => setForm({ ...form, value: v })}
                                             isRequired
@@ -1114,7 +1215,7 @@ const Discounts = () => {
                                     )}
                                     {form.type === 'PERCENTAGE' ? (
                                         <CurrencyInput
-                                            label="Maks. Potongan (Opsional, 0 = Bebas)"
+                                            label="Maks. Potongan (0 = Bebas)"
                                             value={form.maxDiscount}
                                             onChange={(v) => setForm({ ...form, maxDiscount: v })}
                                         />
@@ -1127,7 +1228,7 @@ const Discounts = () => {
                                     )}
                                 </Grid>
 
-                                <Grid columns={{ minWidth: 160, max: 2 }} gap={3}>
+                                <Grid columns={isMobile ? 1 : 2} gap={3}>
                                     {form.type === 'PERCENTAGE' && (
                                         <CurrencyInput
                                             label="Min. Belanja Total (Rp)"
@@ -1183,17 +1284,18 @@ const Discounts = () => {
                             </>
                         )}
 
-                        <Grid columns={{ minWidth: 160, max: 3 }} gap={3}>
-                            <TextInput
-                                label="Nama Aturan *"
-                                placeholder={form.scope === 'ORDER' ? 'Contoh: Diskon Member Gold 10%' : 'Terisi otomatis atau ketik manual'}
-                                value={form.name}
-                                onChange={(v) => {
-                                    setNameEditedManually(true);
-                                    setForm({ ...form, name: v });
-                                }}
-                                isRequired
-                            />
+                        <TextInput
+                            label="Nama Aturan"
+                            placeholder={form.scope === 'ORDER' ? 'Contoh: Member Gold 10%' : 'Otomatis atau ketik manual'}
+                            value={form.name}
+                            onChange={(v) => {
+                                setNameEditedManually(true);
+                                setForm({ ...form, name: v });
+                            }}
+                            isRequired
+                        />
+
+                        <Grid columns={isMobile ? 1 : 2} gap={3}>
                             <NumberInput
                                 label="Batas Pakai (0 = Bebas)"
                                 value={form.maxUses}
@@ -1201,30 +1303,34 @@ const Discounts = () => {
                                 min={0}
                                 isIntegerOnly
                             />
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                <label style={{ fontSize: 13, fontWeight: 500, color: '#18181b' }}>Berakhir (Opsional)</label>
-                                <input
-                                    type="date"
-                                    value={form.endDate}
-                                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                                    style={{
-                                        height: 36,
-                                        padding: '0 10px',
-                                        borderRadius: 8,
-                                        border: '1px solid #e4e4e7',
-                                        fontSize: 13,
-                                        color: '#18181b',
-                                        backgroundColor: '#ffffff',
-                                    }}
-                                />
-                            </div>
+                            <DateInput
+                                label="Berakhir (Opsional)"
+                                placeholder="Tanpa batas waktu"
+                                presentation="adaptive-bottom-sheet"
+                                format="date"
+                                hasClear
+                                width="100%"
+                                value={form.endDate ? (form.endDate as ISODateString) : undefined}
+                                onChange={(v) => setForm({ ...form, endDate: v || '' })}
+                            />
                         </Grid>
 
                         <Switch label="Status Aktif" value={form.isActive} onChange={(checked) => setForm({ ...form, isActive: checked })} />
-                        <HStack justify="end" gap={2}>
-                            <Button variant="secondary" label="Batal" onClick={() => setShowModal(false)} />
-                            <Button type="submit" variant="primary" label={editId ? 'Simpan Perubahan' : 'Simpan'} />
-                        </HStack>
+                        <Divider />
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', width: '100%', paddingBottom: isMobile ? 4 : 0 }}>
+                            <Button
+                                variant="secondary"
+                                label="Batal"
+                                width={isMobile ? '100%' : undefined}
+                                onClick={() => setShowModal(false)}
+                            />
+                            <Button
+                                type="submit"
+                                variant="primary"
+                                label={editId ? 'Simpan Perubahan' : 'Simpan'}
+                                width={isMobile ? '100%' : undefined}
+                            />
+                        </div>
                     </VStack>
                 </form>
             </Modal>

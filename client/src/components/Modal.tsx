@@ -1,6 +1,7 @@
 import React from 'react';
 import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import { VStack } from '@astryxdesign/core/VStack';
+import { useMediaQuery } from '@astryxdesign/core/hooks';
 
 interface ModalProps {
     isOpen: boolean;
@@ -13,6 +14,7 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, subtitle, children, width = 520 }) => {
+    const isMobile = useMediaQuery('(max-width: 768px)');
     if (!isOpen) return null;
 
     return (
@@ -22,7 +24,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, subtitle, childre
                 if (!open) onClose();
             }}
             width={width}
-            padding={4}
+            padding={isMobile ? 3 : 4}
             purpose="form"
             className="pos-modal-dialog"
         >

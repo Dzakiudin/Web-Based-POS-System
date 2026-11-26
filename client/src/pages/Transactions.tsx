@@ -1497,10 +1497,19 @@ export const Transactions = () => {
                                                         )}
                                                     </div>
 
-                                                    <HStack justify="between" align="center" gap={1} style={{ marginTop: 'auto', paddingTop: 2 }}>
-                                                        <Text size="sm" weight="bold" hasTabularNumbers style={{ color: '#09090b' }}>
+                                                    <HStack justify="between" align="center" gap={1} style={{ marginTop: 'auto', paddingTop: 2, minWidth: 0 }}>
+                                                        <span
+                                                            style={{
+                                                                color: '#09090b',
+                                                                fontSize: isNarrow && inCart ? 12 : 13.5,
+                                                                fontWeight: 700,
+                                                                fontVariantNumeric: 'tabular-nums',
+                                                                whiteSpace: 'nowrap',
+                                                                letterSpacing: '-0.02em',
+                                                            }}
+                                                        >
                                                             Rp {Number(p.price).toLocaleString('id-ID')}
-                                                        </Text>
+                                                        </span>
 
                                                         {inCart ? (
                                                             <div
@@ -1508,26 +1517,27 @@ export const Transactions = () => {
                                                                 style={{
                                                                     display: 'inline-flex',
                                                                     alignItems: 'center',
-                                                                    gap: 3,
+                                                                    gap: isNarrow ? 2 : 3,
                                                                     backgroundColor: '#f4f4f5',
                                                                     borderRadius: 8,
-                                                                    padding: '2px 4px',
+                                                                    padding: isNarrow ? '2px 3px' : '2px 4px',
                                                                     border: '1px solid #e4e4e7',
+                                                                    flexShrink: 0,
                                                                 }}
                                                             >
                                                                 <button
                                                                     type="button"
                                                                     className="pos-quick-stepper-btn"
                                                                     onClick={() => updateQuantity(p.id, -1)}
-                                                                    style={{ width: 22, height: 22, borderRadius: 6 }}
+                                                                    style={{ width: isNarrow ? 19 : 22, height: isNarrow ? 19 : 22, borderRadius: 5 }}
                                                                 >
-                                                                    <Minus size={11} />
+                                                                    <Minus size={10} />
                                                                 </button>
                                                                 <span
                                                                     style={{
-                                                                        fontSize: 12,
+                                                                        fontSize: isNarrow ? 11.5 : 12,
                                                                         fontWeight: 700,
-                                                                        minWidth: 16,
+                                                                        minWidth: isNarrow ? 14 : 16,
                                                                         textAlign: 'center',
                                                                         fontVariantNumeric: 'tabular-nums',
                                                                     }}
@@ -1538,9 +1548,9 @@ export const Transactions = () => {
                                                                     type="button"
                                                                     className="pos-quick-stepper-btn"
                                                                     onClick={() => updateQuantity(p.id, 1)}
-                                                                    style={{ width: 22, height: 22, borderRadius: 6 }}
+                                                                    style={{ width: isNarrow ? 19 : 22, height: isNarrow ? 19 : 22, borderRadius: 5 }}
                                                                 >
-                                                                    <Plus size={11} />
+                                                                    <Plus size={10} />
                                                                 </button>
                                                             </div>
                                                         ) : (
@@ -1640,10 +1650,27 @@ export const Transactions = () => {
                                     {totalItems}
                                 </span>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 500, letterSpacing: 0.3 }}>
-                                    TOTAL PESANAN
-                                </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.72)', fontWeight: 500, letterSpacing: 0.3 }}>
+                                        TOTAL PESANAN
+                                    </span>
+                                    {totalDiscount > 0 && (
+                                        <span
+                                            style={{
+                                                fontSize: 10,
+                                                fontWeight: 700,
+                                                padding: '1px 6px',
+                                                borderRadius: 999,
+                                                backgroundColor: 'rgba(34, 197, 94, 0.22)',
+                                                color: '#86efac',
+                                                whiteSpace: 'nowrap',
+                                            }}
+                                        >
+                                            Hemat Rp {totalDiscount.toLocaleString('id-ID')}
+                                        </span>
+                                    )}
+                                </div>
                                 <span style={{ fontSize: 16, fontWeight: 750, color: '#ffffff', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
                                     Rp {grandTotal.toLocaleString('id-ID')}
                                 </span>

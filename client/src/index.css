@@ -904,18 +904,33 @@ tbody tr:hover [class*="TableCell"] {
 
 @media (max-width: 768px) {
   .pos-modal-dialog[open] {
-    max-height: 88dvh !important;
-    width: calc(100vw - 20px) !important;
-    max-width: calc(100vw - 20px) !important;
+    max-height: 90dvh !important;
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
     margin: auto !important;
   }
   .pos-modal-scrollable-body {
-    max-height: calc(85dvh - 70px) !important;
-    padding-bottom: 24px !important;
+    max-height: calc(86dvh - 64px) !important;
+    padding-right: 2px !important;
+    padding-bottom: 20px !important;
   }
   .pos-numpad-btn {
     padding: 8px 0;
     font-size: 15px;
+  }
+  .pos-cart-header {
+    padding: 12px 14px 10px 14px;
+    gap: 8px;
+  }
+  .pos-cart-items-scroll {
+    padding: 10px 14px;
+  }
+  .pos-cart-item-card {
+    padding: 10px 12px;
+  }
+  .pos-cart-footer {
+    padding: 12px 14px 16px 14px;
+    gap: 10px;
   }
 }
 

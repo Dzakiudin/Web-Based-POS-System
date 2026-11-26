@@ -5,7 +5,7 @@ title TOKO AZNUN - POS System Server ^& Cloud Tunnel
 color 0B
 
 echo ======================================================================
-echo           TOKO AZNUN - WEB-BASED POS SYSTEM (PRO MAX v2.2.2)
+echo           TOKO AZNUN - WEB-BASED POS SYSTEM (PRO MAX v2.2.3)
 echo ======================================================================
 echo.
 

@@ -862,8 +862,8 @@ const CashManagement = () => {
                         onChange={(v) => setMovementForm({ ...movementForm, type: v })}
                         layout="fill"
                     >
-                        <SegmentedControlItem value="CASH_IN" label="Kas Masuk (Tambah Modal)" />
-                        <SegmentedControlItem value="CASH_OUT" label="Kas Keluar (Belanja / Biaya)" />
+                        <SegmentedControlItem value="CASH_IN" label={isMobile ? 'Kas Masuk' : 'Kas Masuk (Tambah Modal)'} />
+                        <SegmentedControlItem value="CASH_OUT" label={isMobile ? 'Kas Keluar' : 'Kas Keluar (Belanja / Biaya)'} />
                     </SegmentedControl>
 
                     <div style={{
