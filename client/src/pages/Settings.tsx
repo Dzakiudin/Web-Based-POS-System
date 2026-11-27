@@ -311,7 +311,7 @@ const Settings = () => {
                                     <VStack gap={1.5} style={{ flex: 1, minWidth: 0 }}>
                                         <Text size="sm" weight="semibold">Logo Aplikasi / Toko</Text>
                                         <Text size="2xs" color="secondary">PNG, JPG, atau WebP (maks. 4 MB). Tampil di header & halaman login.</Text>
-                                        <HStack gap={2} wrap="wrap">
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginTop: 2 }}>
                                             <input
                                                 ref={logoInputRef}
                                                 type="file"
@@ -321,8 +321,8 @@ const Settings = () => {
                                             />
                                             <Button
                                                 variant="secondary"
-                                                size="sm"
-                                                icon={<Upload size={13} />}
+                                                size="md"
+                                                icon={<Upload size={14} />}
                                                 label={logoPreviewSrc ? 'Ganti Logo' : 'Upload Logo'}
                                                 isLoading={isUploadingLogo}
                                                 onClick={() => logoInputRef.current?.click()}
@@ -330,14 +330,14 @@ const Settings = () => {
                                             {logoPreviewSrc && (
                                                 <Button
                                                     variant="ghost"
-                                                    size="sm"
-                                                    icon={<Trash2 size={13} color="#dc2626" />}
+                                                    size="md"
+                                                    icon={<Trash2 size={14} color="#dc2626" />}
                                                     label="Hapus"
                                                     isDisabled={isUploadingLogo}
                                                     onClick={() => handleImageDelete('logo')}
                                                 />
                                             )}
-                                        </HStack>
+                                        </div>
                                     </VStack>
                                 </div>
 
@@ -498,8 +498,8 @@ const Settings = () => {
                         {/* 3. REKENING & AKUN PEMBAYARAN (TRANSFER / E-WALLET) */}
                         <Card padding={4} elevation="none">
                             <VStack gap={3}>
-                                <HStack justify="between" align="center">
-                                    <HStack gap={2} align="center">
+                                <HStack justify="between" align="center" gap={2}>
+                                    <HStack gap={2} align="center" style={{ minWidth: 0, flex: 1 }}>
                                         <div
                                             style={{
                                                 width: 34,
@@ -516,14 +516,16 @@ const Settings = () => {
                                         >
                                             <Landmark size={17} />
                                         </div>
-                                        <VStack gap={0}>
+                                        <VStack gap={0} style={{ minWidth: 0, flex: 1 }}>
                                             <Heading level={4} weight="semibold">Rekening & Akun Transfer</Heading>
                                             <Text size="xsm" color="secondary">
                                                 Daftar bank & e-wallet yang tampil saat pembayaran Transfer di Kasir
                                             </Text>
                                         </VStack>
                                     </HStack>
-                                    <Badge variant="neutral" label={`${form.paymentAccounts.length} Akun`} />
+                                    <div style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
+                                        <Badge variant="neutral" label={`${form.paymentAccounts.length} Akun`} />
+                                    </div>
                                 </HStack>
 
                                 <Divider />

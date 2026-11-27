@@ -18,41 +18,66 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, badge, 
         return null;
     }
 
+    // On mobile: match Vouchers CTA top/bottom rhythm (4px top breathing room, 12px gap to content below inside VStack gap={4})
+    if (isMobile) {
+        return (
+            <div
+                className="pos-page-header"
+                style={{
+                    width: '100%',
+                    paddingTop: 4,
+                    marginBottom: -4,
+                }}
+            >
+                <div
+                    className="pos-page-header-actions"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        flexWrap: 'wrap',
+                        justifyContent: 'stretch',
+                        width: '100%',
+                        minWidth: 0,
+                    }}
+                >
+                    {actions}
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="pos-page-header" style={{ width: '100%', marginBottom: isMobile ? (actions ? 8 : 0) : 16 }}>
+        <div className="pos-page-header" style={{ width: '100%', marginBottom: 16 }}>
             <div
                 className="pos-page-header-inner"
                 style={{
                     display: 'flex',
-                    flexDirection: isMobile ? 'column' : 'row',
+                    flexDirection: 'row',
                     justifyContent: 'space-between',
-                    alignItems: isMobile ? 'stretch' : 'center',
-                    gap: isMobile ? 8 : 16,
-                    paddingBottom: isMobile ? 0 : 16,
-                    borderBottom: isMobile ? 'none' : '1px solid rgba(228, 228, 231, 0.8)',
+                    alignItems: 'center',
+                    gap: 16,
+                    paddingBottom: 16,
+                    borderBottom: '1px solid rgba(228, 228, 231, 0.8)',
                     width: '100%',
                 }}
             >
-                {/* Title & Subtitle: Completely hidden on mobile (TopAppBar already shows active page name) */}
-                {!isMobile && (
-                    <div className="pos-page-header-title-box" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <Heading level={3} weight="bold">
-                                {title}
-                            </Heading>
-                            {badge}
-                        </div>
-                        {subtitle && (
-                            <div className="pos-page-header-subtitle">
-                                <Text size="xsm" color="secondary">
-                                    {subtitle}
-                                </Text>
-                            </div>
-                        )}
+                <div className="pos-page-header-title-box" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <Heading level={3} weight="bold">
+                            {title}
+                        </Heading>
+                        {badge}
                     </div>
-                )}
+                    {subtitle && (
+                        <div className="pos-page-header-subtitle">
+                            <Text size="xsm" color="secondary">
+                                {subtitle}
+                            </Text>
+                        </div>
+                    )}
+                </div>
 
-                {/* Actions: on desktop aligned right, on mobile full width if present */}
                 {actions && (
                     <div
                         className="pos-page-header-actions"
@@ -61,8 +86,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, badge, 
                             alignItems: 'center',
                             gap: 8,
                             flexWrap: 'wrap',
-                            justifyContent: isMobile ? 'stretch' : 'flex-end',
-                            width: isMobile ? '100%' : 'auto',
+                            justifyContent: 'flex-end',
+                            width: 'auto',
                         }}
                     >
                         {actions}

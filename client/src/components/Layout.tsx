@@ -24,6 +24,7 @@ import {
     ShieldCheck,
     Sparkles,
     Settings,
+    X,
 } from 'lucide-react';
 import { AppShell } from '@astryxdesign/core/AppShell';
 import { SideNav } from '@astryxdesign/core/SideNav';
@@ -978,11 +979,20 @@ const Layout = () => {
                 padding={4}
             >
                 <VStack gap={4} height="100%">
-                    <HStack justify="between" align="center">
-                        <Heading level={4} weight="semibold">Notifikasi</Heading>
-                        <Badge
-                            variant={notifications.length > 0 ? 'warning' : 'neutral'}
-                            label={`${notifications.length} Baru`}
+                    <HStack justify="between" align="center" gap={2}>
+                        <HStack gap={2} align="center">
+                            <Heading level={4} weight="semibold">Notifikasi</Heading>
+                            <Badge
+                                variant={notifications.length > 0 ? 'warning' : 'neutral'}
+                                label={`${notifications.length} Baru`}
+                            />
+                        </HStack>
+                        <IconButton
+                            variant="ghost"
+                            size="sm"
+                            label="Tutup notifikasi"
+                            icon={<X size={18} />}
+                            onClick={() => setShowNotifications(false)}
                         />
                     </HStack>
                     <Divider />

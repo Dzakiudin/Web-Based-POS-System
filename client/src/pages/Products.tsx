@@ -11,7 +11,6 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { NumberInput } from '@astryxdesign/core/NumberInput';
 import { Selector } from '@astryxdesign/core/Selector';
-import { Badge } from '@astryxdesign/core/Badge';
 import { EmptyState } from '@astryxdesign/core/EmptyState';
 import { Divider } from '@astryxdesign/core/Divider';
 import { useMediaQuery } from '@astryxdesign/core/hooks';
@@ -328,11 +327,16 @@ const Products = () => {
                 <Grid columns={{ minWidth: isMobile ? 145 : 230, max: 4 }} gap={isMobile ? 2 : 3}>
                     {filtered.map((product) => {
                         const isLow = product.stock <= (product.minStock ?? 5);
+                        const stockPillText = product.stock === 0 ? 'Habis' : isLow ? `Sisa ${product.stock}` : `Stok ${product.stock}`;
+                        const stockPillBg = product.stock === 0 ? '#dc2626' : isLow ? '#fef3c7' : '#ecfdf5';
+                        const stockPillColor = product.stock === 0 ? '#ffffff' : isLow ? '#b45309' : '#047857';
+                        const stockPillBorder = product.stock === 0 ? '#dc2626' : isLow ? '#fcd34d' : '#a7f3d0';
                         return (
-                            <Card key={product.id} padding={3} elevation="none">
-                                <VStack gap={3}>
+                            <Card key={product.id} padding={isMobile ? 2 : 3} elevation="none" style={{ minWidth: 0, overflow: 'hidden' }}>
+                                <VStack gap={isMobile ? 2 : 3} style={{ minWidth: 0, width: '100%' }}>
                                     <div
                                         style={{
+                                            position: 'relative',
                                             width: '100%',
                                             aspectRatio: '16 / 10',
                                             borderRadius: 8,
@@ -353,26 +357,63 @@ const Products = () => {
                                         ) : (
                                             <Package size={28} color="#a1a1aa" />
                                         )}
+                                        <span
+                                            style={{
+                                                position: 'absolute',
+                                                top: 6,
+                                                right: 6,
+                                                fontSize: 10.5,
+                                                fontWeight: 700,
+                                                padding: '2px 7px',
+                                                borderRadius: 999,
+                                                backgroundColor: stockPillBg,
+                                                color: stockPillColor,
+                                                border: `1px solid ${stockPillBorder}`,
+                                                whiteSpace: 'nowrap',
+                                                boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                                            }}
+                                        >
+                                            {stockPillText}
+                                        </span>
                                     </div>
 
-                                    <VStack gap={1}>
-                                        <HStack justify="between" align="start" gap={2}>
-                                            <Heading level={5} weight="semibold" maxLines={1}>{product.name}</Heading>
-                                            <Badge
-                                                variant={product.stock === 0 ? 'error' : isLow ? 'warning' : 'success'}
-                                                label={`Stok ${product.stock}`}
-                                            />
-                                        </HStack>
-                                        <HStack justify="between" align="center">
-                                            <Text size="xsm" color="secondary">
+                                    <VStack gap={1} style={{ minWidth: 0, width: '100%' }}>
+                                        <Heading
+                                            level={5}
+                                            weight="semibold"
+                                            maxLines={2}
+                                            style={{
+                                                fontSize: isMobile ? 13 : 14,
+                                                lineHeight: 1.3,
+                                                minHeight: isMobile ? 34 : undefined,
+                                            }}
+                                        >
+                                            {product.name}
+                                        </Heading>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 4, minWidth: 0 }}>
+                                            <Text size="xsm" color="secondary" maxLines={1} style={{ minWidth: 0 }}>
                                                 {product.category?.name || 'Umum'}
                                             </Text>
                                             {product.barcode && (
-                                                <span style={{ fontSize: 10, fontFamily: 'monospace', color: '#71717a', backgroundColor: '#f4f4f5', padding: '1px 6px', borderRadius: 4, border: '1px solid #e4e4e7' }}>
+                                                <span
+                                                    style={{
+                                                        fontSize: 10,
+                                                        fontFamily: 'monospace',
+                                                        color: '#71717a',
+                                                        backgroundColor: '#f4f4f5',
+                                                        padding: '1px 5px',
+                                                        borderRadius: 4,
+                                                        border: '1px solid #e4e4e7',
+                                                        maxWidth: '100%',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap',
+                                                    }}
+                                                >
                                                     {product.barcode}
                                                 </span>
                                             )}
-                                        </HStack>
+                                        </div>
                                     </VStack>
 
                                     <Divider />
@@ -425,7 +466,15 @@ const Products = () => {
                         {/* Barcode & Packaging Auto-Lookup Section */}
                         <VStack gap={1.5} width="100%">
                             <Text size="sm" weight="semibold">Barcode Kemasan (Isi Data Otomatis)</Text>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: isMobile ? 'column' : 'row',
+                                    gap: 8,
+                                    alignItems: isMobile ? 'stretch' : 'center',
+                                    width: '100%',
+                                }}
+                            >
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <TextInput
                                         label="Barcode Kemasan"
@@ -443,31 +492,35 @@ const Products = () => {
                                         }}
                                     />
                                 </div>
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    size="md"
-                                    icon={<Camera size={16} />}
-                                    label="Scan Kemasan"
-                                    style={{ flexShrink: 0 }}
-                                    onClick={() => {
-                                        setIsModalOpen(false);
-                                        setCameraScanOpen(true);
-                                    }}
-                                />
-                                {formData.barcode && (
+                                <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto', flexShrink: 0 }}>
                                     <Button
                                         type="button"
-                                        variant="primary"
+                                        variant="secondary"
                                         size="md"
-                                        icon={isLookingUp ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-                                        tooltip="Cari otomatis data produk dari kemasan"
-                                        label={isLookingUp ? 'Mencari...' : 'Cari Info'}
-                                        style={{ flexShrink: 0 }}
-                                        onClick={() => handleBarcodeAutoFill(formData.barcode)}
-                                        isDisabled={isLookingUp}
+                                        icon={<Camera size={16} />}
+                                        label="Scan Kemasan"
+                                        width={isMobile ? '100%' : undefined}
+                                        style={{ flex: isMobile ? 1 : undefined, flexShrink: 0 }}
+                                        onClick={() => {
+                                            setIsModalOpen(false);
+                                            setCameraScanOpen(true);
+                                        }}
                                     />
-                                )}
+                                    {formData.barcode && (
+                                        <Button
+                                            type="button"
+                                            variant="primary"
+                                            size="md"
+                                            icon={isLookingUp ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                                            tooltip="Cari otomatis data produk dari kemasan"
+                                            label={isLookingUp ? 'Mencari...' : 'Cari Info'}
+                                            width={isMobile ? '100%' : undefined}
+                                            style={{ flex: isMobile ? 1 : undefined, flexShrink: 0 }}
+                                            onClick={() => handleBarcodeAutoFill(formData.barcode)}
+                                            isDisabled={isLookingUp}
+                                        />
+                                    )}
+                                </div>
                             </div>
                             <span style={{ fontSize: 11, color: '#71717a' }}>
                                 Scan atau ketik barcode kemasan produk makanan/minuman untuk pencarian mendalam otomatis (Scrapling 10 sumber katalog ritel Indonesia & global).
@@ -519,10 +572,10 @@ const Products = () => {
                                 placeholder="Pilih kategori"
                             />
                         </Grid>
-                        <HStack justify="end" gap={2}>
-                            <Button variant="secondary" label="Batal" onClick={handleCloseModal} />
-                            <Button type="submit" variant="primary" label={editingProduct ? 'Simpan Perubahan' : 'Simpan Produk'} />
-                        </HStack>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', width: '100%' }}>
+                            <Button variant="secondary" label="Batal" width={isMobile ? '100%' : undefined} onClick={handleCloseModal} />
+                            <Button type="submit" variant="primary" label={editingProduct ? 'Simpan Perubahan' : 'Simpan Produk'} width={isMobile ? '100%' : undefined} />
+                        </div>
                     </VStack>
                 </form>
             </Modal>

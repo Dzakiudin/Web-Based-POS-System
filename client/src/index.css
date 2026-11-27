@@ -932,6 +932,16 @@ tbody tr:hover [class*="TableCell"] {
     padding: 12px 14px 16px 14px;
     gap: 10px;
   }
+  /* Mobile ergonomics: minimum comfortable thumb touch targets for icon buttons & segmented controls */
+  [class*="IconButton"],
+  button[aria-label]:not(.pos-shift-pill):not(.pos-mobile-nav-item) {
+    min-width: 34px;
+    min-height: 34px;
+  }
+  [role="radiogroup"] button,
+  [role="tablist"] button {
+    min-height: 32px;
+  }
 }
 
 /* ==========================================================================
@@ -1132,7 +1142,8 @@ tbody tr:hover [class*="TableCell"] {
 /* Responsive PageHeader: Hide title and subtitles on mobile for clean, uncluttered layout */
 @media (max-width: 768px) {
   .pos-page-header-title-box,
-  .pos-page-header-subtitle {
+  .pos-page-header-subtitle,
+  .pos-page-header:has(.pos-page-header-actions:empty) {
     display: none !important;
   }
 }

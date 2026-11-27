@@ -502,8 +502,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
             axum::Json(serde_json::json!({
                 "version": app_version,
-                "releaseDate": "2026-11-26",
-                "releaseNotes": "• Pencarian Info Barcode Mendalam (D4Vinci/Scrapling): mencari otomatis dari 10 sumber katalog ritel Indonesia & global secara paralel (Mega Swalayan, Reny Swalayanku, Go-UPC, Open Food/Beauty/Products Facts, UPCitemdb, Buycott, BarcodeSpider, & Yahoo Indonesia).\n• Auto-fill nama, merek, kategori, foto, & estimasi harga Rp langsung di PC maupun HP Android tanpa terhambat CORS.\n• Cache PostgreSQL (barcode_cache) membuat pencarian ulang barcode yang sama instan & tetap tersedia offline.",
+                "releaseDate": "2026-11-27",
+                "releaseNotes": "• Optimisasi Mobile UI/UX Menyeluruh: tata letak kartu Voucher mobile (pengganti tabel terpotong), badge stok overlay pada kartu Produk, KPI StatCard tidak terpotong, filter Audit Logs 2 kolom sejajar, dan target sentuh tombol ikon lebih nyaman.\n• Konsistensi Tombol Header Mobile: posisi & jarak atas-bawah tombol utama (Tambah Produk, Tambah Kategori, Sesuaikan Stok, Tambah Diskon, Tambah Pelanggan, Tambah Karyawan) diseragamkan presisi mengikuti tombol Buat Voucher.\n• Perbaikan Drawer Notifikasi & Pengaturan Mobile: tombol tutup (X) eksplisit pada panel notifikasi, badge jumlah akun Pengaturan tidak terpotong, serta footer modal penuh di layar kecil.",
                 "downloadUrl": download_url
             }))
         }))

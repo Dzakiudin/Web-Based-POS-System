@@ -10,6 +10,7 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { Badge } from '@astryxdesign/core/Badge';
 import { EmptyState } from '@astryxdesign/core/EmptyState';
+import { useMediaQuery } from '@astryxdesign/core/hooks';
 import api from '../lib/axios';
 import Modal from '../components/Modal';
 import HasPermission from '../components/HasPermission';
@@ -30,6 +31,7 @@ const COLOR_OPTIONS = ['#18181b', '#2563eb', '#059669', '#d97706', '#dc2626', '#
 
 const Categories = () => {
     const toast = useToast();
+    const isMobile = useMediaQuery('(max-width: 768px)');
     const [categories, setCategories] = useState<Category[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
@@ -97,6 +99,7 @@ const Categories = () => {
                         <Button
                             variant="primary"
                             label="Tambah Kategori"
+                            width={isMobile ? '100%' : undefined}
                             icon={<Plus size={16} />}
                             onClick={() => { resetForm(); setShowModal(true); }}
                         />

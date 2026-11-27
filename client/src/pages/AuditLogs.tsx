@@ -160,23 +160,29 @@ const AuditLogs = () => {
             <div
                 style={{
                     display: 'flex',
-                    flexDirection: 'row',
+                    flexDirection: isMobile ? 'column' : 'row',
                     justifyContent: 'space-between',
-                    alignItems: 'center',
+                    alignItems: isMobile ? 'stretch' : 'center',
                     gap: isMobile ? 8 : 12,
                     width: '100%',
                 }}
             >
+                {isMobile && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text size="xsm" color="secondary" weight="medium">Filter Aktivitas</Text>
+                        <Badge variant="neutral" label={`${total} entri`} />
+                    </div>
+                )}
                 <div
                     style={{
-                        display: 'flex',
+                        display: isMobile ? 'grid' : 'flex',
+                        gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : undefined,
                         gap: 8,
-                        flex: isMobile ? 1 : 'none',
-                        width: isMobile ? undefined : 'auto',
+                        width: isMobile ? '100%' : 'auto',
                         minWidth: 0,
                     }}
                 >
-                    <div style={{ width: isMobile ? undefined : 200, flex: isMobile ? 1 : undefined, minWidth: 0 }}>
+                    <div style={{ width: isMobile ? '100%' : 200, minWidth: 0 }}>
                         <Selector
                             label="Filter Aksi"
                             isLabelHidden
@@ -195,7 +201,7 @@ const AuditLogs = () => {
                             width="100%"
                         />
                     </div>
-                    <div style={{ width: isMobile ? undefined : 200, flex: isMobile ? 1 : undefined, minWidth: 0 }}>
+                    <div style={{ width: isMobile ? '100%' : 200, minWidth: 0 }}>
                         <Selector
                             label="Filter Entitas"
                             isLabelHidden
@@ -215,9 +221,11 @@ const AuditLogs = () => {
                         />
                     </div>
                 </div>
-                <div style={{ flexShrink: 0 }}>
-                    <Badge variant="neutral" label={`${total} entri`} />
-                </div>
+                {!isMobile && (
+                    <div style={{ flexShrink: 0 }}>
+                        <Badge variant="neutral" label={`${total} entri`} />
+                    </div>
+                )}
             </div>
 
             {logs.length > 0 ? (

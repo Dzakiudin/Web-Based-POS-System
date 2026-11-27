@@ -81,14 +81,14 @@ const StatCard: React.FC<StatCardProps> = ({
                                 {title}
                             </Text>
                         </HStack>
-                        {badgeLabel && (
+                        {badgeLabel && !isMobile && (
                             <div style={{ flexShrink: 0 }}>
                                 <Badge variant={badgeVariant} label={badgeLabel} />
                             </div>
                         )}
                     </HStack>
 
-                    {/* Value + Trend Pill + Subtitle */}
+                    {/* Value + Trend Pill / Mobile Badge + Subtitle */}
                     <VStack gap={1}>
                         <div
                             style={{
@@ -103,6 +103,12 @@ const StatCard: React.FC<StatCardProps> = ({
                         >
                             {value}
                         </div>
+
+                        {badgeLabel && isMobile && !trend && (
+                            <div style={{ width: 'fit-content' }}>
+                                <Badge variant={badgeVariant} label={badgeLabel} />
+                            </div>
+                        )}
 
                         {trend && (
                             <div

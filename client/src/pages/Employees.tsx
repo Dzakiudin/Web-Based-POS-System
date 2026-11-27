@@ -14,6 +14,7 @@ import { Avatar } from '@astryxdesign/core/Avatar';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Divider } from '@astryxdesign/core/Divider';
 import { EmptyState } from '@astryxdesign/core/EmptyState';
+import { useMediaQuery } from '@astryxdesign/core/hooks';
 import api from '../lib/axios';
 import HasPermission from '../components/HasPermission';
 import Modal from '../components/Modal';
@@ -39,6 +40,7 @@ const ROLE_VARIANT: Record<string, 'warning' | 'info' | 'success' | 'neutral'> =
 
 const Employees = () => {
     const toast = useToast();
+    const isMobile = useMediaQuery('(max-width: 768px)');
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
@@ -120,6 +122,7 @@ const Employees = () => {
                         <Button
                             variant="primary"
                             label="Tambah Karyawan"
+                            width={isMobile ? '100%' : undefined}
                             icon={<UserPlus size={16} />}
                             onClick={() => { resetForm(); setShowModal(true); }}
                         />

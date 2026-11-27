@@ -165,50 +165,126 @@ const Vouchers = () => {
                 </HStack>
             )}
 
-            <Card padding={0} elevation="none">
-                <ScrollableArea label="Tabel data">
-                    {vouchers.length > 0 ? (
-                        <Table density="balanced" dividers="rows" hasHover>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHeaderCell>Kode</TableHeaderCell>
-                                    <TableHeaderCell>Diskon</TableHeaderCell>
-                                    <TableHeaderCell>Pelanggan</TableHeaderCell>
-                                    <TableHeaderCell>Berlaku Sampai</TableHeaderCell>
-                                    <TableHeaderCell>Status</TableHeaderCell>
-                                    <TableHeaderCell>Aksi</TableHeaderCell>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {vouchers.map((v) => {
-                                    const expired = new Date(v.expiresAt) < new Date();
-                                    return (
-                                        <TableRow key={v.id}>
-                                            <TableCell><Text size="sm" weight="bold">{v.code}</Text></TableCell>
-                                            <TableCell><Text size="sm" color="secondary">{v.discount ? v.discount.name : '-'}</Text></TableCell>
-                                            <TableCell><Text size="sm" color="secondary">{v.customer ? v.customer.name : 'Umum'}</Text></TableCell>
-                                            <TableCell><Text size="xsm" color="secondary">{new Date(v.expiresAt).toLocaleDateString('id-ID')}</Text></TableCell>
-                                            <TableCell>
+            {isMobile ? (
+                vouchers.length > 0 ? (
+                    <VStack gap={2} width="100%">
+                        {vouchers.map((v) => {
+                            const expired = new Date(v.expiresAt) < new Date();
+                            return (
+                                <Card key={v.id} padding={3} elevation="none" style={{ width: '100%', minWidth: 0 }}>
+                                    <VStack gap={2}>
+                                        <HStack justify="between" align="center" gap={2}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                                                <span
+                                                    style={{
+                                                        fontFamily: 'JetBrains Mono, monospace',
+                                                        fontSize: 14,
+                                                        fontWeight: 750,
+                                                        color: '#09090b',
+                                                        letterSpacing: '0.02em',
+                                                    }}
+                                                >
+                                                    {v.code}
+                                                </span>
                                                 <Badge
                                                     variant={v.isUsed ? 'neutral' : expired ? 'error' : 'success'}
-                                                    label={v.isUsed ? 'Terpakai' : expired ? 'Kedaluwarsa' : 'Aktif'}
+                                                    label={v.isUsed ? 'Terpakai' : expired ? 'Hangus' : 'Aktif'}
                                                 />
-                                            </TableCell>
-                                            <TableCell>
-                                                <IconButton variant="ghost" size="sm" label="Hapus" icon={<Trash2 size={15} />} onClick={() => handleDelete(v.id)} />
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    ) : (
-                        <VStack padding={6}>
-                            <EmptyState icon={<Ticket size={28} />} title="Belum ada voucher" isCompact />
-                        </VStack>
-                    )}
-                </ScrollableArea>
-            </Card>
+                                            </div>
+                                            <IconButton
+                                                variant="ghost"
+                                                size="md"
+                                                label="Hapus voucher"
+                                                icon={<Trash2 size={16} color="#dc2626" />}
+                                                onClick={() => handleDelete(v.id)}
+                                            />
+                                        </HStack>
+                                        <div
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: '1fr 1fr',
+                                                gap: 8,
+                                                padding: '8px 10px',
+                                                borderRadius: 8,
+                                                backgroundColor: '#fafafa',
+                                                border: '1px solid #f4f4f5',
+                                                fontSize: 12,
+                                            }}
+                                        >
+                                            <div>
+                                                <div style={{ fontSize: 10.5, color: '#71717a' }}>Aturan Diskon</div>
+                                                <div style={{ fontWeight: 600, color: '#18181b', marginTop: 1 }}>
+                                                    {v.discount ? v.discount.name : '-'}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: 10.5, color: '#71717a' }}>Pelanggan</div>
+                                                <div style={{ fontWeight: 600, color: '#18181b', marginTop: 1 }}>
+                                                    {v.customer ? v.customer.name : 'Umum'}
+                                                </div>
+                                            </div>
+                                            <div style={{ gridColumn: '1 / -1' }}>
+                                                <div style={{ fontSize: 10.5, color: '#71717a' }}>
+                                                    Berlaku sampai: <strong style={{ color: '#3f3f46' }}>{new Date(v.expiresAt).toLocaleDateString('id-ID')}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </VStack>
+                                </Card>
+                            );
+                        })}
+                    </VStack>
+                ) : (
+                    <Card padding={6} elevation="none">
+                        <EmptyState icon={<Ticket size={28} />} title="Belum ada voucher" isCompact />
+                    </Card>
+                )
+            ) : (
+                <Card padding={0} elevation="none">
+                    <ScrollableArea label="Tabel data">
+                        {vouchers.length > 0 ? (
+                            <Table density="balanced" dividers="rows" hasHover>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHeaderCell>Kode</TableHeaderCell>
+                                        <TableHeaderCell>Diskon</TableHeaderCell>
+                                        <TableHeaderCell>Pelanggan</TableHeaderCell>
+                                        <TableHeaderCell>Berlaku Sampai</TableHeaderCell>
+                                        <TableHeaderCell>Status</TableHeaderCell>
+                                        <TableHeaderCell>Aksi</TableHeaderCell>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {vouchers.map((v) => {
+                                        const expired = new Date(v.expiresAt) < new Date();
+                                        return (
+                                            <TableRow key={v.id}>
+                                                <TableCell><Text size="sm" weight="bold">{v.code}</Text></TableCell>
+                                                <TableCell><Text size="sm" color="secondary">{v.discount ? v.discount.name : '-'}</Text></TableCell>
+                                                <TableCell><Text size="sm" color="secondary">{v.customer ? v.customer.name : 'Umum'}</Text></TableCell>
+                                                <TableCell><Text size="xsm" color="secondary">{new Date(v.expiresAt).toLocaleDateString('id-ID')}</Text></TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant={v.isUsed ? 'neutral' : expired ? 'error' : 'success'}
+                                                        label={v.isUsed ? 'Terpakai' : expired ? 'Kedaluwarsa' : 'Aktif'}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <IconButton variant="ghost" size="sm" label="Hapus" icon={<Trash2 size={15} />} onClick={() => handleDelete(v.id)} />
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        ) : (
+                            <VStack padding={6}>
+                                <EmptyState icon={<Ticket size={28} />} title="Belum ada voucher" isCompact />
+                            </VStack>
+                        )}
+                    </ScrollableArea>
+                </Card>
+            )}
 
             <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Buat Voucher Baru">
                 <form onSubmit={handleCreate}>
@@ -232,10 +308,10 @@ const Vouchers = () => {
                             value={(form.expiresAt || undefined) as any}
                             onChange={(v) => setForm({ ...form, expiresAt: v || '' })}
                         />
-                        <HStack justify="end" gap={2}>
-                            <Button variant="secondary" label="Batal" onClick={() => setShowCreate(false)} />
-                            <Button type="submit" variant="primary" label="Simpan Voucher" />
-                        </HStack>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', width: '100%' }}>
+                            <Button variant="secondary" label="Batal" width={isMobile ? '100%' : undefined} onClick={() => setShowCreate(false)} />
+                            <Button type="submit" variant="primary" label="Simpan Voucher" width={isMobile ? '100%' : undefined} />
+                        </div>
                     </VStack>
                 </form>
             </Modal>
